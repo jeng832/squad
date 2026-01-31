@@ -20,10 +20,12 @@
 
 ### 3.1 API 개요
 
-- **Base URL**: `https://api.anthropic.com`
-- **주요 엔드포인트**: `POST /v1/messages`
-- **인증**: `x-api-key` 헤더
-- **특징**: Stateless API (전체 대화 히스토리를 매 요청에 전송)
+| 항목 | 내용 |
+|------|------|
+| Base URL | `https://api.anthropic.com` |
+| 주요 엔드포인트 | `POST /v1/messages` |
+| 인증 | `x-api-key` 헤더 |
+| 특징 | Stateless API (전체 대화 히스토리를 매 요청에 전송) |
 
 ### 3.2 주요 모델
 
@@ -33,126 +35,36 @@
 | claude-sonnet-4-20250514 | 균형잡힌 성능/비용 | 200K tokens |
 | claude-haiku-3-5-20241022 | 빠른 응답, 저비용 | 200K tokens |
 
-### 3.3 API 호출 예시
+### 3.3 Request/Response 구조
 
-#### 기본 요청
-```bash
-curl https://api.anthropic.com/v1/messages \
-  -H "Content-Type: application/json" \
-  -H "x-api-key: $ANTHROPIC_API_KEY" \
-  -H "anthropic-version: 2023-06-01" \
-  -d '{
-    "model": "claude-sonnet-4-20250514",
-    "max_tokens": 1024,
-    "messages": [
-      {"role": "user", "content": "Hello, Claude"}
-    ]
-  }'
-```
+**Request:**
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| model | string | 사용할 모델 ID |
+| max_tokens | integer | 최대 응답 토큰 수 |
+| messages | array | 대화 메시지 목록 [{role, content}] |
+| system | string | 시스템 프롬프트 (선택) |
+| tools | array | Tool Use 정의 (선택) |
 
-#### Java (Spring RestTemplate) 예시
-```java
-@Service
-public class ClaudeApiClient {
+**Response:**
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 응답 ID |
+| content | array | 응답 내용 [{type, text}] |
+| stop_reason | string | 종료 사유 (end_turn, tool_use 등) |
+| usage | object | 토큰 사용량 {input_tokens, output_tokens} |
 
-    private final RestTemplate restTemplate;
-    private static final String API_URL = "https://api.anthropic.com/v1/messages";
+### 3.4 Tool Use 지원
 
-    public ClaudeApiClient(RestTemplateBuilder builder) {
-        this.restTemplate = builder.build();
-    }
+- Tool 정의: `name`, `description`, `input_schema` (JSON Schema)
+- 응답에서 `stop_reason: "tool_use"` 시 tool_calls 처리 필요
+- MCP 연동에 활용
 
-    public ClaudeResponse sendMessage(String apiKey, ClaudeRequest request) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_JSON);
-        headers.set("x-api-key", apiKey);
-        headers.set("anthropic-version", "2023-06-01");
-
-        HttpEntity<ClaudeRequest> entity = new HttpEntity<>(request, headers);
-
-        ResponseEntity<ClaudeResponse> response = restTemplate.exchange(
-            API_URL,
-            HttpMethod.POST,
-            entity,
-            ClaudeResponse.class
-        );
-
-        return response.getBody();
-    }
-}
-
-// Request DTO
-@Data
-public class ClaudeRequest {
-    private String model;
-    private int maxTokens;
-    private List<Message> messages;
-    private String system; // Optional system prompt
-
-    @Data
-    public static class Message {
-        private String role; // "user" or "assistant"
-        private String content;
-    }
-}
-
-// Response DTO
-@Data
-public class ClaudeResponse {
-    private String id;
-    private String type;
-    private String role;
-    private List<Content> content;
-    private String model;
-    private String stopReason;
-    private Usage usage;
-
-    @Data
-    public static class Content {
-        private String type;
-        private String text;
-    }
-
-    @Data
-    public static class Usage {
-        private int inputTokens;
-        private int outputTokens;
-    }
-}
-```
-
-#### Tool Use (Function Calling) 예시
-```json
-{
-  "model": "claude-sonnet-4-20250514",
-  "max_tokens": 1024,
-  "tools": [
-    {
-      "name": "get_weather",
-      "description": "Get the current weather in a given location",
-      "input_schema": {
-        "type": "object",
-        "properties": {
-          "location": {
-            "type": "string",
-            "description": "The city and state"
-          }
-        },
-        "required": ["location"]
-      }
-    }
-  ],
-  "messages": [
-    {"role": "user", "content": "What's the weather in Seoul?"}
-  ]
-}
-```
-
-### 3.4 참고 문서
+### 3.5 참고 문서
 
 - [Messages API Reference](https://docs.anthropic.com/en/api/messages)
 - [Getting Started](https://docs.anthropic.com/en/docs/get-started)
-- [API Overview](https://docs.anthropic.com/)
+- [Tool Use Guide](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
 
 ---
 
@@ -160,10 +72,12 @@ public class ClaudeResponse {
 
 ### 4.1 API 개요
 
-- **Base URL**: `https://api.openai.com/v1`
-- **주요 엔드포인트**: `POST /chat/completions`
-- **인증**: `Authorization: Bearer` 헤더
-- **특징**: 다양한 모델, Function Calling 지원
+| 항목 | 내용 |
+|------|------|
+| Base URL | `https://api.openai.com/v1` |
+| 주요 엔드포인트 | `POST /chat/completions` |
+| 인증 | `Authorization: Bearer` 헤더 |
+| 특징 | 다양한 모델, Function Calling 지원 |
 
 ### 4.2 주요 모델
 
@@ -174,117 +88,33 @@ public class ClaudeResponse {
 | gpt-4.1-mini | 빠른 응답, 저비용 | 128K tokens |
 | o3-pro | 고급 추론 | 128K tokens |
 
-### 4.3 API 호출 예시
+### 4.3 Request/Response 구조
 
-#### 기본 요청
-```bash
-curl https://api.openai.com/v1/chat/completions \
-  -H "Content-Type: application/json" \
-  -H "Authorization: Bearer $OPENAI_API_KEY" \
-  -d '{
-    "model": "gpt-4.1",
-    "messages": [
-      {"role": "system", "content": "You are a helpful assistant."},
-      {"role": "user", "content": "Hello!"}
-    ]
-  }'
-```
+**Request:**
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| model | string | 사용할 모델 ID |
+| messages | array | 대화 메시지 [{role, content}] |
+| max_tokens | integer | 최대 응답 토큰 수 (선택) |
+| temperature | number | 응답 다양성 0~2 (선택) |
+| tools | array | Function Calling 정의 (선택) |
 
-#### Java (Spring WebClient) 예시
-```java
-@Service
-public class OpenAiApiClient {
+**Response:**
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| id | string | 응답 ID |
+| choices | array | 응답 목록 [{message, finish_reason}] |
+| usage | object | 토큰 사용량 {prompt_tokens, completion_tokens} |
 
-    private final WebClient webClient;
+### 4.4 Function Calling 지원
 
-    public OpenAiApiClient(WebClient.Builder builder) {
-        this.webClient = builder
-            .baseUrl("https://api.openai.com/v1")
-            .build();
-    }
+- Tool 정의: `type: "function"`, `function: {name, description, parameters}`
+- `finish_reason: "tool_calls"` 시 함수 호출 처리
 
-    public Mono<OpenAiResponse> sendMessage(String apiKey, OpenAiRequest request) {
-        return webClient.post()
-            .uri("/chat/completions")
-            .header("Authorization", "Bearer " + apiKey)
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(request)
-            .retrieve()
-            .bodyToMono(OpenAiResponse.class);
-    }
-}
-
-// Request DTO
-@Data
-public class OpenAiRequest {
-    private String model;
-    private List<Message> messages;
-    private Double temperature;
-    private Integer maxTokens;
-
-    @Data
-    public static class Message {
-        private String role; // "system", "user", "assistant"
-        private String content;
-    }
-}
-
-// Response DTO
-@Data
-public class OpenAiResponse {
-    private String id;
-    private String object;
-    private Long created;
-    private String model;
-    private List<Choice> choices;
-    private Usage usage;
-
-    @Data
-    public static class Choice {
-        private int index;
-        private Message message;
-        private String finishReason;
-    }
-
-    @Data
-    public static class Usage {
-        private int promptTokens;
-        private int completionTokens;
-        private int totalTokens;
-    }
-}
-```
-
-#### Function Calling 예시
-```json
-{
-  "model": "gpt-4.1",
-  "messages": [
-    {"role": "user", "content": "What's the weather in Seoul?"}
-  ],
-  "tools": [
-    {
-      "type": "function",
-      "function": {
-        "name": "get_weather",
-        "description": "Get current weather",
-        "parameters": {
-          "type": "object",
-          "properties": {
-            "location": {"type": "string"}
-          },
-          "required": ["location"]
-        }
-      }
-    }
-  ]
-}
-```
-
-### 4.4 참고 문서
+### 4.5 참고 문서
 
 - [Chat Completions API](https://platform.openai.com/docs/api-reference/chat)
-- [Models](https://platform.openai.com/docs/models/)
+- [Function Calling Guide](https://platform.openai.com/docs/guides/function-calling)
 
 ---
 
@@ -292,10 +122,12 @@ public class OpenAiResponse {
 
 ### 5.1 API 개요
 
-- **Base URL**: `https://generativelanguage.googleapis.com`
-- **주요 엔드포인트**: `POST /v1beta/models/{model}:generateContent`
-- **인증**: API Key 쿼리 파라미터 또는 OAuth
-- **특징**: 멀티모달, MCP 네이티브 지원 (Interactions API)
+| 항목 | 내용 |
+|------|------|
+| Base URL | `https://generativelanguage.googleapis.com` |
+| 주요 엔드포인트 | `POST /v1beta/models/{model}:generateContent` |
+| 인증 | API Key 쿼리 파라미터 또는 OAuth |
+| 특징 | 멀티모달, MCP 네이티브 지원 |
 
 ### 5.2 주요 모델
 
@@ -305,120 +137,30 @@ public class OpenAiResponse {
 | gemini-3-flash-preview | 빠른 속도, 비용 효율 | 1M tokens |
 | gemini-2.5-flash | 범용 | 1M tokens |
 
-### 5.3 API 호출 예시
+### 5.3 Request/Response 구조
 
-#### 기본 요청
-```bash
-curl "https://generativelanguage.googleapis.com/v1beta/models/gemini-3-flash-preview:generateContent?key=$GEMINI_API_KEY" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "contents": [
-      {"role": "user", "parts": [{"text": "Hello!"}]}
-    ]
-  }'
-```
+**Request:**
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| contents | array | 대화 내용 [{role, parts}] |
+| generationConfig | object | 생성 설정 {temperature, maxOutputTokens} |
+| tools | array | Function 정의 (선택) |
 
-#### Java 예시
-```java
-@Service
-public class GeminiApiClient {
+**Response:**
+| 필드 | 타입 | 설명 |
+|------|------|------|
+| candidates | array | 응답 후보 [{content, finishReason}] |
+| usageMetadata | object | 토큰 사용량 |
 
-    private final WebClient webClient;
-    private static final String BASE_URL = "https://generativelanguage.googleapis.com/v1beta";
+### 5.4 Function Calling 지원
 
-    public GeminiApiClient(WebClient.Builder builder) {
-        this.webClient = builder.baseUrl(BASE_URL).build();
-    }
+- Tool 정의: `functionDeclarations: [{name, description, parameters}]`
+- 응답에서 function call 감지 시 처리
 
-    public Mono<GeminiResponse> generateContent(String apiKey, String model, GeminiRequest request) {
-        return webClient.post()
-            .uri(uriBuilder -> uriBuilder
-                .path("/models/{model}:generateContent")
-                .queryParam("key", apiKey)
-                .build(model))
-            .contentType(MediaType.APPLICATION_JSON)
-            .bodyValue(request)
-            .retrieve()
-            .bodyToMono(GeminiResponse.class);
-    }
-}
-
-// Request DTO
-@Data
-public class GeminiRequest {
-    private List<Content> contents;
-    private GenerationConfig generationConfig;
-
-    @Data
-    public static class Content {
-        private String role; // "user" or "model"
-        private List<Part> parts;
-    }
-
-    @Data
-    public static class Part {
-        private String text;
-    }
-
-    @Data
-    public static class GenerationConfig {
-        private Double temperature;
-        private Integer maxOutputTokens;
-    }
-}
-
-// Response DTO
-@Data
-public class GeminiResponse {
-    private List<Candidate> candidates;
-    private UsageMetadata usageMetadata;
-
-    @Data
-    public static class Candidate {
-        private Content content;
-        private String finishReason;
-    }
-
-    @Data
-    public static class UsageMetadata {
-        private int promptTokenCount;
-        private int candidatesTokenCount;
-        private int totalTokenCount;
-    }
-}
-```
-
-#### Function Calling 예시
-```json
-{
-  "contents": [
-    {"role": "user", "parts": [{"text": "What's the weather in Seoul?"}]}
-  ],
-  "tools": [
-    {
-      "functionDeclarations": [
-        {
-          "name": "get_weather",
-          "description": "Get current weather",
-          "parameters": {
-            "type": "object",
-            "properties": {
-              "location": {"type": "string"}
-            },
-            "required": ["location"]
-          }
-        }
-      ]
-    }
-  ]
-}
-```
-
-### 5.4 참고 문서
+### 5.5 참고 문서
 
 - [Gemini API Docs](https://ai.google.dev/gemini-api/docs)
-- [Gemini Models](https://ai.google.dev/gemini-api/docs/models)
-- [Interactions API](https://ai.google.dev/gemini-api/docs/interactions)
+- [Function Calling](https://ai.google.dev/gemini-api/docs/function-calling)
 
 ---
 
@@ -426,107 +168,52 @@ public class GeminiResponse {
 
 ### 6.1 LLM Provider 추상화
 
-```java
-public interface LlmProvider {
+Squad에서는 여러 LLM Provider를 통일된 인터페이스로 추상화합니다.
 
-    /**
-     * 메시지를 전송하고 응답을 받는다.
-     */
-    LlmResponse sendMessage(LlmRequest request);
-
-    /**
-     * 스트리밍 방식으로 응답을 받는다.
-     */
-    Flux<LlmStreamChunk> streamMessage(LlmRequest request);
-
-    /**
-     * Provider 이름을 반환한다.
-     */
-    String getProviderName();
-
-    /**
-     * 지원하는 모델 목록을 반환한다.
-     */
-    List<String> getSupportedModels();
-}
-
-// 공통 Request
-@Data
-@Builder
-public class LlmRequest {
-    private String model;
-    private String systemPrompt;
-    private List<LlmMessage> messages;
-    private Integer maxTokens;
-    private Double temperature;
-    private List<Tool> tools;
-}
-
-// 공통 Response
-@Data
-@Builder
-public class LlmResponse {
-    private String id;
-    private String content;
-    private String finishReason;
-    private List<ToolCall> toolCalls;
-    private LlmUsage usage;
-}
-
-// 공통 Usage
-@Data
-@Builder
-public class LlmUsage {
-    private int inputTokens;
-    private int outputTokens;
-    private int totalTokens;
-}
+```
+┌─────────────────────────────────────────────────────────────┐
+│                      LlmProvider                             │
+│  (Interface)                                                 │
+├─────────────────────────────────────────────────────────────┤
+│  + sendMessage(request) → response                          │
+│  + streamMessage(request) → stream                          │
+│  + getProviderName() → string                               │
+│  + getSupportedModels() → list                              │
+└─────────────────────────────────────────────────────────────┘
+                           △
+           ┌───────────────┼───────────────┐
+           │               │               │
+┌──────────┴──┐   ┌───────┴───┐   ┌───────┴───┐
+│ClaudeProvider│   │OpenAiProvider│   │GeminiProvider│
+└─────────────┘   └─────────────┘   └─────────────┘
 ```
 
-### 6.2 Provider 구현체
+### 6.2 공통 데이터 모델
 
-```java
-@Component
-public class ClaudeLlmProvider implements LlmProvider {
-    // Claude API 구현
-}
+**LlmRequest:**
+| 필드 | 설명 |
+|------|------|
+| model | 모델 ID |
+| systemPrompt | 시스템 프롬프트 |
+| messages | 대화 메시지 목록 |
+| maxTokens | 최대 토큰 |
+| temperature | 응답 다양성 |
+| tools | Tool 정의 목록 |
 
-@Component
-public class OpenAiLlmProvider implements LlmProvider {
-    // OpenAI API 구현
-}
+**LlmResponse:**
+| 필드 | 설명 |
+|------|------|
+| id | 응답 ID |
+| content | 응답 텍스트 |
+| finishReason | 종료 사유 |
+| toolCalls | Tool 호출 목록 |
+| usage | 토큰 사용량 |
 
-@Component
-public class GeminiLlmProvider implements LlmProvider {
-    // Gemini API 구현
-}
-```
+### 6.3 Provider Factory 패턴
 
-### 6.3 Provider Factory
-
-```java
-@Component
-public class LlmProviderFactory {
-
-    private final Map<String, LlmProvider> providers;
-
-    public LlmProviderFactory(List<LlmProvider> providerList) {
-        this.providers = providerList.stream()
-            .collect(Collectors.toMap(
-                LlmProvider::getProviderName,
-                Function.identity()
-            ));
-    }
-
-    public LlmProvider getProvider(String providerName) {
-        LlmProvider provider = providers.get(providerName);
-        if (provider == null) {
-            throw new UnsupportedProviderException(providerName);
-        }
-        return provider;
-    }
-}
-```
+- 에이전트 설정의 `provider` 필드로 적절한 Provider 선택
+- 런타임에 Provider 교체 가능
+- 새로운 Provider 추가 시 구현체만 추가
 
 ---
 
@@ -547,83 +234,58 @@ public class LlmProviderFactory {
 **선정 이유:**
 
 1. **코딩 특화 성능**
-   - Squad의 초기 목표가 코딩 도메인이므로 코딩 능력이 뛰어난 Claude가 적합
-   - Claude Code 등 코딩 도구로 검증된 성능
+   - Squad의 초기 목표가 코딩 도메인
+   - Claude Code 등으로 검증된 코딩 능력
 
 2. **간결한 API 구조**
    - Messages API가 단순하고 직관적
    - Stateless 방식으로 구현이 간단
 
 3. **Tool Use 지원**
-   - MCP 연동에 필요한 Tool Use가 잘 지원됨
+   - MCP 연동에 필요한 Tool Use 잘 지원
    - Function Calling 안정성 높음
 
 4. **긴 컨텍스트**
    - 200K 토큰으로 여러 레포 분석에 적합
-   - 대화 히스토리 관리 용이
 
-### 7.3 MVP 구현 모델
+### 7.3 역할별 모델 배정
 
-| 용도 | 모델 | 이유 |
+| 역할 | 모델 | 이유 |
 |------|------|------|
-| Orchestrator | claude-sonnet-4-20250514 | 균형잡힌 성능/비용, 빠른 판단 필요 |
-| Worker | claude-sonnet-4-20250514 | 코딩 작업에 적합 |
-| Analyst | claude-sonnet-4-20250514 | 분석 작업에 충분 |
-| Scribe | claude-haiku-3-5-20241022 | 문서화는 저비용 모델로 충분 |
+| Orchestrator | claude-sonnet-4 | 빠른 판단, 균형잡힌 성능/비용 |
+| Worker | claude-sonnet-4 | 코딩 작업에 적합 |
+| Analyst | claude-sonnet-4 | 분석 작업에 충분 |
+| Scribe | claude-haiku-3.5 | 문서화는 저비용 모델로 충분 |
 
-### 7.4 Phase 2 확장 계획
+### 7.4 확장 계획
 
-MVP 이후 다음 순서로 Provider 추가:
-
-1. **Phase 2**: OpenAI GPT-4.1
-   - 사용자 선택권 확대
-   - 특정 작업에서 더 나은 성능 가능
-
-2. **Phase 3**: Google Gemini
-   - 비용 효율적인 대안
-   - 긴 컨텍스트 활용 (2M tokens)
+| Phase | Provider | 이유 |
+|-------|----------|------|
+| Phase 1 (MVP) | Claude | 코딩 특화, API 안정성 |
+| Phase 2 | OpenAI | 사용자 선택권 확대 |
+| Phase 3 | Gemini | 비용 효율, 긴 컨텍스트 (2M) |
 
 ---
 
-## 8. 에러 처리 및 Retry 전략
+## 8. 에러 처리 전략
 
 ### 8.1 공통 에러 코드
 
-| 에러 | 원인 | 처리 |
-|------|------|------|
-| 401 | 잘못된 API Key | 키 확인 요청 |
-| 429 | Rate Limit | Exponential Backoff |
-| 500 | 서버 에러 | Retry (최대 3회) |
-| 529 | 과부하 | 대기 후 Retry |
+| 에러 | 원인 | 처리 방법 |
+|------|------|----------|
+| 401 | 잘못된 API Key | 키 확인 요청, 실패 반환 |
+| 429 | Rate Limit 초과 | Exponential Backoff 후 재시도 |
+| 500 | 서버 에러 | 최대 3회 재시도 |
+| 529 | 과부하 | 대기 후 재시도 |
 
-### 8.2 Retry 구현
+### 8.2 Retry 정책
 
-```java
-@Component
-public class LlmRetryPolicy {
-
-    private static final int MAX_RETRIES = 3;
-    private static final Duration INITIAL_DELAY = Duration.ofSeconds(1);
-
-    public <T> Mono<T> withRetry(Mono<T> operation) {
-        return operation
-            .retryWhen(Retry.backoff(MAX_RETRIES, INITIAL_DELAY)
-                .filter(this::isRetryable)
-                .onRetryExhaustedThrow((spec, signal) ->
-                    new LlmApiException("Max retries exceeded", signal.failure())
-                )
-            );
-    }
-
-    private boolean isRetryable(Throwable throwable) {
-        if (throwable instanceof WebClientResponseException ex) {
-            return ex.getStatusCode().value() == 429
-                || ex.getStatusCode().value() >= 500;
-        }
-        return false;
-    }
-}
-```
+| 항목 | 값 |
+|------|-----|
+| 최대 재시도 횟수 | 3회 |
+| 초기 대기 시간 | 1초 |
+| Backoff 방식 | Exponential (1s → 2s → 4s) |
+| 재시도 대상 | 429, 5xx 에러 |
 
 ---
 
@@ -632,11 +294,12 @@ public class LlmRetryPolicy {
 ### Claude API
 - [Messages API Reference](https://docs.anthropic.com/en/api/messages)
 - [Getting Started](https://docs.anthropic.com/en/docs/get-started)
+- [Tool Use Guide](https://docs.anthropic.com/en/docs/build-with-claude/tool-use)
 
 ### OpenAI API
 - [Chat Completions](https://platform.openai.com/docs/api-reference/chat)
-- [API Reference](https://platform.openai.com/docs/api-reference/introduction)
+- [Function Calling](https://platform.openai.com/docs/guides/function-calling)
 
 ### Gemini API
 - [Gemini API Docs](https://ai.google.dev/gemini-api/docs)
-- [Gemini Models](https://ai.google.dev/gemini-api/docs/models)
+- [Function Calling](https://ai.google.dev/gemini-api/docs/function-calling)

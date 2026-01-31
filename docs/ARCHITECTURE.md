@@ -227,7 +227,275 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 
 ---
 
-## 5. 데이터 모델
+## 5. 핵심 모듈 상세 설계
+
+### 5.1 세션 실행 흐름
+
+```
+┌────────┐      ┌──────────────┐      ┌─────────────────┐      ┌─────────────┐
+│ Client │      │Platform Server│      │  Orchestrator   │      │   Worker    │
+└───┬────┘      └──────┬───────┘      │   Container     │      │  Container  │
+    │                  │              └────────┬────────┘      └──────┬──────┘
+    │  POST /sessions  │                       │                      │
+    │  {squad, prompt} │                       │                      │
+    │─────────────────>│                       │                      │
+    │                  │                       │                      │
+    │                  │ 1. Create Session     │                      │
+    │                  │ 2. Load Squad Config  │                      │
+    │                  │ 3. Start Containers   │                      │
+    │                  │──────────────────────>│                      │
+    │                  │                       │──────────────────────>
+    │                  │                       │                      │
+    │                  │ 4. Send Initial       │                      │
+    │                  │    Prompt via Redis   │                      │
+    │                  │──────────────────────>│                      │
+    │                  │                       │                      │
+    │                  │                       │ 5. Analyze & Delegate│
+    │                  │                       │──────────────────────>
+    │                  │                       │                      │
+    │                  │                       │    6. Task Result    │
+    │                  │                       │<─────────────────────│
+    │                  │                       │                      │
+    │                  │                       │ 7. Compile Result    │
+    │                  │  8. Final Result      │                      │
+    │                  │<──────────────────────│                      │
+    │                  │                       │                      │
+    │  Session Result  │ 9. Cleanup Containers │                      │
+    │<─────────────────│──────────────────────>│──────────────────────>
+    │                  │                       │                      │
+```
+
+### 5.2 Agent Runner 동작 흐름
+
+```
+START Agent Container
+    │
+    ▼
+┌─────────────────────────────────┐
+│  1. Load Configuration          │
+│     - Read AGENT_CONFIG env     │
+│     - Parse agent settings      │
+│     - Initialize LLM client     │
+└─────────────────┬───────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────┐
+│  2. Connect to Redis            │
+│     - Subscribe to agent channel│
+│     - Register heartbeat        │
+└─────────────────┬───────────────┘
+                  │
+                  ▼
+┌─────────────────────────────────┐
+│  3. Wait for Message            │◄─────────────────┐
+└─────────────────┬───────────────┘                  │
+                  │                                   │
+                  ▼                                   │
+┌─────────────────────────────────┐                  │
+│  4. Process Message             │                  │
+│     ├─ Build prompt (role +     │                  │
+│     │   skills + context)       │                  │
+│     ├─ Call LLM API             │                  │
+│     └─ Parse response           │                  │
+└─────────────────┬───────────────┘                  │
+                  │                                   │
+                  ▼                                   │
+        ┌─────────────────┐                          │
+        │  Tool Call?     │                          │
+        └────────┬────────┘                          │
+           Yes   │   No                              │
+         ┌───────┴───────┐                           │
+         ▼               ▼                           │
+┌─────────────┐  ┌─────────────┐                    │
+│ Execute MCP │  │Send Response│                    │
+│ Tool        │  │ via Redis   │                    │
+└──────┬──────┘  └─────────────┘                    │
+       │                                             │
+       ▼                                             │
+┌─────────────┐                                      │
+│ Continue    │──────────────────────────────────────┘
+│ Conversation│
+└─────────────┘
+```
+
+### 5.3 Orchestrator 작업 분배 로직
+
+```
+RECEIVE user_prompt
+
+FUNCTION orchestrate(prompt, squad_agents):
+
+    # 1. 작업 분석
+    analysis = CALL LLM with:
+        system: "You are an orchestrator. Analyze the task and
+                 decide which agents to delegate to."
+        user: prompt
+        tools: [delegate_task, request_help, complete_session]
+
+    # 2. 작업 분배 루프
+    WHILE session not complete:
+
+        IF analysis contains delegate_task:
+            FOR EACH delegation in analysis.tool_calls:
+                agent_id = delegation.agent_id
+                task = delegation.task
+
+                # 에이전트에게 작업 전달
+                PUBLISH to "session:{id}:agent:{agent_id}":
+                    { type: "TASK_REQUEST", task: task }
+
+                # 결과 대기
+                result = AWAIT from "session:{id}:orchestrator"
+
+                # 결과 축적
+                context.add(agent_id, result)
+
+        IF analysis contains request_help:
+            # 다른 에이전트에게 도움 요청
+            helper_id = analysis.helper_agent
+            question = analysis.question
+
+            PUBLISH help request
+            help_result = AWAIT response
+
+            # 원래 에이전트에게 전달
+            PUBLISH help_result to original agent
+
+        IF analysis contains complete_session:
+            final_result = analysis.result
+            RETURN final_result
+
+        # 다음 액션 결정
+        analysis = CALL LLM with:
+            context: accumulated_results
+            tools: [delegate_task, request_help, complete_session]
+
+    RETURN final_result
+```
+
+### 5.4 LLM Provider 처리 흐름
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                        LLM Provider                              │
+│                                                                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │   Request   │    │   Provider  │    │  Response   │         │
+│  │  Adapter    │───>│   Client    │───>│  Adapter    │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+│         │                  │                  │                  │
+│         ▼                  ▼                  ▼                  │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐         │
+│  │ LlmRequest  │    │ HTTP Call   │    │ LlmResponse │         │
+│  │ (Common)    │    │ + Retry     │    │ (Common)    │         │
+│  └─────────────┘    └─────────────┘    └─────────────┘         │
+└─────────────────────────────────────────────────────────────────┘
+
+Provider Selection:
+
+    INPUT: agent.llm_config.provider (e.g., "claude")
+
+    MATCH provider:
+        "claude"  → ClaudeProvider
+        "openai"  → OpenAiProvider
+        "gemini"  → GeminiProvider
+        default   → throw UnsupportedProviderException
+```
+
+### 5.5 MCP Tool 실행 흐름
+
+```
+RECEIVE tool_call from LLM response
+
+FUNCTION execute_mcp_tool(tool_call):
+
+    # 1. MCP 연결 확인
+    mcp_id = find_mcp_for_tool(tool_call.name)
+
+    IF mcp_id NOT in active_connections:
+        # MCP 프로세스 시작
+        connection = START_PROCESS:
+            command: mcp_config.command
+            args: mcp_config.args
+            env: resolve_secrets(mcp_config.env)
+
+        active_connections[mcp_id] = connection
+
+    # 2. Tool 실행
+    connection = active_connections[mcp_id]
+
+    request = {
+        jsonrpc: "2.0",
+        method: "tools/call",
+        params: {
+            name: tool_call.name,
+            arguments: tool_call.arguments
+        }
+    }
+
+    SEND request to connection.stdin
+    response = READ from connection.stdout
+
+    # 3. 결과 반환
+    IF response.error:
+        RETURN { error: response.error.message }
+    ELSE:
+        RETURN { result: response.result }
+```
+
+### 5.6 Container 생명주기 관리
+
+```
+┌──────────────────────────────────────────────────────────────────┐
+│                   Container Lifecycle Manager                     │
+└──────────────────────────────────────────────────────────────────┘
+
+SESSION START:
+    ┌─────────────────────────────────────────────────────────────┐
+    │  1. Load squad configuration                                 │
+    │  2. FOR EACH agent in squad:                                │
+    │       - Pull image if not exists                            │
+    │       - Create container with:                              │
+    │           name: "squad-{sessionId}-{agentId}"              │
+    │           image: "squad-agent:latest"                       │
+    │           env: AGENT_ID, AGENT_CONFIG, REDIS_URL           │
+    │           network: squad-network                            │
+    │       - Start container                                     │
+    │       - Wait for health check                               │
+    │  3. Register containers in session state                    │
+    └─────────────────────────────────────────────────────────────┘
+
+SESSION RUNNING:
+    ┌─────────────────────────────────────────────────────────────┐
+    │  - Monitor container health (every 10s)                     │
+    │  - Restart failed containers (max 3 times)                  │
+    │  - Log container stdout/stderr                              │
+    └─────────────────────────────────────────────────────────────┘
+
+SESSION END:
+    ┌─────────────────────────────────────────────────────────────┐
+    │  1. Send shutdown signal to all containers                  │
+    │  2. Wait for graceful shutdown (timeout: 30s)               │
+    │  3. Force kill remaining containers                         │
+    │  4. Remove containers                                        │
+    │  5. Cleanup session state                                   │
+    └─────────────────────────────────────────────────────────────┘
+
+HEALTH CHECK:
+    ┌─────────────────────────────────────────────────────────────┐
+    │  GET /health on each container                              │
+    │                                                              │
+    │  Response:                                                   │
+    │    { status: "healthy", lastActivity: timestamp }           │
+    │                                                              │
+    │  IF no response in 30s → mark unhealthy                    │
+    │  IF unhealthy 3 times → restart container                  │
+    └─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 6. 데이터 모델
 
 ### 5.1 ERD
 

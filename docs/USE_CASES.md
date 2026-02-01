@@ -473,6 +473,87 @@
    - 추천 맛집 리스트 (예약 필요 여부 포함)
    - 대안 일정 (우천 시)
 
+### 5.5 시나리오: MSA 환경 에러 원인 파악
+
+**상황**: DevOps 엔지니어가 프로덕션 환경에서 에러 로그를 발견했고, 여러 마이크로서비스에 걸친 에러의 근본 원인을 파악하고 싶다.
+
+**Squad 구성**:
+- **Orchestrator**: 에러 분석 과정 조율
+- **LogCollector** (Worker): 각 서비스에서 관련 로그 수집
+- **TraceAnalyst** (Analyst): 분산 추적(Distributed Tracing) 분석
+- **CodeAnalyst** (Analyst): 관련 코드 분석
+- **InfraAnalyst** (Analyst): 인프라/리소스 상태 분석
+- **ReportWriter** (Scribe): 에러 분석 보고서 작성
+
+**사용 MCP**:
+- 로그 수집 MCP (ELK, CloudWatch 등 연동)
+- 분산 추적 MCP (Jaeger, Zipkin 등 연동)
+- Git Repository MCP (소스 코드 접근)
+- 모니터링 MCP (Prometheus, Grafana 등 연동)
+- Kubernetes API MCP (Pod 상태 확인)
+
+**흐름**:
+1. 세션 실행
+   - 프롬프트: "order-service에서 500 에러가 급증했어. 원인 분석해줘. 에러 발생 시간: 2024-01-15 14:30 KST"
+
+2. Orchestrator 동작
+   - LogCollector에게 해당 시간대 관련 서비스 로그 수집 요청
+   - TraceAnalyst에게 에러 발생 요청의 추적 분석 요청
+   - InfraAnalyst에게 해당 시간대 인프라 상태 확인 요청
+
+3. 1차 분석 진행
+   - **LogCollector**:
+     - order-service 에러 로그 수집 (500건)
+     - 연관 서비스 탐지: payment-service, inventory-service
+     - 해당 서비스들의 로그도 추가 수집
+   - **TraceAnalyst**:
+     - 에러 발생 요청의 Trace ID 추출
+     - 호출 체인 분석: API Gateway → order-service → payment-service → (실패)
+     - 병목 지점 발견: payment-service 응답 시간 급증 (평균 200ms → 15초)
+   - **InfraAnalyst**:
+     - payment-service Pod CPU 사용률: 98%
+     - payment-service 레플리카 수: 2개 (평소 5개)
+     - 최근 배포 이력: 14:25에 payment-service v2.3.1 배포
+
+4. 2차 분석 (심층)
+   - Orchestrator가 CodeAnalyst에게 payment-service v2.3.1 변경사항 분석 요청
+   - **CodeAnalyst**:
+     - v2.3.0 → v2.3.1 diff 분석
+     - 발견: 새로운 외부 API 호출 추가 (동기 방식, 타임아웃 미설정)
+     - 해당 외부 API 응답 지연 시 스레드 블로킹 발생 가능성 확인
+
+5. 근본 원인 도출
+   - **직접 원인**: payment-service의 새 버전에서 외부 결제 검증 API 호출 시 타임아웃 미설정
+   - **트리거**: 외부 API 응답 지연 (14:28경 시작)
+   - **악화 요인**: HPA 스케일다운 직후 발생하여 처리 용량 부족
+   - **영향 범위**: order-service 요청의 약 30%가 타임아웃으로 실패
+
+6. 결과
+   - **ReportWriter** 작성 보고서:
+     ```
+     [에러 분석 보고서]
+
+     1. 요약
+        - 근본 원인: payment-service v2.3.1의 외부 API 타임아웃 미설정
+        - 영향: 14:30~15:10 동안 주문 API 30% 실패
+        - 심각도: Critical
+
+     2. 타임라인
+        - 14:25 payment-service v2.3.1 배포
+        - 14:28 외부 결제 API 응답 지연 시작
+        - 14:30 order-service 500 에러 급증
+        - 15:10 롤백 완료, 정상화
+
+     3. 권장 조치
+        - 즉시: v2.3.0으로 롤백 (완료)
+        - 단기: 외부 API 호출에 타임아웃 (3초) 추가
+        - 중기: Circuit Breaker 패턴 적용
+        - 장기: 비동기 처리로 전환 검토
+
+     4. 관련 코드 위치
+        - payment-service/src/api/verification.ts:45
+     ```
+
 ---
 
 ## 6. 우선순위

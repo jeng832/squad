@@ -620,6 +620,198 @@ Database MCP로 검증:
 - Jira 이슈 TICKET-1234 생성 완료
 - Confluence 장애 분석 문서 발행 완료
 
+### 5.6 시나리오: Slack 연동 자동 에러 분석 (고도화)
+
+**상황**: 프로덕션 환경에서 에러 발생 시 Slack으로 알림을 받고, Slack 내에서 바로 Squad에 분석을 요청하여 결과를 쓰레드로 받는다.
+
+**Squad 구성**:
+- **Orchestrator**: 에러 분석 조율
+- **LogChecker** (Worker): Grafana/로그 시스템에서 에러 로그 수집
+- **Worker-{ServiceName}** (Worker): 각 MSA 서비스별 코드 분석
+- **SolutionAnalyst** (Analyst): 해결책 분석
+- **SlackReporter** (Scribe): Slack 쓰레드에 결과 보고
+
+**사용 MCP**:
+- Slack MCP (메시지 수신/발신, 버튼 인터랙션)
+- Grafana MCP (로그 조회, 대시보드 데이터)
+- Git Repository MCP (소스 코드 접근)
+- Database MCP (데이터 검증)
+- Jira MCP (이슈 생성)
+
+**흐름**:
+
+```
+┌────────────────────────────────────────────────────────────────────────────┐
+│                              Slack Channel                                  │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ 🚨 [ALERT] order-service 500 Error                                   │  │
+│  │ Time: 2024-01-15 14:30:05 KST                                        │  │
+│  │ Error: InventoryCheckException                                       │  │
+│  │ Count: 127 errors in last 5 min                                      │  │
+│  │                                                                      │  │
+│  │ ┌─────────────────┐  ┌─────────────────┐  ┌──────────────────┐      │  │
+│  │ │ 🔍 분석 요청    │  │ 📊 대시보드     │  │ 🔕 알림 끄기     │      │  │
+│  │ └─────────────────┘  └─────────────────┘  └──────────────────┘      │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+│                                                                            │
+│  ↓ 사용자가 "🔍 분석 요청" 버튼 클릭                                       │
+│                                                                            │
+│  ┌──────────────────────────────────────────────────────────────────────┐  │
+│  │ 💬 Thread                                                            │  │
+│  │ ├─ 🤖 분석을 시작합니다... (Orchestrator)                            │  │
+│  │ ├─ 📋 Grafana에서 로그 수집 중... (LogChecker)                       │  │
+│  │ ├─ 🔎 order-service 코드 분석 중... (Worker-Order)                   │  │
+│  │ ├─ 🔎 inventory-service 코드 분석 중... (Worker-Inventory)           │  │
+│  │ ├─ 💡 해결책 분석 중... (Analyst)                                    │  │
+│  │ └─ ✅ 분석 완료! (최종 보고서)                                       │  │
+│  └──────────────────────────────────────────────────────────────────────┘  │
+└────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Step 1: Slack 알림 수신**
+- Grafana/AlertManager가 에러 감지 → Slack 채널에 알림 발송
+- 알림 메시지에 인터랙티브 버튼 포함:
+  - `🔍 분석 요청`: Squad 분석 트리거
+  - `📊 대시보드`: Grafana 대시보드 링크
+  - `🔕 알림 끄기`: 일시적 알림 중지
+
+**Step 2: 사용자 → Squad 트리거**
+- 사용자가 "🔍 분석 요청" 버튼 클릭
+- Slack MCP가 버튼 클릭 이벤트 수신
+- Squad 세션 자동 시작 (알림 메시지의 컨텍스트 전달)
+
+**Step 3: Orchestrator 시작 알림**
+```
+[Slack Thread - Orchestrator]
+🤖 에러 분석을 시작합니다.
+
+분석 대상:
+- 서비스: order-service
+- 에러: InventoryCheckException
+- 발생 시간: 2024-01-15 14:30:05 KST
+- 발생 건수: 127건 (최근 5분)
+
+진행 상황을 이 쓰레드에 업데이트하겠습니다.
+```
+
+**Step 4: LogChecker → Grafana 로그 수집**
+```
+[Slack Thread - LogChecker]
+📋 Grafana에서 에러 로그를 수집했습니다.
+
+수집 결과:
+- 총 에러: 127건
+- 첫 발생: 14:28:32
+- 최다 발생 구간: 14:30:00 ~ 14:32:00 (89건)
+- 에러 패턴: inventory-service 호출 시 500 응답
+
+스택트레이스:
+\`\`\`
+InventoryCheckException: Failed to validate stock
+  at OrderService.createOrder(OrderService.java:156)
+  at InventoryClient.validateStock(InventoryClient.java:45)
+  Caused by: HttpClientException: 500 Internal Server Error
+\`\`\`
+
+→ inventory-service 분석이 필요합니다.
+```
+
+**Step 5: Worker 순차 분석 (쓰레드 업데이트)**
+```
+[Slack Thread - Worker-Order]
+🔎 order-service 분석 완료
+
+발견:
+- OrderService.java:156에서 inventory-service 호출
+- 에러 원인은 inventory-service 내부에 있음
+
+→ inventory-service 담당 Worker에게 전달합니다.
+```
+
+```
+[Slack Thread - Worker-Inventory]
+🔎 inventory-service 분석 완료
+
+근본 원인 발견:
+- StockValidator.java:89 - 재고 검증 로직
+- stock 테이블에 음수 데이터 존재 (stock_quantity = -5)
+- 원인: 동시성 미처리로 인한 재고 중복 차감
+
+DB 검증 결과:
+\`\`\`sql
+SELECT * FROM stock WHERE stock_quantity < 0;
+-- 결과: 3건의 음수 재고 발견
+\`\`\`
+```
+
+**Step 6: Analyst 해결책 제시**
+```
+[Slack Thread - Analyst]
+💡 해결책 분석 완료
+
+| 구분 | 해결책 | 소요 시간 | 리스크 |
+|------|--------|-----------|--------|
+| 🔥 즉시 | 음수 데이터 수동 보정 | 10분 | 낮음 |
+| 🔧 단기 | 비관적 락 적용 | 1-2일 | 낮음 |
+| 🏗️ 중기 | Event Sourcing 전환 | 1-2주 | 중간 |
+
+권장 순서: 즉시 → 단기 → 중기 순으로 적용
+```
+
+**Step 7: 최종 보고 및 액션 버튼**
+```
+[Slack Thread - SlackReporter]
+✅ 에러 분석이 완료되었습니다.
+
+📊 요약
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+• 근본 원인: inventory-service 동시성 이슈
+• 영향 범위: 주문 API 127건 실패
+• 심각도: 🔴 Critical
+
+🔗 생성된 리소스
+• Jira: TICKET-1234
+• 문서: Confluence 장애 분석 페이지
+
+┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐
+│ 📋 Jira 보기    │  │ 📄 문서 보기    │  │ 🔄 재분석      │
+└─────────────────┘  └─────────────────┘  └─────────────────┘
+```
+
+**시퀀스 다이어그램**:
+```
+┌────────┐  ┌───────┐  ┌────────────┐  ┌──────────┐  ┌─────────┐  ┌─────────┐
+│Grafana │  │ Slack │  │Orchestrator│  │LogChecker│  │ Workers │  │ Analyst │
+└───┬────┘  └───┬───┘  └─────┬──────┘  └────┬─────┘  └────┬────┘  └────┬────┘
+    │           │            │              │             │            │
+    │──Alert───▶│            │              │             │            │
+    │           │            │              │             │            │
+    │           │◀──Button───│              │             │            │
+    │           │   Click    │              │             │            │
+    │           │───────────▶│              │             │            │
+    │           │            │──Log 조회───▶│             │            │
+    │           │◀─Thread────│              │             │            │
+    │           │  Update    │◀─로그 결과───│             │            │
+    │           │            │              │             │            │
+    │           │            │──코드 분석──────────────▶│            │
+    │           │◀─Thread────│              │             │            │
+    │           │  Update    │◀─분석 결과────────────────│            │
+    │           │            │              │             │            │
+    │           │            │──해결책 요청────────────────────────▶│
+    │           │◀─Thread────│              │             │            │
+    │           │  Update    │◀─해결책 제시────────────────────────│
+    │           │            │              │             │            │
+    │           │◀─최종 보고─│              │             │            │
+    │           │  + 버튼    │              │             │            │
+└───┴────┘  └───┴───┘  └─────┴──────┘  └────┴─────┘  └────┴────┘  └────┴────┘
+```
+
+**장점**:
+- 컨텍스트 스위칭 없이 Slack에서 모든 분석 진행
+- 실시간 진행 상황 쓰레드 업데이트
+- 팀 전체가 분석 과정과 결과를 함께 확인
+- 버튼을 통한 빠른 후속 조치 (Jira, 문서, 재분석)
+
 ---
 
 ## 6. 우선순위

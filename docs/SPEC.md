@@ -176,18 +176,27 @@
 모든 통신은 기본적으로 Orchestrator를 거친다.
 
 ```
-              [Orchestrator]
-             ↙    ↓    ↘
-       [Agent] [Agent] [Agent]
+       [사용자]
+          │
+          ▼
+   [Platform Server]  ← 세션 생성, 컨테이너 관리
+          │
+          ▼ (Redis)
+    [Orchestrator]
+     ↙    ↓    ↘
+[Agent] [Agent] [Agent]
 ```
 
 **동작 방식:**
-1. 사용자 프롬프트 → Orchestrator에게 전달
-2. Orchestrator가 판단하여 적절한 에이전트에게 작업 요청
-3. 에이전트가 작업 수행 후 결과를 Orchestrator에게 반환
-4. Orchestrator가 다음 액션 결정 (다른 에이전트 호출, 추가 분석 요청 등)
-5. 필요시 반복
-6. Orchestrator가 완료 판단 후 최종 결과 반환
+1. 사용자가 Web UI/API를 통해 Platform Server에 세션 시작 요청
+2. Platform Server가 세션 생성 및 Agent Container들을 시작
+3. Platform Server가 사용자 프롬프트를 Redis를 통해 Orchestrator에게 전달
+4. Orchestrator가 판단하여 적절한 에이전트에게 작업 요청
+5. 에이전트가 작업 수행 후 결과를 Orchestrator에게 반환
+6. Orchestrator가 다음 액션 결정 (다른 에이전트 호출, 추가 분석 요청 등)
+7. 필요시 반복
+8. Orchestrator가 완료 판단 후 최종 결과를 Platform Server에 반환
+9. Platform Server가 사용자에게 결과 전달
 
 **Orchestrator의 역할:**
 - 어떤 에이전트에게 어떤 일을 시킬지 판단
@@ -260,16 +269,18 @@
 ### 7.1 세션 실행 흐름
 
 ```
-User
+User (Web UI / API Client)
   │
   ▼
 [Squad 선택 + 프롬프트 입력]
   │
   ▼
-[Session 생성]
+[Platform Server: Session 생성]
+  │
+  ├─→ Agent Container들 시작 (Docker)
   │
   ▼
-[Orchestrator 실행]
+[Platform Server → Redis → Orchestrator 실행]
   │
   ├─→ "Analyst, 이 기획서 분석해줘"
   │         │

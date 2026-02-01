@@ -475,84 +475,150 @@
 
 ### 5.5 시나리오: MSA 환경 에러 원인 파악
 
-**상황**: DevOps 엔지니어가 프로덕션 환경에서 에러 로그를 발견했고, 여러 마이크로서비스에 걸친 에러의 근본 원인을 파악하고 싶다.
+**상황**: 개발자가 프로덕션 로그에서 에러 메시지를 발견하고, MSA 환경에서 여러 서비스에 걸친 에러의 근본 원인을 파악하고 싶다.
 
 **Squad 구성**:
-- **Orchestrator**: 에러 분석 과정 조율
-- **LogCollector** (Worker): 각 서비스에서 관련 로그 수집
-- **TraceAnalyst** (Analyst): 분산 추적(Distributed Tracing) 분석
-- **CodeAnalyst** (Analyst): 관련 코드 분석
-- **InfraAnalyst** (Analyst): 인프라/리소스 상태 분석
-- **ReportWriter** (Scribe): 에러 분석 보고서 작성
+- **Orchestrator**: 에러 분석 과정 조율, 서비스별 Worker 관리
+- **Worker-OrderService** (Worker): order-service 레포지토리 담당
+- **Worker-InventoryService** (Worker): inventory-service 레포지토리 담당
+- **Worker-PaymentService** (Worker): payment-service 레포지토리 담당
+- **SolutionAnalyst** (Analyst): 해결책 분석 및 제안
+- **DocumentScribe** (Scribe): 분석 결과 문서화 및 이슈 트래킹
 
 **사용 MCP**:
-- 로그 수집 MCP (ELK, CloudWatch 등 연동)
-- 분산 추적 MCP (Jaeger, Zipkin 등 연동)
-- Git Repository MCP (소스 코드 접근)
-- 모니터링 MCP (Prometheus, Grafana 등 연동)
-- Kubernetes API MCP (Pod 상태 확인)
+- Git Repository MCP (각 서비스 소스 코드 접근)
+- Database MCP (DB 직접 조회로 데이터 검증)
+- Jira MCP (이슈 생성 및 업데이트)
+- Confluence/Wiki MCP (분석 결과 문서화)
 
 **흐름**:
-1. 세션 실행
-   - 프롬프트: "order-service에서 500 에러가 급증했어. 원인 분석해줘. 에러 발생 시간: 2024-01-15 14:30 KST"
 
-2. Orchestrator 동작
-   - LogCollector에게 해당 시간대 관련 서비스 로그 수집 요청
-   - TraceAnalyst에게 에러 발생 요청의 추적 분석 요청
-   - InfraAnalyst에게 해당 시간대 인프라 상태 확인 요청
+```
+┌─────────┐     ┌──────────────┐     ┌─────────────┐     ┌─────────────┐
+│  User   │────▶│ Orchestrator │────▶│  Worker-A   │────▶│  Worker-B   │
+└─────────┘     └──────────────┘     │ (order-svc) │     │(inventory)  │
+                       │              └─────────────┘     └─────────────┘
+                       │                                         │
+                       ▼                                         │
+               ┌──────────────┐                                  │
+               │   Analyst    │◀─────────────────────────────────┘
+               └──────────────┘
+                       │
+                       ▼
+               ┌──────────────┐     ┌─────────┐     ┌──────────┐
+               │    Scribe    │────▶│  Jira   │     │   Wiki   │
+               └──────────────┘     └─────────┘     └──────────┘
+```
 
-3. 1차 분석 진행
-   - **LogCollector**:
-     - order-service 에러 로그 수집 (500건)
-     - 연관 서비스 탐지: payment-service, inventory-service
-     - 해당 서비스들의 로그도 추가 수집
-   - **TraceAnalyst**:
-     - 에러 발생 요청의 Trace ID 추출
-     - 호출 체인 분석: API Gateway → order-service → payment-service → (실패)
-     - 병목 지점 발견: payment-service 응답 시간 급증 (평균 200ms → 15초)
-   - **InfraAnalyst**:
-     - payment-service Pod CPU 사용률: 98%
-     - payment-service 레플리카 수: 2개 (평소 5개)
-     - 최근 배포 이력: 14:25에 payment-service v2.3.1 배포
+**Step 1: 에러 발견 및 세션 시작**
+- 사용자가 로그에서 에러 메시지 발견
+- 프롬프트: "order-service에서 다음 에러가 발생했어: `InventoryCheckException: Failed to validate stock for order #12345`. 원인 분석해줘."
 
-4. 2차 분석 (심층)
-   - Orchestrator가 CodeAnalyst에게 payment-service v2.3.1 변경사항 분석 요청
-   - **CodeAnalyst**:
-     - v2.3.0 → v2.3.1 diff 분석
-     - 발견: 새로운 외부 API 호출 추가 (동기 방식, 타임아웃 미설정)
-     - 해당 외부 API 응답 지연 시 스레드 블로킹 발생 가능성 확인
+**Step 2: Orchestrator 초기 분석**
+- MSA 구성 파악: order-service, inventory-service, payment-service
+- 에러 발생 서비스(order-service) 담당 Worker-A에게 원인 질의
 
-5. 근본 원인 도출
-   - **직접 원인**: payment-service의 새 버전에서 외부 결제 검증 API 호출 시 타임아웃 미설정
-   - **트리거**: 외부 API 응답 지연 (14:28경 시작)
-   - **악화 요인**: HPA 스케일다운 직후 발생하여 처리 용량 부족
-   - **영향 범위**: order-service 요청의 약 30%가 타임아웃으로 실패
+**Step 3: Worker-A (order-service) 분석**
+```
+[Worker-A 응답]
+Git MCP로 order-service 코드 분석 완료.
 
-6. 결과
-   - **ReportWriter** 작성 보고서:
-     ```
-     [에러 분석 보고서]
+에러 발생 위치: OrderController.java:156
+- createOrder() 메서드에서 inventory-service 호출
+- inventory-service의 /api/v1/stock/validate 엔드포인트 호출 시 에러 응답 수신
+- 에러 응답 코드: 500 (Internal Server Error)
+- 에러 메시지: "Data integrity violation in stock table"
 
-     1. 요약
-        - 근본 원인: payment-service v2.3.1의 외부 API 타임아웃 미설정
-        - 영향: 14:30~15:10 동안 주문 API 30% 실패
-        - 심각도: Critical
+→ 근본 원인은 inventory-service에 있는 것으로 판단됩니다.
+```
 
-     2. 타임라인
-        - 14:25 payment-service v2.3.1 배포
-        - 14:28 외부 결제 API 응답 지연 시작
-        - 14:30 order-service 500 에러 급증
-        - 15:10 롤백 완료, 정상화
+**Step 4: Orchestrator → Worker-B 전달**
+- Worker-A 분석 결과를 바탕으로 inventory-service 담당 Worker-B에게 질의
+- 질의 내용: "stock 테이블 데이터 정합성 관련 에러 원인 분석 요청"
 
-     3. 권장 조치
-        - 즉시: v2.3.0으로 롤백 (완료)
-        - 단기: 외부 API 호출에 타임아웃 (3초) 추가
-        - 중기: Circuit Breaker 패턴 적용
-        - 장기: 비동기 처리로 전환 검토
+**Step 5: Worker-B (inventory-service) 심층 분석**
+```
+[Worker-B 응답]
+Git MCP로 inventory-service 코드 분석 완료.
 
-     4. 관련 코드 위치
-        - payment-service/src/api/verification.ts:45
-     ```
+에러 발생 위치: StockValidator.java:89
+- validateStock() 메서드에서 DB 조회 후 검증 로직 수행
+- 문제 발견: product_id와 warehouse_id 복합키로 조회 시
+  stock_quantity가 음수(-5)인 레코드 존재
+
+Database MCP로 검증:
+> SELECT * FROM stock WHERE stock_quantity < 0;
+결과: product_id='PROD-001', warehouse_id='WH-003', stock_quantity=-5
+
+근본 원인:
+- 동시성 이슈로 인한 재고 차감 중복 처리
+- StockService.decreaseStock()에 트랜잭션 격리 수준 미설정
+- 관련 코드: StockService.java:45-67
+```
+
+**Step 6: Orchestrator → Analyst 해결책 요청**
+- 근본 원인 파악 완료
+- SolutionAnalyst에게 해결책 분석 요청
+
+**Step 7: SolutionAnalyst 해결책 제시**
+```
+[SolutionAnalyst 응답]
+
+해결책 분석 결과:
+
+1. 즉시 조치 (Hotfix)
+   - 음수 재고 데이터 수동 보정: UPDATE stock SET stock_quantity = 0 WHERE stock_quantity < 0
+   - 영향 범위: 3건의 레코드
+   - 리스크: 낮음
+
+2. 단기 해결책 (1-2일)
+   - decreaseStock() 메서드에 비관적 락(Pessimistic Lock) 적용
+   - @Lock(LockModeType.PESSIMISTIC_WRITE) 어노테이션 추가
+   - 장점: 구현 간단, 동시성 문제 해결
+   - 단점: 성능 저하 가능성 (대량 주문 시)
+
+3. 중장기 해결책 (1-2주)
+   - 재고 차감을 이벤트 기반으로 전환 (Event Sourcing)
+   - Kafka를 통한 순차 처리로 동시성 이슈 원천 차단
+   - 장점: 확장성 좋음, 재고 변경 이력 추적 가능
+   - 단점: 아키텍처 변경 필요, 개발 공수 큼
+
+권장: 1번 즉시 적용 후, 2번으로 단기 해결, 3번은 로드맵에 반영
+```
+
+**Step 8: Orchestrator → 사용자 보고**
+- 전체 분석 결과와 해결책을 사용자에게 종합 보고
+
+**Step 9: DocumentScribe 문서화**
+```
+[DocumentScribe 작업]
+
+1. Jira MCP로 이슈 생성:
+   - 이슈 타입: Bug
+   - 제목: [P1] inventory-service 동시성 이슈로 인한 음수 재고 발생
+   - 우선순위: Critical
+   - 담당자: inventory-service 팀
+   - 라벨: production-incident, data-integrity
+   - 하위 태스크:
+     - [Hotfix] 음수 재고 데이터 보정
+     - [Fix] 비관적 락 적용
+     - [Tech Debt] Event Sourcing 검토
+
+2. Confluence MCP로 장애 분석 문서 작성:
+   - 페이지: "2024-01-15 Order Service 장애 분석"
+   - 섹션:
+     - 장애 개요
+     - 타임라인
+     - 근본 원인 분석 (RCA)
+     - 서비스 호출 흐름도
+     - 해결책 및 조치 사항
+     - 재발 방지 대책
+```
+
+**최종 결과물**:
+- 근본 원인 분석 보고 (사용자에게 직접 전달)
+- Jira 이슈 TICKET-1234 생성 완료
+- Confluence 장애 분석 문서 발행 완료
 
 ---
 

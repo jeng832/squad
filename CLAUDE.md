@@ -19,7 +19,7 @@
 1. 코드 작성 및 테스트
 2. 커밋 및 PR 생성
 3. GitHub 이슈에 PR 링크 코멘트 추가
-4. `docs/TASKS.md` 해당 작업 상태 업데이트 (PR 링크, 상태)
+4. `docs/TASKS.md` 해당 작업에 PR 링크 기록
 5. `docs/SESSION_LOG.md`에 작업 내용 기록
 
 ## 세션 로그 작성 규칙

@@ -70,3 +70,21 @@
   - Git Repository는 Agent별로 독립적으로 clone
   - 동일 Squad Template으로 여러 Session 동시 실행 가능 (각각 독립적인 Active Squad 생성)
   - Session 완료 시 Workspace 정리 (실패 시 일정 기간 보존)
+
+---
+
+## 2026-02-02
+
+### 작업 내용
+- **작업 1-1: Spring Boot 프로젝트 초기화** ([PR #14](https://github.com/jeng832/squad/pull/14))
+  - `build.gradle`: Spring Boot 3.4.2, Java 21, 의존성 설정
+    - Spring Boot Starters: Web, Data JPA, Data Redis, Validation, WebSocket, Actuator
+    - MySQL Connector, Lombok, Jackson, Docker Java Client, WebFlux
+    - 테스트: JUnit 5, Testcontainers, H2 Database
+  - `settings.gradle`: Gradle Toolchain 자동 프로비저닝 설정
+  - `application.yml`: 데이터베이스, Redis, JPA, Jackson, 로깅, 커스텀 설정
+  - `SquadApplication.java`: 메인 애플리케이션 클래스
+  - 테스트 환경 설정 (H2 인메모리 DB)
+  - 브랜치: `feature/1-1-spring-boot-init`
+  - 이슈 [#3](https://github.com/jeng832/squad/issues/3)에 PR 링크 코멘트 추가
+  - TASKS.md 상태 업데이트

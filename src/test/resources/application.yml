@@ -1,0 +1,64 @@
+spring:
+  application:
+    name: squad-test
+
+  # Test Database Configuration (H2 for unit tests)
+  datasource:
+    url: jdbc:h2:mem:squad-test;MODE=MySQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE
+    username: sa
+    password:
+    driver-class-name: org.h2.Driver
+
+  # JPA Configuration for Test
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: true
+    properties:
+      hibernate:
+        format_sql: true
+
+  # Disable Redis for unit tests
+  data:
+    redis:
+      host: localhost
+      port: 6379
+
+  # Jackson Configuration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.squad: DEBUG
+
+# Application Custom Configuration for Test
+squad:
+  secret:
+    encryption-key: test-encryption-key-32-chars-long
+
+  llm:
+    claude:
+      api-key: test-api-key
+      base-url: https://api.anthropic.com
+      default-model: claude-sonnet-4-20250514
+      max-tokens: 4096
+      timeout: 60000
+
+  docker:
+    host: unix:///var/run/docker.sock
+    network: squad-network-test
+    agent-image: squad-agent:test
+
+  session:
+    workspace:
+      base-path: /tmp/squad-test/sessions
+      retention:
+        success: 0
+        failed: 3600
+        cancelled: 600

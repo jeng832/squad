@@ -1,0 +1,102 @@
+spring:
+  application:
+    name: squad
+
+  # Database Configuration
+  datasource:
+    url: jdbc:mysql://${DB_HOST:localhost}:${DB_PORT:3306}/${DB_NAME:squad}?useSSL=false&allowPublicKeyRetrieval=true&serverTimezone=Asia/Seoul
+    username: ${DB_USERNAME:squad}
+    password: ${DB_PASSWORD:squad}
+    driver-class-name: com.mysql.cj.jdbc.Driver
+    hikari:
+      maximum-pool-size: 10
+      minimum-idle: 5
+      idle-timeout: 300000
+      connection-timeout: 20000
+
+  # JPA Configuration
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    show-sql: false
+    properties:
+      hibernate:
+        format_sql: true
+        dialect: org.hibernate.dialect.MySQLDialect
+    open-in-view: false
+
+  # Redis Configuration
+  data:
+    redis:
+      host: ${REDIS_HOST:localhost}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: 5000ms
+      lettuce:
+        pool:
+          max-active: 10
+          max-idle: 5
+          min-idle: 1
+
+  # Jackson Configuration
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    deserialization:
+      fail-on-unknown-properties: false
+    default-property-inclusion: non_null
+
+# Server Configuration
+server:
+  port: ${SERVER_PORT:8080}
+  servlet:
+    context-path: /
+
+# Actuator Configuration
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,metrics
+  endpoint:
+    health:
+      show-details: when_authorized
+
+# Logging Configuration
+logging:
+  level:
+    root: INFO
+    com.squad: DEBUG
+    org.springframework.web: INFO
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+
+# Application Custom Configuration
+squad:
+  # Secret Encryption Key (AES-256)
+  secret:
+    encryption-key: ${SECRET_ENCRYPTION_KEY:default-dev-key-change-in-prod}
+
+  # LLM Configuration
+  llm:
+    claude:
+      api-key: ${CLAUDE_API_KEY:}
+      base-url: https://api.anthropic.com
+      default-model: claude-sonnet-4-20250514
+      max-tokens: 4096
+      timeout: 60000
+
+  # Docker Configuration
+  docker:
+    host: ${DOCKER_HOST:unix:///var/run/docker.sock}
+    network: squad-network
+    agent-image: squad-agent:latest
+
+  # Session Configuration
+  session:
+    workspace:
+      base-path: ${WORKSPACE_BASE_PATH:/var/squad/sessions}
+      retention:
+        success: 0  # 즉시 삭제
+        failed: 86400  # 24시간 (초)
+        cancelled: 3600  # 1시간 (초)

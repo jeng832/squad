@@ -30,3 +30,6 @@ Thumbs.db
 # 환경 변수 / 시크릿
 .env
 .env.*
+
+# Sdkman
+.sdkmanrc

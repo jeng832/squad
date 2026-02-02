@@ -1,0 +1,75 @@
+version: '3.8'
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: squad-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: squad
+      MYSQL_USER: squad
+      MYSQL_PASSWORD: squad
+      TZ: Asia/Seoul
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql-data:/var/lib/mysql
+      - ./docker/mysql/init.sql:/docker-entrypoint-initdb.d/00-init.sql:ro
+      - ./docker/mysql/schema.sql:/docker-entrypoint-initdb.d/01-schema.sql:ro
+    networks:
+      - squad-network
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: --character-set-server=utf8mb4 --collation-server=utf8mb4_unicode_ci
+
+  redis:
+    image: redis:7-alpine
+    container_name: squad-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - squad-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command: redis-server --appendonly yes
+
+  # Squad Platform Server (optional - for local development, use IDE)
+  # squad-server:
+  #   build:
+  #     context: .
+  #     dockerfile: Dockerfile
+  #   container_name: squad-server
+  #   environment:
+  #     MYSQL_HOST: mysql
+  #     MYSQL_PORT: 3306
+  #     MYSQL_DATABASE: squad
+  #     MYSQL_USERNAME: squad
+  #     MYSQL_PASSWORD: squad
+  #     REDIS_HOST: redis
+  #     REDIS_PORT: 6379
+  #     SECRET_ENCRYPTION_KEY: ${SECRET_ENCRYPTION_KEY:-dev-encryption-key-32chars!!}
+  #   ports:
+  #     - "8080:8080"
+  #   depends_on:
+  #     mysql:
+  #       condition: service_healthy
+  #     redis:
+  #       condition: service_healthy
+  #   networks:
+  #     - squad-network
+
+networks:
+  squad-network:
+    driver: bridge
+
+volumes:
+  mysql-data:
+  redis-data:

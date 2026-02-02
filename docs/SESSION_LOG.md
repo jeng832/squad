@@ -40,10 +40,33 @@
   - Docker Compose 구성
   - MVP 개발 계획 (Phase 1/2/3)
 
-### 다음 할 일
-- Phase 1 MVP 구현 시작
-  - Spring Boot 프로젝트 기본 구조 생성
-  - Agent CRUD API 구현
-  - Squad CRUD API 구현
-  - Claude LLM Provider 구현
-  - 기본 세션 실행 로직 구현
+---
+
+## 2026-02-01
+
+### 작업 내용
+- **샌드박스 및 격리 구조 문서화**: Agent Container의 샌드박스 환경과 Session 격리 구조를 모든 관련 문서에 업데이트
+  - **SPEC.md**:
+    - 용어 정의에 Sandbox, Workspace 추가
+    - 섹션 6.5 "격리 정책" 추가 (Agent 샌드박스 격리, Session 격리, 동시 작업 지원, Workspace 정리 정책)
+  - **ARCHITECTURE.md**:
+    - 섹션 1.2 시스템 개요에 격리 원칙 추가
+    - 섹션 3.4 "샌드박스 및 Workspace 구조" 추가
+    - 섹션 3.5 "동시 세션 실행 아키텍처" 추가 (다이어그램 포함)
+    - 섹션 5.6 "Container 생명주기 관리"에 Workspace 관리 내용 추가
+    - 섹션 5.7 "Workspace 생명주기 관리" 추가
+  - **USE_CASES.md**:
+    - UC-014 세션 시작에 동시 세션 실행 관련 설명 추가
+
+- **용어 정의 정립**: Squad 관련 용어 명확화
+  - **Squad Template**: 에이전트들의 팀 구성 템플릿 (기존 Squad 정의)
+  - **Active Squad**: Session을 수행 중인 Squad 인스턴스
+  - **Session**: 사용자의 작업 요청부터 결과 반환까지의 수행 단위 (정의 명확화)
+  - 모든 관련 문서(SPEC.md, ARCHITECTURE.md, USE_CASES.md)에 용어 일관성 적용
+
+- **핵심 설계 결정**:
+  - 모든 Agent는 독립적인 샌드박스(Docker Container)에서 동작
+  - 각 Active Squad의 Agent는 자신만의 Workspace(/workspace) 보유
+  - Git Repository는 Agent별로 독립적으로 clone
+  - 동일 Squad Template으로 여러 Session 동시 실행 가능 (각각 독립적인 Active Squad 생성)
+  - Session 완료 시 Workspace 정리 (실패 시 일정 기간 보존)

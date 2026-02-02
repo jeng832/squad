@@ -255,11 +255,17 @@
 | 항목 | 내용 |
 |------|------|
 | Actor | 사용자 |
-| 목적 | Squad를 선택하고 프롬프트를 입력하여 작업을 시작한다 |
-| 사전조건 | 사용할 Squad가 존재함 |
-| 기본흐름 | 1. 세션 실행 화면 접근<br>2. Squad 선택<br>3. 프롬프트 입력<br>4. 실행 버튼 클릭<br>5. 시스템이 세션 생성 및 Orchestrator 실행<br>6. Orchestrator가 작업 분배 시작 |
+| 목적 | Squad Template을 선택하고 프롬프트를 입력하여 작업을 시작한다 |
+| 사전조건 | 사용할 Squad Template이 존재함 |
+| 기본흐름 | 1. 세션 실행 화면 접근<br>2. Squad Template 선택<br>3. 프롬프트 입력<br>4. 실행 버튼 클릭<br>5. 시스템이 세션 생성 및 Active Squad 인스턴스화<br>6. Agent Container들 시작, 각 Agent가 독립적인 샌드박스(Workspace)에서 실행<br>7. Orchestrator가 작업 분배 시작 |
 | 대안흐름 | 5a. LLM API 연결 실패 시 오류 표시 |
-| 사후조건 | 세션이 진행 중 상태 |
+| 사후조건 | 세션이 진행 중 상태 (Active Squad 동작 중) |
+
+**동시 세션 실행:**
+- 동일한 Squad Template으로 여러 세션을 동시에 실행할 수 있음
+- 각 세션은 독립적인 Active Squad를 생성하여 완전히 격리된 환경에서 동작
+- 예: "기능 개발 Squad" Template으로 기능 A 개발 세션과 기능 B 개발 세션을 동시에 실행
+- 각 Active Squad의 Agent들은 서로 다른 Git 브랜치에서 독립적으로 작업 가능
 
 #### UC-015: 세션 진행 상황 모니터링
 | 항목 | 내용 |

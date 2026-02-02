@@ -6,7 +6,13 @@
 Squad 플랫폼의 전체 시스템 아키텍처와 주요 모듈 구조를 정의합니다.
 
 ### 1.2 시스템 개요
-Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트가 Orchestrator의 조율 하에 복잡한 작업을 수행합니다. 각 에이전트는 독립적인 Docker 컨테이너로 실행되어 확장성과 격리성을 보장합니다.
+Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트가 Orchestrator의 조율 하에 복잡한 작업을 수행합니다. 각 에이전트는 독립적인 Docker 컨테이너(샌드박스)로 실행되어 **완전한 격리**를 보장합니다.
+
+**핵심 설계 원칙:**
+- 모든 Agent는 **독립적인 샌드박스 환경**에서 동작
+- 동일 Squad Template으로 **여러 Session 동시 실행 가능** (예: 기능 A 개발 + 기능 B 개발)
+- 각 Active Squad의 Agent는 자신만의 **Workspace**를 가지며, Git Repository 등을 독립적으로 clone
+- Session 간 완전한 격리로 **동시 작업 충돌 방지**
 
 ### 1.3 기술 스택
 
@@ -164,6 +170,99 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 - `session:{sessionId}:orchestrator` - Orchestrator 전용 채널
 - `session:{sessionId}:agent:{agentId}` - 개별 Agent 채널
 - `session:{sessionId}:broadcast` - 전체 브로드캐스트
+
+### 3.4 샌드박스 및 Workspace 구조
+
+각 Agent Container는 완전히 격리된 샌드박스 환경에서 동작하며, 독립적인 Workspace를 가집니다.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                           Agent Container (Sandbox)                           │
+│                                                                               │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │                           /workspace                                     │ │
+│  │  (Agent의 독립적인 작업 디렉토리)                                         │ │
+│  │                                                                          │ │
+│  │  ┌─────────────────┐  ┌─────────────────┐  ┌─────────────────┐         │ │
+│  │  │ order-service/  │  │payment-service/ │  │ common-lib/     │         │ │
+│  │  │ (git clone)     │  │ (git clone)     │  │ (git clone)     │         │ │
+│  │  │                 │  │                 │  │                 │         │ │
+│  │  │ branch: feat/X  │  │ branch: feat/X  │  │ branch: main    │         │ │
+│  │  └─────────────────┘  └─────────────────┘  └─────────────────┘         │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                               │
+│  ┌─────────────────────────────────────────────────────────────────────────┐ │
+│  │                           /tmp                                           │ │
+│  │  (임시 파일, 분석 결과 등)                                                │ │
+│  └─────────────────────────────────────────────────────────────────────────┘ │
+│                                                                               │
+│  Environment:                                                                 │
+│  - 독립적인 파일시스템                                                        │
+│  - 격리된 프로세스 공간                                                       │
+│  - 제한된 네트워크 (squad-network만 허용)                                     │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
+
+**Workspace 특징:**
+- 각 Agent는 자신만의 `/workspace` 디렉토리 보유
+- Git Repository는 Agent별로 **독립적으로 clone**
+- 브랜치 선택은 Agent가 자율적으로 판단
+- Session 간 Workspace는 완전히 분리 (동일 Squad Template으로 여러 Session 실행 시에도 격리)
+
+### 3.5 동시 세션 실행 아키텍처
+
+동일한 Squad Template으로 여러 Session을 동시에 실행할 수 있습니다. 각 Session은 독립적인 Active Squad를 생성합니다.
+
+```
+┌─────────────────────────────────────────────────────────────────────────────────┐
+│                              Squad Platform Server                               │
+│                                                                                  │
+│   Squad Template: "기능 개발 Squad"                                              │
+│   - Orchestrator: "orch-001"                                                    │
+│   - Workers: ["order-worker", "payment-worker"]                                 │
+└─────────────────────────────────┬───────────────────────────────────────────────┘
+                                  │
+              ┌───────────────────┴───────────────────┐
+              │                                       │
+              ▼                                       ▼
+┌─────────────────────────────────────┐ ┌─────────────────────────────────────┐
+│         Session A (기능 X 개발)      │ │         Session B (기능 Y 개발)      │
+│         ID: sess-001                │ │         ID: sess-002                │
+│                                     │ │                                     │
+│  ┌────────────────────────────────┐ │ │  ┌────────────────────────────────┐ │
+│  │ Container: squad-sess001-orch  │ │ │  │ Container: squad-sess002-orch  │ │
+│  │ Workspace:                     │ │ │  │ Workspace:                     │ │
+│  │   /workspace/order → feat/X   │ │ │  │   /workspace/order → feat/Y   │ │
+│  └────────────────────────────────┘ │ │  └────────────────────────────────┘ │
+│                                     │ │                                     │
+│  ┌────────────────────────────────┐ │ │  ┌────────────────────────────────┐ │
+│  │ Container: squad-sess001-order │ │ │  │ Container: squad-sess002-order │ │
+│  │ Workspace:                     │ │ │  │ Workspace:                     │ │
+│  │   /workspace/order → feat/X   │ │ │  │   /workspace/order → feat/Y   │ │
+│  └────────────────────────────────┘ │ │  └────────────────────────────────┘ │
+│                                     │ │                                     │
+│  ┌────────────────────────────────┐ │ │  ┌────────────────────────────────┐ │
+│  │ Container: squad-sess001-pay   │ │ │  │ Container: squad-sess002-pay   │ │
+│  │ Workspace:                     │ │ │  │ Workspace:                     │ │
+│  │   /workspace/payment → feat/X │ │ │  │   /workspace/payment → feat/Y │ │
+│  └────────────────────────────────┘ │ │  └────────────────────────────────┘ │
+│                                     │ │                                     │
+│  Redis Channel:                     │ │  Redis Channel:                     │
+│    session:sess-001:*               │ │    session:sess-002:*               │
+└─────────────────────────────────────┘ └─────────────────────────────────────┘
+
+     Session A와 Session B는 완전히 격리됨
+     - 독립적인 Container
+     - 독립적인 Workspace (각자 Git clone)
+     - 독립적인 Redis Channel
+     - 서로 다른 브랜치에서 동시 작업 가능
+```
+
+**동시 세션 실행의 이점:**
+- 동일 Squad Template으로 여러 기능을 **병렬 개발** 가능
+- 각 Active Squad는 **충돌 없이** 독립적으로 작업
+- 각 Active Squad의 Agent가 **서로 다른 브랜치**에서 작업 가능
+- 하나의 Session 실패가 다른 Session에 **영향 없음**
 
 ---
 
@@ -460,9 +559,12 @@ SESSION START:
     │           image: "squad-agent:latest"                       │
     │           env: AGENT_ID, AGENT_CONFIG, REDIS_URL           │
     │           network: squad-network                            │
+    │           volumes: /var/squad/sessions/{sessionId}/{agentId}│
+    │                    → /workspace (Container 내부)            │
     │       - Start container                                     │
     │       - Wait for health check                               │
     │  3. Register containers in session state                    │
+    │  4. Initialize workspace (Agent가 필요한 repo clone)         │
     └─────────────────────────────────────────────────────────────┘
 
 SESSION RUNNING:
@@ -470,6 +572,7 @@ SESSION RUNNING:
     │  - Monitor container health (every 10s)                     │
     │  - Restart failed containers (max 3 times)                  │
     │  - Log container stdout/stderr                              │
+    │  - Workspace 상태 보존 (재시작 시에도 유지)                    │
     └─────────────────────────────────────────────────────────────┘
 
 SESSION END:
@@ -478,7 +581,10 @@ SESSION END:
     │  2. Wait for graceful shutdown (timeout: 30s)               │
     │  3. Force kill remaining containers                         │
     │  4. Remove containers                                        │
-    │  5. Cleanup session state                                   │
+    │  5. Cleanup workspace directories:                          │
+    │     - 성공: 즉시 삭제                                        │
+    │     - 실패: 설정된 기간 보존 후 삭제 (디버깅용)               │
+    │  6. Cleanup session state                                   │
     └─────────────────────────────────────────────────────────────┘
 
 HEALTH CHECK:
@@ -490,6 +596,56 @@ HEALTH CHECK:
     │                                                              │
     │  IF no response in 30s → mark unhealthy                    │
     │  IF unhealthy 3 times → restart container                  │
+    └─────────────────────────────────────────────────────────────┘
+```
+
+### 5.7 Workspace 생명주기 관리
+
+```
+WORKSPACE CREATION (Session 시작 시):
+    ┌─────────────────────────────────────────────────────────────┐
+    │  Host 경로: /var/squad/sessions/{sessionId}/{agentId}/      │
+    │  Container 경로: /workspace/                                 │
+    │                                                              │
+    │  1. Host에 session/agent별 디렉토리 생성                      │
+    │  2. Volume mount로 Container에 연결                          │
+    │  3. Agent 시작 시 필요한 Git repository clone                │
+    │     (Agent가 자율적으로 판단)                                 │
+    └─────────────────────────────────────────────────────────────┘
+
+WORKSPACE ISOLATION:
+    ┌─────────────────────────────────────────────────────────────┐
+    │  Session A (sess-001)           Session B (sess-002)        │
+    │                                                              │
+    │  /var/squad/sessions/           /var/squad/sessions/        │
+    │    └── sess-001/                  └── sess-002/             │
+    │        ├── orch-001/                  ├── orch-001/         │
+    │        │   └── workspace/             │   └── workspace/    │
+    │        ├── worker-001/                ├── worker-001/       │
+    │        │   └── workspace/             │   └── workspace/    │
+    │        └── worker-002/                └── worker-002/       │
+    │            └── workspace/                 └── workspace/    │
+    │                                                              │
+    │  → 완전히 분리된 디렉토리 구조                                │
+    │  → 동일 repo를 다른 브랜치로 동시 작업 가능                   │
+    └─────────────────────────────────────────────────────────────┘
+
+WORKSPACE CLEANUP:
+    ┌─────────────────────────────────────────────────────────────┐
+    │  Session 완료 상태에 따른 정리 정책:                          │
+    │                                                              │
+    │  SUCCESS:                                                    │
+    │    - 즉시 workspace 디렉토리 삭제                            │
+    │    - rm -rf /var/squad/sessions/{sessionId}/                │
+    │                                                              │
+    │  FAILED / ERROR:                                             │
+    │    - workspace.retention.failed 설정값만큼 보존              │
+    │    - 기본값: 24시간                                          │
+    │    - 만료 후 background job이 삭제                           │
+    │                                                              │
+    │  CANCELLED:                                                  │
+    │    - workspace.retention.cancelled 설정값만큼 보존           │
+    │    - 기본값: 1시간                                           │
     └─────────────────────────────────────────────────────────────┘
 ```
 

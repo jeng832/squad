@@ -31,8 +31,11 @@
 |------|------|
 | Agent | 사용자가 정의한 AI 에이전트. 이름, 역할, LLM 설정 등을 가짐 |
 | RoleType | 에이전트의 역할 유형 (orchestrator, worker, analyst, scribe, custom) |
-| Squad | 에이전트들의 팀 구성. 협업 단위 |
-| Session | 한 번의 작업 실행 단위. 사용자 프롬프트로 시작 |
+| Squad Template | 에이전트들의 팀 구성 템플릿. 협업 단위의 정의 |
+| Active Squad | Session을 수행 중인 Squad. Squad Template이 인스턴스화되어 실제 동작하는 상태 |
+| Session | 사용자가 Squad에 작업을 요청하고 결과를 받기까지의 작업 수행 단위. 프롬프트 입력 → 에이전트 협업 → 최종 결과 반환의 전체 과정을 포함한다. 동일 Squad Template으로 여러 Session을 동시에 실행할 수 있다 |
+| Sandbox | Agent Container의 격리된 실행 환경. 각 Agent는 독립적인 샌드박스에서 동작 |
+| Workspace | Sandbox 내 Agent의 작업 디렉토리. Git Repository 등이 독립적으로 clone됨 |
 | Message | 에이전트 간 주고받는 메시지 |
 | Conversation | 세션 내 메시지들의 흐름 |
 | MCP | Model Context Protocol. 외부 도구 연동 규격 |
@@ -261,6 +264,55 @@
 - 새로운 LLM Provider 추가 용이
 - 새로운 MCP 추가 용이
 - 새로운 Skill 추가 용이
+
+### 6.5 격리 정책
+
+Squad 플랫폼의 핵심 설계 원칙은 **완전한 격리**입니다.
+
+#### 6.5.1 Agent 샌드박스 격리
+
+- 모든 Agent는 **독립적인 샌드박스 환경**에서 동작
+- 각 Agent Container는 자신만의 **Workspace(작업 디렉토리)**를 보유
+- Git Repository는 **Agent별로 독립적으로 clone**
+- 브랜치 선택은 Agent가 자율적으로 판단
+
+#### 6.5.2 Session 격리
+
+- Squad는 **템플릿(정의)**이고, Session은 **실행 인스턴스**
+- 동일한 Squad Template으로 **여러 Session 동시 실행 가능**
+- 각 Session의 Agent들은 **완전히 격리된 환경**에서 동작
+- Session 간 데이터 공유 없음
+
+#### 6.5.3 동시 작업 지원
+
+```
+[동일 Squad Template으로 2개 Session 동시 실행]
+
+Squad: "기능 개발 Squad"
+    │
+    ├── Session A (기능 X 개발) ─────────────────────
+    │   ├── Orchestrator-A
+    │   ├── Worker-Order-A
+    │   │   └── /workspace/sessA/order-service
+    │   │       └── branch: feature/X
+    │   └── Worker-Payment-A
+    │       └── /workspace/sessA/payment-service
+    │           └── branch: feature/X
+    │
+    └── Session B (기능 Y 개발) ─────────────────────
+        ├── Orchestrator-B
+        ├── Worker-Order-B
+        │   └── /workspace/sessB/order-service
+        │       └── branch: feature/Y
+        └── Worker-Payment-B
+            └── /workspace/sessB/payment-service
+                └── branch: feature/Y
+```
+
+#### 6.5.4 Workspace 정리 정책
+
+- Session 완료 시 해당 Session의 모든 Workspace 정리
+- 실패한 Session의 Workspace는 디버깅을 위해 일정 기간 보존 (설정 가능)
 
 ---
 

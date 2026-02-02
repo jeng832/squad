@@ -47,3 +47,52 @@
   - Squad CRUD API 구현
   - Claude LLM Provider 구현
   - 기본 세션 실행 로직 구현
+
+---
+
+## 2026-02-02
+
+### 작업 내용
+- **이슈 #3: 프로젝트 초기 설정 완료**
+
+- **1-1. Spring Boot 프로젝트 초기화**
+  - Gradle 설정 (Java 21, Spring Boot 3.3.0)
+  - 의존성: Spring Web, JPA, Validation, Redis, WebSocket, Docker-java, Lombok 등
+  - `build.gradle`, `settings.gradle` 생성
+
+- **1-2. 패키지 구조 및 공통 모듈 생성**
+  - 패키지 구조: domain, repository, service, controller, config, common
+  - 공통 예외 처리: GlobalExceptionHandler, BusinessException, ErrorCode
+  - API 응답 형식: ApiResponse, ErrorResponse
+  - 설정 클래스: JpaConfig, JacksonConfig, RedisConfig, WebSocketConfig
+  - 공통 엔티티: BaseEntity
+  - 열거형: RoleType, SessionStatus, MessageType
+
+- **1-3. Docker Compose 인프라 구성**
+  - MySQL 8.0 컨테이너 (squad-mysql)
+  - Redis 7 Alpine 컨테이너 (squad-redis)
+  - squad-network 브릿지 네트워크
+  - 헬스체크 및 볼륨 설정
+
+- **1-4. 데이터베이스 스키마 생성**
+  - DDL 스크립트 (schema.sql)
+  - 테이블: agents, mcps, skills, squads, squad_agents, sessions, messages, secrets
+  - 조인 테이블: agent_mcps, agent_skills
+
+### 생성된 파일 (25개)
+- `build.gradle`, `settings.gradle`, `gradlew`, `gradle/wrapper/gradle-wrapper.properties`
+- `docker-compose.yml`, `docker/mysql/init.sql`, `docker/mysql/schema.sql`
+- `src/main/java/com/squad/SquadApplication.java`
+- `src/main/java/com/squad/common/exception/*` (3개)
+- `src/main/java/com/squad/common/response/*` (2개)
+- `src/main/java/com/squad/config/*` (4개)
+- `src/main/java/com/squad/domain/*` (4개)
+- `src/main/resources/application.yml`
+- `src/test/java/com/squad/SquadApplicationTests.java`
+- `.env.example`
+
+### 다음 할 일
+- 이슈 #4: 엔티티 및 Repository 계층 구현
+  - Agent, MCP, Skill, Squad, Session, Message, Secret 엔티티
+  - Repository 인터페이스
+  - 기본 테스트

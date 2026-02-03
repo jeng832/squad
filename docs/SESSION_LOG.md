@@ -76,6 +76,12 @@
 ## 2026-02-03
 
 ### 작업 내용
+- **작업 1-3: Docker Compose 인프라 구성** ([PR #16](https://github.com/jeng832/squad/pull/16))
+  - `docker-compose.yml`: MySQL 8.0, Redis 7 컨테이너 설정
+  - `docker/mysql/init.sql`: DB 초기화 스크립트 (squad, squad_test DB)
+  - squad-network 브릿지 네트워크
+  - 볼륨: mysql-data, redis-data
+
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
   - 패키지 구조: `common.api`, `common.exception`, `common.config`
   - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)

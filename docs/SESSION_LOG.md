@@ -73,6 +73,22 @@
 
 ---
 
+## 2026-02-03
+
+### 작업 내용
+- **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
+  - 패키지 구조: `common.api`, `common.exception`, `common.config`
+  - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)
+  - `ErrorCode`: HTTP 상태 코드·기본 메시지를 포함하는 전역 에러 코드 열거형
+  - 예외 계층: `SquadException` (기본) → `NotFoundException` (404), `ValidationException` (400)
+  - `GlobalExceptionHandler`: `@RestControllerAdvice`로 SquadException, Bean Validation, 405, 일반 Exception을 통일 처리
+  - `RedisConfig`: `RedisTemplate<String, Object>`를 Jackson 직렬화기로 구성
+  - `WebConfig`: CORS 설정 (`/api/**`)
+  - 테스트: `ApiResponseTest`, `SquadExceptionTest`, `GlobalExceptionHandlerTest` (`@WebMvcTest`)
+  - 이슈 [#3](https://github.com/jeng832/squad/issues/3)에 PR 링크 코멘트 추가
+
+---
+
 ## 2026-02-02
 
 ### 작업 내용

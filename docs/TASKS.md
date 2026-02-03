@@ -11,7 +11,7 @@
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
 | 1-1 | Spring Boot 프로젝트 초기화 | Gradle 설정, Java 21, 의존성 추가 (Spring Web, JPA, Validation, Redis, Docker 등) | build.gradle, application.yml | [#14](https://github.com/jeng832/squad/pull/14) |
-| 1-2 | 패키지 구조 및 공통 모듈 생성<br/> | 패키지 구조 생성, 공통 예외 처리(GlobalExceptionHandler), API 응답 형식(ApiResponse), 공통 설정 클래스 | 10~15개 파일 | |
+| 1-2 | 패키지 구조 및 공통 모듈 생성<br/> | 패키지 구조 생성, 공통 예외 처리(GlobalExceptionHandler), API 응답 형식(ApiResponse), 공통 설정 클래스 | 10~15개 파일 | [#15](https://github.com/jeng832/squad/pull/15) |
 | 1-3 | Docker Compose 인프라 구성 | MySQL, Redis 컨테이너 설정, 네트워크 구성 | docker-compose.yml, 초기화 스크립트 | |
 | 1-4 | 데이터베이스 스키마 생성 | ERD 기반 DDL 스크립트 작성 (agents, squads, sessions, messages, mcps, skills, secrets 테이블) | schema.sql | |
 

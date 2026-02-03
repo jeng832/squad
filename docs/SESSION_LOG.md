@@ -122,6 +122,15 @@
   - `AgentRepositoryTest`: `@DataJpaTest` 기반 6가지 테스트 시나리오
   - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
 
+- **작업 2-2: MCP 엔티티 및 Repository** ([PR #19](https://github.com/jeng832/squad/pull/19))
+  - `Mcp` 엔티티: `mcps` 테이블 매핑
+    - `name` UNIQUE 제약조건, `description` (nullable), `config` JSON 컬럼
+    - `@JdbcTypeCode(SqlTypes.JSON)`으로 Hibernate 6 JSON 직렬화
+    - `@PrePersist` / `@PreUpdate`로 타임스탬프 관리, `update()` 메서드로 정보 수정 지원
+  - `McpRepository`: `JpaRepository<Mcp, Long>` 기본 CRUD + `findByName` 조회
+  - `McpRepositoryTest`: `@DataJpaTest` 기반 8가지 테스트 시나리오
+  - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
+
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
   - 패키지 구조: `common.api`, `common.exception`, `common.config`
   - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)

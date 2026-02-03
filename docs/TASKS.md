@@ -22,7 +22,7 @@
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
 | 2-1 | Agent 엔티티 및 Repository | Agent JPA 엔티티, AgentRepository, 기본 테스트 | 3~4개 파일 | [#18](https://github.com/jeng832/squad/pull/18) |
-| 2-2 | MCP 엔티티 및 Repository | Mcp JPA 엔티티, McpRepository, 기본 테스트 | 3~4개 파일 | |
+| 2-2 | MCP 엔티티 및 Repository | Mcp JPA 엔티티, McpRepository, 기본 테스트 | 3~4개 파일 | [#19](https://github.com/jeng832/squad/pull/19) |
 | 2-3 | Skill 엔티티 및 Repository | Skill JPA 엔티티, SkillRepository, 기본 테스트 | 3~4개 파일 | |
 | 2-4 | Squad 엔티티 및 Repository | Squad 엔티티, SquadAgent (다대다 조인 테이블), SquadRepository | 4~5개 파일 | |
 | 2-5 | Session/Message 엔티티 및 Repository | Session, Message JPA 엔티티, Repository | 4~5개 파일 | |

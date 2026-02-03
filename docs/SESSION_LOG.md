@@ -73,6 +73,24 @@
 
 ---
 
+## 2026-02-02
+
+### 작업 내용
+- **작업 1-1: Spring Boot 프로젝트 초기화** ([PR #14](https://github.com/jeng832/squad/pull/14))
+  - `build.gradle`: Spring Boot 3.4.2, Java 21, 의존성 설정
+    - Spring Boot Starters: Web, Data JPA, Data Redis, Validation, WebSocket, Actuator
+    - MySQL Connector, Lombok, Jackson, Docker Java Client, WebFlux
+    - 테스트: JUnit 5, Testcontainers, H2 Database
+  - `settings.gradle`: Gradle Toolchain 자동 프로비저닝 설정
+  - `application.yml`: 데이터베이스, Redis, JPA, Jackson, 로깅, 커스텀 설정
+  - `SquadApplication.java`: 메인 애플리케이션 클래스
+  - 테스트 환경 설정 (H2 인메모리 DB)
+  - 브랜치: `feature/1-1-spring-boot-init`
+  - 이슈 [#3](https://github.com/jeng832/squad/issues/3)에 PR 링크 코멘트 추가
+  - TASKS.md 상태 업데이트
+
+---
+
 ## 2026-02-03
 
 ### 작업 내용
@@ -104,21 +122,3 @@
   - `WebConfig`: CORS 설정 (`/api/**`)
   - 테스트: `ApiResponseTest`, `SquadExceptionTest`, `GlobalExceptionHandlerTest` (`@WebMvcTest`)
   - 이슈 [#3](https://github.com/jeng832/squad/issues/3)에 PR 링크 코멘트 추가
-
----
-
-## 2026-02-02
-
-### 작업 내용
-- **작업 1-1: Spring Boot 프로젝트 초기화** ([PR #14](https://github.com/jeng832/squad/pull/14))
-  - `build.gradle`: Spring Boot 3.4.2, Java 21, 의존성 설정
-    - Spring Boot Starters: Web, Data JPA, Data Redis, Validation, WebSocket, Actuator
-    - MySQL Connector, Lombok, Jackson, Docker Java Client, WebFlux
-    - 테스트: JUnit 5, Testcontainers, H2 Database
-  - `settings.gradle`: Gradle Toolchain 자동 프로비저닝 설정
-  - `application.yml`: 데이터베이스, Redis, JPA, Jackson, 로깅, 커스텀 설정
-  - `SquadApplication.java`: 메인 애플리케이션 클래스
-  - 테스트 환경 설정 (H2 인메모리 DB)
-  - 브랜치: `feature/1-1-spring-boot-init`
-  - 이슈 [#3](https://github.com/jeng832/squad/issues/3)에 PR 링크 코멘트 추가
-  - TASKS.md 상태 업데이트

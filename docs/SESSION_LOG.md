@@ -112,6 +112,16 @@
   - `test/application.yml`: `spring.sql.init.mode: never` (H2 create-drop과 충돌 방지)
   - 이슈 [#3](https://github.com/jeng832/squad/issues/3)에 PR 링크 코멘트 추가
 
+- **작업 2-1: Agent 엔티티 및 Repository** ([PR #18](https://github.com/jeng832/squad/pull/18))
+  - `RoleType` 열거형: ORCHESTRATOR, WORKER, ANALYST, SCRIBE, CUSTOM
+  - `Agent` 엔티티: `agents` 테이블 매핑
+    - `llm_config` JSON 컬럼 → Hibernate 6 `@JdbcTypeCode(SqlTypes.JSON)` + Jackson 직렬화
+    - `role_type` ENUM → 내부 `RoleTypeConverter`로 대문자 ENUM ↔ DB 소문자 ENUM 변환
+    - `@PrePersist` / `@PreUpdate`로 타임스탬프 관리, `update()` 메서드로 정보 수정 지원
+  - `AgentRepository`: `JpaRepository<Agent, Long>` 기본 CRUD
+  - `AgentRepositoryTest`: `@DataJpaTest` 기반 6가지 테스트 시나리오
+  - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
+
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
   - 패키지 구조: `common.api`, `common.exception`, `common.config`
   - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)

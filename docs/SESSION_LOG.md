@@ -82,6 +82,18 @@
   - squad-network 브릿지 네트워크
   - 볼륨: mysql-data, redis-data
 
+- **작업 1-4: 데이터베이스 스키마 생성** ([PR #17](https://github.com/jeng832/squad/pull/17))
+  - `src/main/resources/schema.sql`: ERD 기반 DDL 스크립트 작성 (10개 테이블)
+    - 독립 테이블: `agents`, `mcps`, `skills`, `secrets`
+    - 관계 테이블: `squads` (orchestrator FK), `sessions` (squad FK), `messages` (session FK)
+    - 다대다 조인 테이블: `squad_agents`, `agent_mcps`, `agent_skills` (복합 PK + CASCADE DELETE)
+  - JSON 컬럼 활용: `llm_config`, `config`, `direct_communication`, `required_mcps`
+  - `messages.from_agent_id` / `to_agent_id`: 시스템 메시지 시 NULL 가능 → FK 제약 없음
+  - 인덱스: `idx_sessions_status`, `idx_messages_session_created`
+  - `application.yml`: `spring.sql.init.mode: always` 추가
+  - `test/application.yml`: `spring.sql.init.mode: never` (H2 create-drop과 충돌 방지)
+  - 이슈 [#3](https://github.com/jeng832/squad/issues/3)에 PR 링크 코멘트 추가
+
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
   - 패키지 구조: `common.api`, `common.exception`, `common.config`
   - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)

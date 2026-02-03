@@ -1,10 +1,14 @@
 -- ============================================================
 -- Squad 데이터베이스 스키마 (ERD 기반 DDL)
 -- MySQL 8.0 / utf8mb4
+-- ------------------------------------------------------------
+-- 참조 무결성 정책: 명시적 FK 제약조건 미사용
+-- ERD의 관계는 논리적 관계이며, 참조 무결성은
+-- 애플리케이션 트랜잭션 내 로직으로 처리
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 독립 테이블 (외래키 의존 없음)
+-- 기본 테이블
 -- ------------------------------------------------------------
 
 -- agents: AI 에이전트 정의
@@ -75,8 +79,7 @@ CREATE TABLE IF NOT EXISTS squads (
     orchestrator_id      BIGINT       NOT NULL,
     direct_communication JSON,
     created_at           DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    updated_at           DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3),
-    CONSTRAINT fk_squad_orchestrator FOREIGN KEY (orchestrator_id) REFERENCES agents (id)
+    updated_at           DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
@@ -86,9 +89,7 @@ CREATE TABLE IF NOT EXISTS squads (
 CREATE TABLE IF NOT EXISTS squad_agents (
     squad_id BIGINT NOT NULL,
     agent_id BIGINT NOT NULL,
-    PRIMARY KEY (squad_id, agent_id),
-    CONSTRAINT fk_squad_agents_squad FOREIGN KEY (squad_id) REFERENCES squads (id) ON DELETE CASCADE,
-    CONSTRAINT fk_squad_agents_agent FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE CASCADE
+    PRIMARY KEY (squad_id, agent_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
@@ -98,9 +99,7 @@ CREATE TABLE IF NOT EXISTS squad_agents (
 CREATE TABLE IF NOT EXISTS agent_mcps (
     agent_id BIGINT NOT NULL,
     mcp_id   BIGINT NOT NULL,
-    PRIMARY KEY (agent_id, mcp_id),
-    CONSTRAINT fk_agent_mcps_agent FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE CASCADE,
-    CONSTRAINT fk_agent_mcps_mcp   FOREIGN KEY (mcp_id)   REFERENCES mcps  (id) ON DELETE CASCADE
+    PRIMARY KEY (agent_id, mcp_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
@@ -110,9 +109,7 @@ CREATE TABLE IF NOT EXISTS agent_mcps (
 CREATE TABLE IF NOT EXISTS agent_skills (
     agent_id BIGINT NOT NULL,
     skill_id BIGINT NOT NULL,
-    PRIMARY KEY (agent_id, skill_id),
-    CONSTRAINT fk_agent_skills_agent FOREIGN KEY (agent_id) REFERENCES agents (id) ON DELETE CASCADE,
-    CONSTRAINT fk_agent_skills_skill FOREIGN KEY (skill_id) REFERENCES skills (id) ON DELETE CASCADE
+    PRIMARY KEY (agent_id, skill_id)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci
@@ -133,7 +130,6 @@ CREATE TABLE IF NOT EXISTS sessions (
     started_at   DATETIME(3),
     completed_at DATETIME(3),
     created_at   DATETIME(3)                                            NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    CONSTRAINT fk_session_squad FOREIGN KEY (squad_id) REFERENCES squads (id),
     INDEX idx_sessions_status (status)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
@@ -151,7 +147,6 @@ CREATE TABLE IF NOT EXISTS messages (
     content       TEXT        NOT NULL,
     type          VARCHAR(50) NOT NULL,
     created_at    DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    CONSTRAINT fk_message_session FOREIGN KEY (session_id) REFERENCES sessions (id),
     INDEX idx_messages_session_created (session_id, created_at)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4

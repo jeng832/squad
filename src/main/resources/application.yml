@@ -14,6 +14,11 @@ spring:
       idle-timeout: 300000
       connection-timeout: 20000
 
+  # SQL Init Configuration (schema.sql 실행)
+  sql:
+    init:
+      mode: always
+
   # JPA Configuration
   jpa:
     hibernate:

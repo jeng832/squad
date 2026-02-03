@@ -9,6 +9,11 @@ spring:
     password:
     driver-class-name: org.h2.Driver
 
+  # SQL Init: 테스트에서는 Hibernate create-drop으로 스키마 관리
+  sql:
+    init:
+      mode: never
+
   # JPA Configuration for Test
   jpa:
     hibernate:

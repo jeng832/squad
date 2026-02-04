@@ -167,6 +167,18 @@
   - `SessionRepositoryTest`: 7가지 테스트, `MessageRepositoryTest`: 4가지 테스트
   - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
 
+- **작업 2-6: Secret 엔티티 및 암호화 서비스** ([PR #23](https://github.com/jeng832/squad/pull/23))
+  - `Secret` 엔티티: `secrets` 테이블 매핑
+    - `name` UNIQUE 제약조건, `value` (암호화된 값 저장), `update(value)` 메서드
+  - `SecretRepository`: `JpaRepository<Secret, Long>` 기본 CRUD + `findByName` 조회
+  - `AesEncryptionUtil`: AES-256 암호화/복호화 유틸리티
+    - 키 유도: passphrase → SHA-256 해싱 → 32바이트 키
+    - 알고리즘: AES/CBC/PKCS5Padding, 16바이트 랜덤 IV prepend
+    - 저장 형식: Base64(IV + 암호화된 바이트열)
+  - `SecretRepositoryTest`: 5가지 테스트 (CRUD, UNIQUE 제약)
+  - `AesEncryptionUtilTest`: 6가지 테스트 (라운드트립, 랜덤 IV, 유니코드, 잘못된 키/암호문)
+  - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
+
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
   - 패키지 구조: `common.api`, `common.exception`, `common.config`
   - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)

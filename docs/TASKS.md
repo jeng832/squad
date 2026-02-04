@@ -34,7 +34,7 @@
 
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
-| 3-1 | Agent CRUD API | AgentService, AgentController, DTO (Request/Response), 유효성 검증 | 5~6개 파일 | |
+| 3-1 | Agent CRUD API | AgentService, AgentController, DTO (Request/Response), 유효성 검증 | 5~6개 파일 | [#24](https://github.com/jeng832/squad/pull/24) |
 | 3-2 | MCP CRUD API | McpService, McpController, DTO, config JSON 검증 로직 | 5~6개 파일 | |
 | 3-3 | Skill CRUD API | SkillService, SkillController, DTO | 5~6개 파일 | |
 | 3-4 | Squad CRUD API | SquadService (Orchestrator 필수 검증 포함), SquadController, DTO | 6~7개 파일 | |

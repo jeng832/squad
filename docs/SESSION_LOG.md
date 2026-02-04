@@ -179,6 +179,32 @@
   - `AesEncryptionUtilTest`: 6가지 테스트 (라운드트립, 랜덤 IV, 유니코드, 잘못된 키/암호문)
   - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
 
+---
+
+## 2026-02-04
+
+### 작업 내용
+- **작업 3-1: Agent CRUD API** ([PR #24](https://github.com/jeng832/squad/pull/24))
+  - `AgentCreateRequest` DTO: `name` (@NotBlank, @Size(max=100)), `roleType` (@NotNull), `role` (@NotBlank), `llmConfig` (@NotNull)
+  - `AgentUpdateRequest` DTO: `name`, `role`, `llmConfig` (roleType 수정 불가)
+  - `AgentResponse` DTO: 엔티티 → 응답 변환 (정적 팩토리 `from(Agent)`)
+  - `AgentService`: CRUD 비즈니스 로직
+    - `findAll()`, `findById()` — 조회 시 NotFoundException 발생
+    - `create()` — Agent 빌더로 엔티티 생성 후 저장
+    - `update()` — `agent.update()` 메서드 호출로 수정
+    - `delete()` — 존재 여부 확인 후 삭제
+    - `@Transactional(readOnly = true)` 기본, 변경 작업은 `@Transactional` 오버라이드
+  - `AgentController`: `/api/v1/agents` 기반 REST 엔드포인트
+    - GET (목록), POST (생성, 201), GET/{id} (상세), PUT/{id} (수정), DELETE/{id} (삭제)
+    - `@Valid` + `@RequestBody`로 Jakarta Bean Validation 적용
+    - 생성·삭제 시 성공 메시지 포함
+  - `AgentControllerTest`: `@WebMvcTest` + MockMvc 기반 10가지 테스트
+    - 목록 조회, ID 조회, 404, 생성(201), name 빈값 검증(400), roleType null 검증(400), 수정, 수정 404, 삭제, 삭제 404
+  - `SquadException.getErrorCode()` 메서드 추가 (GlobalExceptionHandler 호환 수정)
+  - 이슈 [#5](https://github.com/jeng832/squad/issues/5)에 PR 링크 코멘트 추가
+
+---
+
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
   - 패키지 구조: `common.api`, `common.exception`, `common.config`
   - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)

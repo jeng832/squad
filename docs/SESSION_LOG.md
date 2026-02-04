@@ -152,6 +152,21 @@
   - `SquadRepositoryTest`: `@DataJpaTest` 기반 8가지 테스트 시나리오 (ManyToOne, ManyToMany, JSON 포함)
   - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
 
+- **작업 2-5: Session/Message 엔티티 및 Repository** ([PR #22](https://github.com/jeng832/squad/pull/22))
+  - `SessionStatus` 열거형: PENDING, RUNNING, COMPLETED, CANCELLED
+  - `MessageType` 열거형: TASK_REQUEST, TASK_RESULT, HELP_REQUEST, HELP_RESPONSE, SYSTEM
+  - `Session` 엔티티: `sessions` 테이블 매핑
+    - Squad와의 `@ManyToOne` 관계 (`squad_id` FK)
+    - 상태 전이 메서드: `start()`, `complete(result)`, `cancel()`
+    - `updated_at` 없음 (상태 변경은 status/started_at/completed_at로 추적)
+  - `Message` 엔티티: `messages` 테이블 매핑 (append-only)
+    - Session과의 `@ManyToOne` 관계 (`session_id` FK)
+    - `fromAgentId` / `toAgentId`: 시스템 메시지 시 null 가능
+  - `SessionRepository`: `findBySquadId`, `findByStatus`
+  - `MessageRepository`: `findBySessionIdOrderByCreatedAt`, `findBySessionIdAndType`
+  - `SessionRepositoryTest`: 7가지 테스트, `MessageRepositoryTest`: 4가지 테스트
+  - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
+
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
   - 패키지 구조: `common.api`, `common.exception`, `common.config`
   - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)

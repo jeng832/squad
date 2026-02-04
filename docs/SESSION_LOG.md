@@ -141,6 +141,17 @@
   - `SkillRepositoryTest`: `@DataJpaTest` 기반 8가지 테스트 시나리오
   - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
 
+- **작업 2-4: Squad 엔티티 및 Repository** ([PR #21](https://github.com/jeng832/squad/pull/21))
+  - `Squad` 엔티티: `squads` 테이블 매핑
+    - `orchestrator` → Agent와의 `@ManyToOne` 관계 (`orchestrator_id` FK)
+    - `agents` → Agent와의 `@ManyToMany` 관계 (`squad_agents` 조인 테이블, `@Builder.Default` Set)
+    - `direct_communication` JSON 컬럼 (nullable): 직접 통신 규칙 저장
+    - `addAgent()` / `removeAgent(Long agentId)` 메서드로 멤버 관리
+    - `update()` 메서드로 Squad 정보 수정 지원
+  - `SquadRepository`: `JpaRepository<Squad, Long>` 기본 CRUD + `findByOrchestraterId` 조회
+  - `SquadRepositoryTest`: `@DataJpaTest` 기반 8가지 테스트 시나리오 (ManyToOne, ManyToMany, JSON 포함)
+  - 이슈 [#4](https://github.com/jeng832/squad/issues/4)에 PR 링크 코멘트 추가
+
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))
   - 패키지 구조: `common.api`, `common.exception`, `common.config`
   - `ApiResponse<T>`: 모든 REST API 응답을 감싸는 공통 래퍼 클래스 (성공/에러 팩토리 메서드)

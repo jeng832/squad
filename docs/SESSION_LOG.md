@@ -218,6 +218,20 @@
     - 목록 조회, ID 조회, 404, 생성(201), name 빈값(400), config command 누락(400), config null(400), 수정, 수정 404, 수정 command 누락(400), 삭제, 삭제 404
   - 이슈 [#5](https://github.com/jeng832/squad/issues/5)에 PR 링크 코멘트 추가
 
+- **작업 3-4: Squad CRUD API** ([PR #27](https://github.com/jeng832/squad/pull/27))
+  - `SquadCreateRequest` DTO: `name` (@NotBlank), `description` (nullable), `orchestratorId` (@NotNull), `agentIds` (List<Long>, nullable), `directCommunication` (Map, nullable)
+  - `SquadUpdateRequest` DTO: `name`, `description`, `agentIds`, `directCommunication` (orchestrator 수정 불가)
+  - `SquadResponse` DTO: `orchestratorId`, `agentIds` (Set<Long>)로 관계 ID만 반환
+  - `SquadService`: CRUD 비즈니스 로직
+    - `validateOrchestrator()`: orchestrator Agent 존재 확인 + `roleType == ORCHESTRATOR` 검증
+    - `create()`: orchestrator 검증 후 Squad 저장, agentIds로 멤버 Agent를 루프 조회 후 `addAgent()`
+    - `update()`: `agentIds` 제공 시 `agents.clear()` + 재추가로 재구성
+    - Agent 미존재 시 `AGENT_NOT_FOUND`, roleType 불일치 시 `INVALID_ORCHESTRATOR_ROLE` 발생
+  - `SquadController`: `/api/v1/squads` 기반 REST 엔드포인트
+  - `SquadControllerTest`: `@WebMvcTest` + MockMvc 기반 12가지 테스트
+    - 목록 조회, ID 조회, 404, 생성(201), orchestratorId null(400), orchestrator 미존재(404), roleType 불일치(400), agentIds 없이 생성(201), 수정, 수정 404, 삭제, 삭제 404
+  - 이슈 [#5](https://github.com/jeng832/squad/issues/5)에 PR 링크 코멘트 추가
+
 ---
 
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))

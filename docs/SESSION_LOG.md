@@ -203,6 +203,21 @@
   - `SquadException.getErrorCode()` 메서드 추가 (GlobalExceptionHandler 호환 수정)
   - 이슈 [#5](https://github.com/jeng832/squad/issues/5)에 PR 링크 코멘트 추가
 
+- **작업 3-2: MCP CRUD API** ([PR #25](https://github.com/jeng832/squad/pull/25))
+  - `McpCreateRequest` DTO: `name` (@NotBlank, @Size(max=100)), `description` (nullable), `config` (@NotNull)
+  - `McpUpdateRequest` DTO: `name`, `description`, `config` (동일 검증)
+  - `McpResponse` DTO: 엔티티 → 응답 변환 (정적 팩토리 `from(Mcp)`)
+  - `McpService`: CRUD 비즈니스 로직
+    - `findAll()`, `findById()` — 조회 시 NotFoundException 발생
+    - `create()`, `update()` — `validateConfig()` 호출 후 저장/수정
+    - `validateConfig()`: `config` 맵에 `command` 키 존재 여부 검증, 누락 시 ValidationException 발생
+    - `delete()` — 존재 여부 확인 후 삭제
+  - `McpController`: `/api/v1/mcps` 기반 REST 엔드포인트
+    - GET (목록), POST (생성, 201), GET/{id} (상세), PUT/{id} (수정), DELETE/{id} (삭제)
+  - `McpControllerTest`: `@WebMvcTest` + MockMvc 기반 12가지 테스트
+    - 목록 조회, ID 조회, 404, 생성(201), name 빈값(400), config command 누락(400), config null(400), 수정, 수정 404, 수정 command 누락(400), 삭제, 삭제 404
+  - 이슈 [#5](https://github.com/jeng832/squad/issues/5)에 PR 링크 코멘트 추가
+
 ---
 
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))

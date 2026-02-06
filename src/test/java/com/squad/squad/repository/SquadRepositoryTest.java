@@ -139,7 +139,7 @@ class SquadRepositoryTest {
         entityManager.persist(buildSquad("squad3", orch2));
         entityManager.flush();
 
-        List<Squad> squads = squadRepository.findByOrchestraterId(orch1.getId());
+        List<Squad> squads = squadRepository.findByOrchestratorId(orch1.getId());
 
         assertThat(squads).hasSize(2);
         assertThat(squads.stream().map(Squad::getName))

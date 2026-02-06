@@ -26,7 +26,7 @@ public class Secret {
     @Column(nullable = false, length = 100, unique = true)
     private String name;
 
-    @Column(nullable = false, columnDefinition = "TEXT")
+    @Column(name = "encrypted_value", nullable = false, columnDefinition = "TEXT")
     private String value;
 
     @Column(name = "created_at", nullable = false, updatable = false)

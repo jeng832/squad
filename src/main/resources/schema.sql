@@ -56,11 +56,11 @@ CREATE TABLE IF NOT EXISTS skills (
 -- secrets: AES-256 암호화된 민감 정보 저장소
 -- value 컬럼에는 암호화된 값이 저장되며, 복호화 키는 환경변수(SECRET_ENCRYPTION_KEY)로 관리
 CREATE TABLE IF NOT EXISTS secrets (
-    id         BIGINT       AUTO_INCREMENT PRIMARY KEY,
-    name       VARCHAR(100) NOT NULL UNIQUE,
-    value      TEXT         NOT NULL,
-    created_at DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
-    updated_at DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
+    id              BIGINT       AUTO_INCREMENT PRIMARY KEY,
+    name            VARCHAR(100) NOT NULL UNIQUE,
+    encrypted_value TEXT         NOT NULL,
+    created_at      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    updated_at      DATETIME(3)  NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)
 ) ENGINE = InnoDB
   DEFAULT CHARSET = utf8mb4
   COLLATE = utf8mb4_unicode_ci

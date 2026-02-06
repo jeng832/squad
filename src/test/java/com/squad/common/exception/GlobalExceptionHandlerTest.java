@@ -3,6 +3,7 @@ package com.squad.common.exception;
 import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -11,7 +12,8 @@ import org.springframework.web.bind.annotation.RestController;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.*;
 
-@WebMvcTest(controllers = {GlobalExceptionHandlerTest.TestController.class})
+@WebMvcTest(controllers = {GlobalExceptionHandlerTestController.class})
+@Import(GlobalExceptionHandler.class)
 class GlobalExceptionHandlerTest {
 
     @Autowired
@@ -57,33 +59,5 @@ class GlobalExceptionHandlerTest {
                 .andExpect(status().isMethodNotAllowed())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("METHOD_NOT_ALLOWED"));
-    }
-
-    /**
-     * 테스트용 컨트롤러. GlobalExceptionHandler의 각 핸들러를 트리거하기 위한 엔드포인트를 제공합니다.
-     */
-    @RestController
-    @RequestMapping("/test")
-    static class TestController {
-
-        @GetMapping("/squad-exception")
-        public void throwSquadException() {
-            throw new SquadException(ErrorCode.AGENT_NOT_FOUND);
-        }
-
-        @GetMapping("/not-found")
-        public void throwNotFoundException() {
-            throw new NotFoundException(ErrorCode.AGENT_NOT_FOUND, "테스트 에이전트 미발견");
-        }
-
-        @GetMapping("/validation")
-        public void throwValidationException() {
-            throw new ValidationException(ErrorCode.ORCHESTRATOR_REQUIRED);
-        }
-
-        @GetMapping("/exception")
-        public void throwException() throws Exception {
-            throw new Exception("일반 예외");
-        }
     }
 }

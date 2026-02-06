@@ -34,7 +34,7 @@ class SecretRepositoryTest {
     void Secret_저장_후_ID로_조회_시_저장된_Secret_반환() {
         Secret secret = buildSecret("db-password", "encrypted-value-abc");
 
-        Secret saved = entityManager.persistFlushPop(secret);
+        Secret saved = entityManager.persistFlushFind(secret);
 
         Secret found = secretRepository.findById(saved.getId()).orElseThrow();
 
@@ -46,8 +46,8 @@ class SecretRepositoryTest {
 
     @Test
     void Secret_이름으로_조회_시_해당_Secret_반환() {
-        entityManager.persistFlushPop(buildSecret("db-password", "value1"));
-        entityManager.persistFlushPop(buildSecret("api-key", "value2"));
+        entityManager.persistFlushFind(buildSecret("db-password", "value1"));
+        entityManager.persistFlushFind(buildSecret("api-key", "value2"));
 
         Optional<Secret> found = secretRepository.findByName("api-key");
 
@@ -64,7 +64,7 @@ class SecretRepositoryTest {
 
     @Test
     void Secret_정보_수정_후_저장_시_수정된_값_반환() {
-        Secret secret = entityManager.persistFlushPop(buildSecret("db-password", "old-value"));
+        Secret secret = entityManager.persistFlushFind(buildSecret("db-password", "old-value"));
 
         Secret loaded = secretRepository.findById(secret.getId()).orElseThrow();
         loaded.update("new-encrypted-value");
@@ -78,7 +78,7 @@ class SecretRepositoryTest {
 
     @Test
     void 중복_이름으로_저장_시_예외_발생() {
-        entityManager.persistFlushPop(buildSecret("db-password", "value1"));
+        entityManager.persistFlushFind(buildSecret("db-password", "value1"));
 
         assertThatThrownBy(() -> {
             secretRepository.save(buildSecret("db-password", "value2"));

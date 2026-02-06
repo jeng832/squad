@@ -41,7 +41,7 @@ class AgentRepositoryTest {
     void Agent_저장_후_ID로_조회_시_저장된_Agent_반환() {
         Agent agent = buildAgent("테스트 에이전트", RoleType.WORKER);
 
-        Agent saved = entityManager.persistFlushPop(agent);
+        Agent saved = entityManager.persistFlushFind(agent);
 
         Optional<Agent> found = agentRepository.findById(saved.getId());
 
@@ -67,7 +67,7 @@ class AgentRepositoryTest {
 
     @Test
     void Agent_삭제_후_조회_시_빈_결과_반환() {
-        Agent agent = entityManager.persistFlushPop(buildAgent("삭제 테스트", RoleType.SCRIBE));
+        Agent agent = entityManager.persistFlushFind(buildAgent("삭제 테스트", RoleType.SCRIBE));
 
         agentRepository.deleteById(agent.getId());
         agentRepository.flush();
@@ -103,7 +103,7 @@ class AgentRepositoryTest {
                 .llmConfig(llmConfig)
                 .build();
 
-        Agent saved = entityManager.persistFlushPop(agent);
+        Agent saved = entityManager.persistFlushFind(agent);
 
         Agent found = agentRepository.findById(saved.getId()).orElseThrow();
 
@@ -114,7 +114,7 @@ class AgentRepositoryTest {
 
     @Test
     void Agent_정보_수정_후_저장_시_수정된_값_반환() {
-        Agent agent = entityManager.persistFlushPop(buildAgent("원본 이름", RoleType.WORKER));
+        Agent agent = entityManager.persistFlushFind(buildAgent("원본 이름", RoleType.WORKER));
         Map<String, Object> updatedConfig = Map.of("provider", "openai", "model", "gpt-4o");
 
         agent = agentRepository.findById(agent.getId()).orElseThrow();

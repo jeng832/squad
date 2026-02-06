@@ -41,7 +41,7 @@ class McpRepositoryTest {
     void Mcp_저장_후_ID로_조회_시_저장된_Mcp_반환() {
         Mcp mcp = buildMcp("github");
 
-        Mcp saved = entityManager.persistFlushPop(mcp);
+        Mcp saved = entityManager.persistFlushFind(mcp);
 
         Optional<Mcp> found = mcpRepository.findById(saved.getId());
 
@@ -55,8 +55,8 @@ class McpRepositoryTest {
 
     @Test
     void Mcp_이름으로_조회_시_해당_Mcp_반환() {
-        entityManager.persistFlushPop(buildMcp("github"));
-        entityManager.persistFlushPop(buildMcp("filesystem"));
+        entityManager.persistFlushFind(buildMcp("github"));
+        entityManager.persistFlushFind(buildMcp("filesystem"));
 
         Optional<Mcp> found = mcpRepository.findByName("filesystem");
 
@@ -84,7 +84,7 @@ class McpRepositoryTest {
 
     @Test
     void Mcp_삭제_후_조회_시_빈_결과_반환() {
-        Mcp mcp = entityManager.persistFlushPop(buildMcp("github"));
+        Mcp mcp = entityManager.persistFlushFind(buildMcp("github"));
 
         mcpRepository.deleteById(mcp.getId());
         mcpRepository.flush();
@@ -104,7 +104,7 @@ class McpRepositoryTest {
                 .config(config)
                 .build();
 
-        Mcp saved = entityManager.persistFlushPop(mcp);
+        Mcp saved = entityManager.persistFlushFind(mcp);
 
         Mcp found = mcpRepository.findById(saved.getId()).orElseThrow();
 
@@ -114,7 +114,7 @@ class McpRepositoryTest {
 
     @Test
     void Mcp_정보_수정_후_저장_시_수정된_값_반환() {
-        Mcp mcp = entityManager.persistFlushPop(buildMcp("github"));
+        Mcp mcp = entityManager.persistFlushFind(buildMcp("github"));
         Map<String, Object> updatedConfig = Map.of("type", "sse", "url", "https://new.example.com");
 
         mcp = mcpRepository.findById(mcp.getId()).orElseThrow();
@@ -130,7 +130,7 @@ class McpRepositoryTest {
 
     @Test
     void 중복_이름으로_저장_시_예외_발생() {
-        entityManager.persistFlushPop(buildMcp("github"));
+        entityManager.persistFlushFind(buildMcp("github"));
 
         assertThatThrownBy(() -> {
             mcpRepository.save(buildMcp("github"));

@@ -37,7 +37,7 @@ class SkillRepositoryTest {
     void Skill_저장_후_ID로_조회_시_저장된_Skill_반환() {
         Skill skill = buildSkill("summarizer");
 
-        Skill saved = entityManager.persistFlushPop(skill);
+        Skill saved = entityManager.persistFlushFind(skill);
 
         Optional<Skill> found = skillRepository.findById(saved.getId());
 
@@ -51,8 +51,8 @@ class SkillRepositoryTest {
 
     @Test
     void Skill_이름으로_조회_시_해당_Skill_반환() {
-        entityManager.persistFlushPop(buildSkill("summarizer"));
-        entityManager.persistFlushPop(buildSkill("translator"));
+        entityManager.persistFlushFind(buildSkill("summarizer"));
+        entityManager.persistFlushFind(buildSkill("translator"));
 
         Optional<Skill> found = skillRepository.findByName("translator");
 
@@ -80,7 +80,7 @@ class SkillRepositoryTest {
 
     @Test
     void Skill_삭제_후_조회_시_빈_결과_반환() {
-        Skill skill = entityManager.persistFlushPop(buildSkill("summarizer"));
+        Skill skill = entityManager.persistFlushFind(buildSkill("summarizer"));
 
         skillRepository.deleteById(skill.getId());
         skillRepository.flush();
@@ -96,7 +96,7 @@ class SkillRepositoryTest {
                 .requiredMcps(List.of(10L, 20L, 30L))
                 .build();
 
-        Skill saved = entityManager.persistFlushPop(skill);
+        Skill saved = entityManager.persistFlushFind(skill);
 
         Skill found = skillRepository.findById(saved.getId()).orElseThrow();
 
@@ -106,7 +106,7 @@ class SkillRepositoryTest {
 
     @Test
     void Skill_정보_수정_후_저장_시_수정된_값_반환() {
-        Skill skill = entityManager.persistFlushPop(buildSkill("summarizer"));
+        Skill skill = entityManager.persistFlushFind(buildSkill("summarizer"));
 
         skill = skillRepository.findById(skill.getId()).orElseThrow();
         skill.update("summarizer-v2", "업데이트된 설명", "Updated prompt.", List.of(5L));
@@ -122,7 +122,7 @@ class SkillRepositoryTest {
 
     @Test
     void 중복_이름으로_저장_시_예외_발생() {
-        entityManager.persistFlushPop(buildSkill("summarizer"));
+        entityManager.persistFlushFind(buildSkill("summarizer"));
 
         assertThatThrownBy(() -> {
             skillRepository.save(buildSkill("summarizer"));

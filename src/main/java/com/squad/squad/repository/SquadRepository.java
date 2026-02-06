@@ -7,5 +7,5 @@ import java.util.List;
 
 public interface SquadRepository extends JpaRepository<Squad, Long> {
 
-    List<Squad> findByOrchestraterId(Long orchestratorId);
+    List<Squad> findByOrchestratorId(Long orchestratorId);
 }

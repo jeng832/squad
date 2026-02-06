@@ -242,6 +242,20 @@
     - 목록 조회, ID 조회, 404, 생성(201), orchestratorId null(400), orchestrator 미존재(404), roleType 불일치(400), agentIds 없이 생성(201), 수정, 수정 404, 삭제, 삭제 404
   - 이슈 [#5](https://github.com/jeng832/squad/issues/5)에 PR 링크 코멘트 추가
 
+- **작업 3-5: Secret CRUD API** ([PR #28](https://github.com/jeng832/squad/pull/28))
+  - `SecretCreateRequest` DTO: `name` (@NotBlank, @Size(max=100)), `value` (@NotBlank)
+  - `SecretUpdateRequest` DTO: `value` (@NotBlank)
+  - `SecretResponse` DTO: `value` 제외 (민감 정보 보호) — `id`, `name`, `createdAt`, `updatedAt`만 반환
+  - `SecretService`: CRUD 비즈니스 로직 + 참조 해결
+    - `create()`/`update()`: `AesEncryptionUtil.encrypt()`로 암호화 후 저장
+    - `resolveSecret(ref)`: `ref:secret/<name>` 형식 파싱 → 이름으로 조회 → `decrypt()` 복호화 반환
+    - ref 형식 불일치 시 `INVALID_REQUEST` (400), name 빈값 시 `INVALID_REQUEST` (400), 미존재 시 `SECRET_NOT_FOUND` (404)
+  - `SecretController`: `/api/v1/secrets` 기반 REST 엔드포인트
+    - `GET /api/v1/secrets/resolve?ref=ref:secret/<name>` 참조 해결 엔드포인트 추가
+  - `SecretControllerTest`: `@WebMvcTest` + MockMvc 기반 13가지 테스트
+    - 목록 조회(value 미포함), ID 조회(value 미포함), 404, 생성(201, value 미포함), name 빈값(400), value 빈값(400), 수정, 수정 404, 삭제, 삭제 404, 참조 해결 성공, 참조 해결 미존재(404), 참조 해결 잘못된 형식(400)
+  - 이슈 [#5](https://github.com/jeng832/squad/issues/5)에 PR 링크 코멘트 추가
+
 ---
 
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))

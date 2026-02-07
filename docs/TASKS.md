@@ -40,7 +40,7 @@
 | 3-4 | Squad CRUD API | SquadService (Orchestrator 필수 검증 포함), SquadController, DTO | 6~7개 파일 | [#27](https://github.com/jeng832/squad/pull/27) |
 | 3-5 | Secret CRUD API | SecretService (암호화 저장), SecretController, 참조 해결 로직 (`ref:secret/...`) | 5~6개 파일 | [#28](https://github.com/jeng832/squad/pull/28) |
 | 3-6 | Session 기본 API | SessionService (생성/조회/취소), SessionController, DTO, 상태 관리 (PENDING, RUNNING, COMPLETED, CANCELLED) | 6~7개 파일 | [#29](https://github.com/jeng832/squad/pull/29) |
-| 3-7 | Message 조회 API | MessageService, MessageController, 세션별 메시지 조회 | 4~5개 파일 |                                                 |
+| 3-7 | Message 조회 API | MessageService, MessageController, 세션별 메시지 조회 | 4~5개 파일 | [#30](https://github.com/jeng832/squad/pull/30) |
 
 ---
 

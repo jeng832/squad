@@ -288,3 +288,7 @@
   - `LlmProvider` 인터페이스 및 `LlmProviderFactory` 구현 (provider 이름으로 Optional 반환, 빈/미지원 provider는 호출처에서 처리)
   - `LlmProviderFactoryTest`로 기본 동작/미지원 provider(empty 반환) 검증
 
+- **작업 4-2: Claude LLM Provider 구현**
+  - `ClaudeProvider`: Anthropic Messages API 호출, 기본 모델/토큰/타임아웃 적용, 텍스트/ToolUse 응답을 `LlmResponse`로 매핑
+  - `ClaudeConfig`: WebClient 설정 (baseUrl/apiKey 헤더, 타임아웃)
+  - `ClaudeProviderTest`: WebClient exchangeFunction 스텁으로 응답 매핑 검증

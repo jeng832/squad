@@ -1,8 +1,6 @@
 package com.squad.llm.claude;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.squad.llm.LlmProvider;
 import com.squad.llm.model.LlmMessage;
 import com.squad.llm.model.LlmRequest;
@@ -23,6 +21,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.stream.Collectors;
 
 /**
  * Anthropic Claude Messages API 구현체.
@@ -37,8 +36,6 @@ public class ClaudeProvider implements LlmProvider {
     private final String defaultModel;
     private final int defaultMaxTokens;
     private final Duration timeout;
-    private final ObjectMapper mapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
-
     public ClaudeProvider(WebClient webClient, String defaultModel, int defaultMaxTokens, long timeoutMillis) {
         this.webClient = webClient;
         this.defaultModel = defaultModel;
@@ -100,7 +97,7 @@ public class ClaudeProvider implements LlmProvider {
         Integer maxTokens = request.maxTokens() != null ? request.maxTokens() : defaultMaxTokens;
         String model = request.model() != null ? request.model() : defaultModel;
 
-        return new ClaudeRequest(model, maxTokens, request.systemPrompt(), messages, tools);
+        return new ClaudeRequest(model, maxTokens, request.temperature(), request.systemPrompt(), messages, tools);
     }
 
     private ClaudeTool toClaudeTool(LlmTool tool) {
@@ -112,8 +109,7 @@ public class ClaudeProvider implements LlmProvider {
                 .filter(block -> Objects.equals(block.type(), "text"))
                 .map(ClaudeContent::text)
                 .filter(Objects::nonNull)
-                .findFirst()
-                .orElse("");
+                .collect(Collectors.joining());
 
         List<LlmToolCall> toolCalls = response.content().stream()
                 .filter(block -> Objects.equals(block.type(), "tool_use") && block.toolUse() != null)
@@ -142,6 +138,7 @@ public class ClaudeProvider implements LlmProvider {
     record ClaudeRequest(
             String model,
             @JsonProperty("max_tokens") Integer maxTokens,
+            Double temperature,
             @JsonProperty("system") String systemPrompt,
             List<ClaudeMessage> messages,
             List<ClaudeTool> tools

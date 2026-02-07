@@ -292,3 +292,4 @@
   - `ClaudeProvider`: Anthropic Messages API 호출, 기본 모델/토큰/타임아웃 적용, 텍스트/ToolUse 응답을 `LlmResponse`로 매핑
   - `ClaudeConfig`: WebClient 설정 (baseUrl/apiKey 헤더, 타임아웃)
   - `ClaudeProviderTest`: WebClient exchangeFunction 스텁으로 응답 매핑 검증
+  - 후속 보완: Claude 응답 텍스트 병합, temperature 전달, 미사용 ObjectMapper 제거 ([PR #32](https://github.com/jeng832/squad/pull/32))

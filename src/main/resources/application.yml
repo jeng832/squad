@@ -90,6 +90,11 @@ squad:
       default-model: claude-sonnet-4-20250514
       max-tokens: 4096
       timeout: 60000
+      retry:
+        max-retries: 2
+        initial-backoff: 200
+        max-backoff: 2000
+        jitter: 0.2
 
   # Docker Configuration
   docker:

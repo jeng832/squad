@@ -51,7 +51,7 @@
 | 4-1 | LLM 공통 인터페이스 정의 | LlmProvider 인터페이스, LlmRequest/LlmResponse DTO, ToolCall 모델, ProviderFactory | 5~6개 파일 | [#31](https://github.com/jeng832/squad/pull/31) |
 | 4-2 | Claude LLM Provider 구현 | ClaudeProvider 구현, HTTP 클라이언트 (WebClient), 요청/응답 매핑, 에러 처리 | 4~5개 파일 | [#32](https://github.com/jeng832/squad/pull/32) |
 | 4-3 | LLM 재시도 및 Rate Limit 처리 | Exponential Backoff 재시도 로직, 429/5xx 에러 처리 | 2~3개 파일 | [#33](https://github.com/jeng832/squad/pull/33) |
-| 4-4 | Tool Use 처리 로직 | LLM 응답에서 tool_use 감지, 툴 실행 결과를 다시 LLM에 전달하는 흐름 | 3~4개 파일 |         |
+| 4-4 | Tool Use 처리 로직 | LLM 응답에서 tool_use 감지, 툴 실행 결과를 다시 LLM에 전달하는 흐름 | 3~4개 파일 | [#34](https://github.com/jeng832/squad/pull/34) |
 
 ---
 

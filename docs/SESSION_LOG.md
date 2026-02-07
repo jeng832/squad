@@ -298,3 +298,9 @@
   - Claude 호출 재시도 로직 추가 (429/5xx 및 네트워크/타임아웃 예외 대응)
   - 지수 백오프 + 지터 적용, 재시도 설정값 추가 (`squad.llm.claude.retry`)
   - 429 응답 후 재시도 성공 케이스 테스트 추가
+
+- **작업 4-4: Tool Use 처리 로직**
+  - `LlmToolUseService`: tool_use 감지 → tool 실행 → 후속 LLM 재호출 흐름 추가
+  - `LlmToolExecutor`/`LlmToolResult` 정의 및 기본 executor 설정
+  - tool_use 재호출 테스트 추가
+  - llm.model Javadoc 보강

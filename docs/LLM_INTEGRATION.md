@@ -50,15 +50,77 @@
 | 필드 | 타입 | 설명 |
 |------|------|------|
 | id | string | 응답 ID |
-| content | array | 응답 내용 [{type, text}] |
+| content | array | 응답 블록 목록 (텍스트 블록 + tool_use 블록 혼합 가능) |
 | stop_reason | string | 종료 사유 (end_turn, tool_use 등) |
 | usage | object | 토큰 사용량 {input_tokens, output_tokens} |
 
 ### 3.4 Tool Use 지원
 
+Claude의 Tool Use는 **요청 시 tools 목록을 선언**하고, 응답에서 **tool_use 블록으로 실제 호출 의도와 입력값을 반환**하는 방식입니다.
+
 - Tool 정의: `name`, `description`, `input_schema` (JSON Schema)
-- 응답에서 `stop_reason: "tool_use"` 시 tool_calls 처리 필요
-- MCP 연동에 활용
+- Tool을 선언하면 모델이 tool_use를 선택할 수 있음
+- 응답의 `content` 배열에는 아래 두 종류 블록이 섞여 나올 수 있음
+  - 텍스트 블록: `{"type":"text","text":"..."}`
+  - Tool Use 블록: `{"type":"tool_use","id":"...","name":"...","input":{...}}`
+- `stop_reason: "tool_use"`이면 **도구 실행이 필요하다는 의미**
+  1. tool_use 블록을 파싱해 `name`과 `input`을 얻음
+  2. 실제 도구(MCP 등)를 호출
+  3. 실행 결과를 다시 Claude에 전달해 후속 응답을 받음
+
+**Request 예시:**
+```json
+{
+  "model": "claude-sonnet-4-20250514",
+  "max_tokens": 1024,
+  "system": "너는 시스템 정보를 요약하는 에이전트다.",
+  "messages": [
+    {"role": "user", "content": "최신 주문 상태를 조회해줘"}
+  ],
+  "tools": [
+    {
+      "name": "get_order_status",
+      "description": "주문 상태 조회",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "orderId": { "type": "string" }
+        },
+        "required": ["orderId"]
+      }
+    }
+  ]
+}
+```
+
+**Response 예시 (tool_use):**
+```json
+{
+  "id": "msg_123",
+  "content": [
+    {
+      "type": "tool_use",
+      "id": "call_1",
+      "name": "get_order_status",
+      "input": { "orderId": "ORD-2024-0001" }
+    }
+  ],
+  "stop_reason": "tool_use",
+  "usage": { "input_tokens": 120, "output_tokens": 15 }
+}
+```
+
+**Response 예시 (text):**
+```json
+{
+  "id": "msg_124",
+  "content": [
+    { "type": "text", "text": "주문 상태는 배송 중입니다." }
+  ],
+  "stop_reason": "end_turn",
+  "usage": { "input_tokens": 120, "output_tokens": 30 }
+}
+```
 
 ### 3.5 참고 문서
 

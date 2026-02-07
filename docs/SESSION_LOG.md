@@ -256,6 +256,11 @@
     - 목록 조회(value 미포함), ID 조회(value 미포함), 404, 생성(201, value 미포함), name 빈값(400), value 빈값(400), 수정, 수정 404, 삭제, 삭제 404, 참조 해결 성공, 참조 해결 미존재(404), 참조 해결 잘못된 형식(400)
   - 이슈 [#5](https://github.com/jeng832/squad/issues/5)에 PR 링크 코멘트 추가
 
+- **작업 3-6: Session 기본 API**
+  - SessionService, SessionController, DTO(생성/응답) 구현: 세션 생성, 목록/단건 조회, 취소 처리 (상태 PENDING/RUNNING/COMPLETED/CANCELLED)
+  - Squad 존재 검증, 완료/취소 상태 세션 재취소 시 `INVALID_SESSION_STATE` 반환
+  - WebMvcTest 기반 SessionController 테스트 추가 (정상/검증 실패/404/취소 시나리오)
+
 ---
 
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))

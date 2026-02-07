@@ -1,13 +1,7 @@
 package com.squad.llm.claude;
 
 import com.squad.llm.LlmProvider;
-import com.squad.llm.model.LlmMessage;
-import com.squad.llm.model.LlmRequest;
-import com.squad.llm.model.LlmResponse;
-import com.squad.llm.model.LlmTool;
-import com.squad.llm.model.LlmToolCall;
-import com.squad.llm.model.LlmUsage;
-import org.springframework.http.HttpStatus;
+import com.squad.llm.model.*;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
 import org.springframework.web.reactive.function.client.ClientResponse;
@@ -23,6 +17,9 @@ import java.util.stream.Collectors;
 
 /**
  * Anthropic Claude Messages API 구현체.
+ *
+ * <p>이 클래스는 {@code ClaudeConfig}에서 {@code @Bean}으로 등록되어 사용되며,
+ * {@code @Service}/{@code @Component} 어노테이션을 사용하지 않습니다.</p>
  */
 public class ClaudeProvider implements LlmProvider {
 

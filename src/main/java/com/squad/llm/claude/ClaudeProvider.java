@@ -1,6 +1,5 @@
 package com.squad.llm.claude;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
 import com.squad.llm.LlmProvider;
 import com.squad.llm.model.LlmMessage;
 import com.squad.llm.model.LlmRequest;
@@ -19,7 +18,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
 
@@ -134,51 +132,4 @@ public class ClaudeProvider implements LlmProvider {
         );
     }
 
-    // === Claude API DTOs ===
-    record ClaudeRequest(
-            String model,
-            @JsonProperty("max_tokens") Integer maxTokens,
-            Double temperature,
-            @JsonProperty("system") String systemPrompt,
-            List<ClaudeMessage> messages,
-            List<ClaudeTool> tools
-    ) {
-    }
-
-    record ClaudeMessage(
-            String role,
-            List<ClaudeContent> content
-    ) {
-    }
-
-    record ClaudeContent(
-            String type,
-            String text,
-            @JsonProperty("id") String toolUseId,
-            @JsonProperty("name") String toolUseName,
-            @JsonProperty("input") Map<String, Object> toolUseInput
-    ) {
-    }
-
-    record ClaudeTool(
-            String name,
-            String description,
-            @JsonProperty("input_schema") Map<String, Object> inputSchema
-    ) {
-    }
-
-
-    record ClaudeUsage(
-            @JsonProperty("input_tokens") Integer inputTokens,
-            @JsonProperty("output_tokens") Integer outputTokens
-    ) {
-    }
-
-    record ClaudeResponse(
-            String id,
-            List<ClaudeContent> content,
-            @JsonProperty("stop_reason") String stopReason,
-            ClaudeUsage usage
-    ) {
-    }
 }

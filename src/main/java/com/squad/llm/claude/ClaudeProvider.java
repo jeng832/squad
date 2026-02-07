@@ -1,0 +1,191 @@
+package com.squad.llm.claude;
+
+import com.fasterxml.jackson.annotation.JsonInclude;
+import com.fasterxml.jackson.annotation.JsonProperty;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.squad.llm.LlmProvider;
+import com.squad.llm.model.LlmMessage;
+import com.squad.llm.model.LlmRequest;
+import com.squad.llm.model.LlmResponse;
+import com.squad.llm.model.LlmTool;
+import com.squad.llm.model.LlmToolCall;
+import com.squad.llm.model.LlmUsage;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
+import org.springframework.web.reactive.function.BodyInserters;
+import org.springframework.web.reactive.function.client.ClientResponse;
+import org.springframework.web.reactive.function.client.WebClient;
+import reactor.core.publisher.Mono;
+
+import java.time.Duration;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
+import java.util.Map;
+import java.util.Objects;
+
+/**
+ * Anthropic Claude Messages API 구현체.
+ */
+public class ClaudeProvider implements LlmProvider {
+
+    private static final String PROVIDER_NAME = "claude";
+    private static final String MESSAGES_PATH = "/v1/messages";
+    private static final String DEFAULT_API_VERSION = "2023-06-01";
+
+    private final WebClient webClient;
+    private final String defaultModel;
+    private final int defaultMaxTokens;
+    private final Duration timeout;
+    private final ObjectMapper mapper = new ObjectMapper().setSerializationInclusion(JsonInclude.Include.NON_NULL);
+
+    public ClaudeProvider(WebClient webClient, String defaultModel, int defaultMaxTokens, long timeoutMillis) {
+        this.webClient = webClient;
+        this.defaultModel = defaultModel;
+        this.defaultMaxTokens = defaultMaxTokens;
+        this.timeout = Duration.ofMillis(timeoutMillis);
+    }
+
+    @Override
+    public String getProviderName() {
+        return PROVIDER_NAME;
+    }
+
+    @Override
+    public LlmResponse sendMessage(LlmRequest request) {
+        ClaudeRequest body = toClaudeRequest(request);
+
+        ClientResponse response = webClient.post()
+                .uri(MESSAGES_PATH)
+                .contentType(MediaType.APPLICATION_JSON)
+                .header("anthropic-version", DEFAULT_API_VERSION)
+                .body(BodyInserters.fromValue(body))
+                .exchangeToMono(Mono::just)
+                .block(timeout);
+
+        if (response == null) {
+            throw new IllegalStateException("Claude 응답이 없습니다.");
+        }
+        if (response.statusCode().isError()) {
+            String errorBody = response.bodyToMono(String.class).block(timeout);
+            throw new IllegalStateException("Claude 호출 실패: " + response.statusCode() + " " + errorBody);
+        }
+
+        ClaudeResponse claudeResponse = response.bodyToMono(ClaudeResponse.class).block(timeout);
+        if (claudeResponse == null) {
+            throw new IllegalStateException("Claude 응답 파싱 실패");
+        }
+
+        return toLlmResponse(claudeResponse);
+    }
+
+    private ClaudeRequest toClaudeRequest(LlmRequest request) {
+        List<ClaudeMessage> messages = new ArrayList<>();
+        if (request.messages() != null) {
+            for (LlmMessage msg : request.messages()) {
+                messages.add(new ClaudeMessage(
+                        msg.role(),
+                        Collections.singletonList(new ClaudeContent("text", msg.content(), null))
+                ));
+            }
+        }
+
+        List<ClaudeTool> tools = null;
+        if (request.tools() != null && !request.tools().isEmpty()) {
+            tools = request.tools().stream()
+                    .map(this::toClaudeTool)
+                    .toList();
+        }
+
+        Integer maxTokens = request.maxTokens() != null ? request.maxTokens() : defaultMaxTokens;
+        String model = request.model() != null ? request.model() : defaultModel;
+
+        return new ClaudeRequest(model, maxTokens, request.systemPrompt(), messages, tools);
+    }
+
+    private ClaudeTool toClaudeTool(LlmTool tool) {
+        return new ClaudeTool(tool.name(), tool.description(), tool.inputSchema());
+    }
+
+    private LlmResponse toLlmResponse(ClaudeResponse response) {
+        String content = response.content().stream()
+                .filter(block -> Objects.equals(block.type(), "text"))
+                .map(ClaudeContent::text)
+                .filter(Objects::nonNull)
+                .findFirst()
+                .orElse("");
+
+        List<LlmToolCall> toolCalls = response.content().stream()
+                .filter(block -> Objects.equals(block.type(), "tool_use") && block.toolUse() != null)
+                .map(block -> new LlmToolCall(
+                        block.toolUse().id(),
+                        block.toolUse().name(),
+                        block.toolUse().input()
+                ))
+                .toList();
+
+        LlmUsage usage = null;
+        if (response.usage() != null) {
+            usage = new LlmUsage(response.usage().inputTokens(), response.usage().outputTokens());
+        }
+
+        return new LlmResponse(
+                response.id(),
+                content,
+                response.stopReason(),
+                toolCalls,
+                usage
+        );
+    }
+
+    // === Claude API DTOs ===
+    record ClaudeRequest(
+            String model,
+            @JsonProperty("max_tokens") Integer maxTokens,
+            @JsonProperty("system") String systemPrompt,
+            List<ClaudeMessage> messages,
+            List<ClaudeTool> tools
+    ) {
+    }
+
+    record ClaudeMessage(
+            String role,
+            List<ClaudeContent> content
+    ) {
+    }
+
+    record ClaudeContent(
+            String type,
+            String text,
+            @JsonProperty("tool_use") ClaudeToolUse toolUse
+    ) {
+    }
+
+    record ClaudeTool(
+            String name,
+            String description,
+            @JsonProperty("input_schema") Map<String, Object> inputSchema
+    ) {
+    }
+
+    record ClaudeToolUse(
+            String id,
+            String name,
+            Map<String, Object> input
+    ) {
+    }
+
+    record ClaudeUsage(
+            @JsonProperty("input_tokens") Integer inputTokens,
+            @JsonProperty("output_tokens") Integer outputTokens
+    ) {
+    }
+
+    record ClaudeResponse(
+            String id,
+            List<ClaudeContent> content,
+            @JsonProperty("stop_reason") String stopReason,
+            ClaudeUsage usage
+    ) {
+    }
+}

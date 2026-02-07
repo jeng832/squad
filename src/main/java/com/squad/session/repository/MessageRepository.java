@@ -10,5 +10,5 @@ public interface MessageRepository extends JpaRepository<Message, Long> {
 
     List<Message> findBySessionIdOrderByCreatedAt(Long sessionId);
 
-    List<Message> findBySessionIdAndType(Long sessionId, MessageType type);
+    List<Message> findBySessionIdAndTypeOrderByCreatedAt(Long sessionId, MessageType type);
 }

@@ -261,6 +261,12 @@
   - Squad 존재 검증, 완료/취소 상태 세션 재취소 시 `INVALID_SESSION_STATE` 반환
   - WebMvcTest 기반 SessionController 테스트 추가 (정상/검증 실패/404/취소 시나리오)
 
+- **작업 3-7: Message 조회 API**
+  - MessageService, MessageController 구현: `GET /api/v1/sessions/{id}/messages`로 세션 메시지 조회, `type` 파라미터로 MessageType별 필터 지원
+  - Session 존재 검증 후 메시지를 생성 시각 순으로 반환
+  - MessageResponse DTO 추가
+  - WebMvcTest 기반 MessageController 테스트 추가 (전체/타입별 조회, 세션 미존재 404)
+
 ---
 
 - **작업 1-2: 패키지 구조 및 공통 모듈 생성** ([PR #15](https://github.com/jeng832/squad/pull/15))

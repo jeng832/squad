@@ -293,3 +293,9 @@
   - `ClaudeConfig`: WebClient 설정 (baseUrl/apiKey 헤더, 타임아웃)
   - `ClaudeProviderTest`: WebClient exchangeFunction 스텁으로 응답 매핑 검증
   - 후속 보완: Claude 응답 텍스트 병합, temperature 전달, 미사용 ObjectMapper 제거 ([PR #32](https://github.com/jeng832/squad/pull/32))
+
+- **작업 4-4: Tool Use 처리 로직**
+  - `LlmToolUseService`: tool_use 감지 → tool 실행 → 후속 LLM 재호출 흐름 추가
+  - `LlmToolExecutor`/`LlmToolResult` 정의 및 기본 executor 설정
+  - tool_use 재호출 테스트 추가
+  - llm.model Javadoc 보강

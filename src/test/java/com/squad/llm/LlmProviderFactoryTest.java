@@ -1,14 +1,13 @@
 package com.squad.llm;
 
-import com.squad.common.exception.ValidationException;
 import com.squad.llm.model.LlmRequest;
 import com.squad.llm.model.LlmResponse;
 import org.junit.jupiter.api.Test;
 
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class LlmProviderFactoryTest {
 
@@ -18,18 +17,18 @@ class LlmProviderFactoryTest {
         DummyProvider openai = new DummyProvider("openai");
         LlmProviderFactory factory = new LlmProviderFactory(List.of(claude, openai));
 
-        LlmProvider provider = factory.getProvider("openai");
+        Optional<LlmProvider> provider = factory.getProvider("openai");
 
-        assertThat(provider).isSameAs(openai);
+        assertThat(provider).containsSame(openai);
     }
 
     @Test
-    void 지원하지_않는_provider_요청시_ValidationException() {
+    void 지원하지_않는_provider_요청시_empty_반환() {
         LlmProviderFactory factory = new LlmProviderFactory(List.of(new DummyProvider("claude")));
 
-        assertThatThrownBy(() -> factory.getProvider("gemini"))
-                .isInstanceOf(ValidationException.class)
-                .hasMessageContaining("지원하지 않는 LLM provider");
+        assertThat(factory.getProvider("gemini")).isEmpty();
+        assertThat(factory.getProvider(null)).isEmpty();
+        assertThat(factory.getProvider("")).isEmpty();
     }
 
     private static class DummyProvider implements LlmProvider {

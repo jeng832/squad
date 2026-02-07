@@ -1,17 +1,16 @@
 package com.squad.llm;
 
-import com.squad.common.exception.ErrorCode;
-import com.squad.common.exception.ValidationException;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 import java.util.Map;
+import java.util.Optional;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
 /**
  * provider 이름에 따라 적절한 LlmProvider 구현을 반환하는 팩토리.
  */
-@Component
+@Service
 public class LlmProviderFactory {
 
     private final Map<String, LlmProvider> providersByName;
@@ -21,15 +20,10 @@ public class LlmProviderFactory {
                 .collect(Collectors.toUnmodifiableMap(LlmProvider::getProviderName, Function.identity()));
     }
 
-    public LlmProvider getProvider(String providerName) {
+    public Optional<LlmProvider> getProvider(String providerName) {
         if (providerName == null || providerName.isBlank()) {
-            throw new ValidationException(ErrorCode.INVALID_REQUEST, "LLM provider 이름이 비어 있습니다.");
+            return Optional.empty();
         }
-
-        LlmProvider provider = providersByName.get(providerName);
-        if (provider == null) {
-            throw new ValidationException(ErrorCode.INVALID_REQUEST, "지원하지 않는 LLM provider: " + providerName);
-        }
-        return provider;
+        return Optional.ofNullable(providersByName.get(providerName));
     }
 }

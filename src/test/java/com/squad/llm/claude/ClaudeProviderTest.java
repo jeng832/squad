@@ -6,13 +6,11 @@ import com.squad.llm.model.LlmResponse;
 import com.squad.llm.model.LlmTool;
 import org.junit.jupiter.api.Test;
 import org.springframework.http.HttpStatus;
-import org.springframework.web.reactive.function.client.ClientRequest;
 import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.ExchangeFunction;
 import org.springframework.web.reactive.function.client.ExchangeStrategies;
 import org.springframework.web.reactive.function.client.WebClient;
 import reactor.core.publisher.Mono;
-import reactor.netty.http.client.HttpClient;
 
 import java.util.List;
 import java.util.Map;
@@ -28,7 +26,7 @@ class ClaudeProviderTest {
                   "id": "msg_123",
                   "content": [
                     {"type": "text", "text": "hello"},
-                    {"type": "tool_use", "tool_use": {"id": "call_1", "name": "do_something", "input": {"x": 1}}}
+                    {"type": "tool_use", "id": "call_1", "name": "do_something", "input": {"x": 1}}
                   ],
                   "stop_reason": "end_turn",
                   "usage": {"input_tokens": 10, "output_tokens": 20}

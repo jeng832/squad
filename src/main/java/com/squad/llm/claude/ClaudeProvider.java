@@ -82,7 +82,7 @@ public class ClaudeProvider implements LlmProvider {
             for (LlmMessage msg : request.messages()) {
                 messages.add(new ClaudeMessage(
                         msg.role(),
-                        Collections.singletonList(new ClaudeContent("text", msg.content(), null))
+                        Collections.singletonList(new ClaudeContent("text", msg.content(), null, null, null))
                 ));
             }
         }
@@ -112,11 +112,11 @@ public class ClaudeProvider implements LlmProvider {
                 .collect(Collectors.joining());
 
         List<LlmToolCall> toolCalls = response.content().stream()
-                .filter(block -> Objects.equals(block.type(), "tool_use") && block.toolUse() != null)
+                .filter(block -> Objects.equals(block.type(), "tool_use") && block.toolUseName() != null)
                 .map(block -> new LlmToolCall(
-                        block.toolUse().id(),
-                        block.toolUse().name(),
-                        block.toolUse().input()
+                        block.toolUseId(),
+                        block.toolUseName(),
+                        block.toolUseInput()
                 ))
                 .toList();
 
@@ -154,7 +154,9 @@ public class ClaudeProvider implements LlmProvider {
     record ClaudeContent(
             String type,
             String text,
-            @JsonProperty("tool_use") ClaudeToolUse toolUse
+            @JsonProperty("id") String toolUseId,
+            @JsonProperty("name") String toolUseName,
+            @JsonProperty("input") Map<String, Object> toolUseInput
     ) {
     }
 
@@ -165,12 +167,6 @@ public class ClaudeProvider implements LlmProvider {
     ) {
     }
 
-    record ClaudeToolUse(
-            String id,
-            String name,
-            Map<String, Object> input
-    ) {
-    }
 
     record ClaudeUsage(
             @JsonProperty("input_tokens") Integer inputTokens,

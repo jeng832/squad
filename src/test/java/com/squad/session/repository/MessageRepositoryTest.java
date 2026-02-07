@@ -120,7 +120,7 @@ class MessageRepositoryTest {
     }
 
     @Test
-    void Message_SessionId_및_Type으로_조회_시_해당_Message_목록_반환() {
+    void Message_SessionId_및_Type으로_조회_시_시간순_Message_목록_반환() {
         Session session = persistSession();
 
         entityManager.persist(buildMessage(session, "작업 요청 1", MessageType.TASK_REQUEST, 1L, 2L));
@@ -130,10 +130,10 @@ class MessageRepositoryTest {
         entityManager.flush();
         entityManager.clear();
 
-        List<Message> taskRequests = messageRepository.findBySessionIdAndType(session.getId(), MessageType.TASK_REQUEST);
+        List<Message> taskRequests = messageRepository.findBySessionIdAndTypeOrderByCreatedAt(session.getId(), MessageType.TASK_REQUEST);
 
         assertThat(taskRequests).hasSize(2);
-        assertThat(taskRequests.stream().map(Message::getContent))
-                .containsExactlyInAnyOrder("작업 요청 1", "작업 요청 2");
+        assertThat(taskRequests.get(0).getContent()).isEqualTo("작업 요청 1");
+        assertThat(taskRequests.get(1).getContent()).isEqualTo("작업 요청 2");
     }
 }

@@ -59,7 +59,7 @@
 
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
-| 5-1 | Agent Container Dockerfile | squad-agent 이미지용 Dockerfile, 기본 Agent Runner 진입점 | Dockerfile, 2~3개 파일 | |
+| 5-1 | Agent Container Dockerfile | squad-agent 이미지용 Dockerfile, 기본 Agent Runner 진입점 | Dockerfile, 2~3개 파일 | [#35](https://github.com/jeng832/squad/pull/35) |
 | 5-2 | Agent Runner 기본 구조 | Agent 컨테이너 내부에서 실행될 Runner 애플리케이션, 환경변수 파싱, 설정 로드 | 4~5개 파일 | |
 | 5-3 | Docker Client 연동 | Docker API 클라이언트 (docker-java), 컨테이너 생성/시작/중지/삭제 | 3~4개 파일 | |
 | 5-4 | Container Lifecycle Manager | 세션 시작 시 컨테이너 생성, 세션 종료 시 정리, 컨테이너 명명 규칙 (`squad-{sessionId}-{agentId}`) | 3~4개 파일 | |

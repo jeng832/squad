@@ -280,6 +280,16 @@
 
 ---
 
+## 2026-02-08
+
+### 작업 내용
+- **작업 5-1: Agent Container Dockerfile**
+  - `docker/agent/Dockerfile`: squad-agent 이미지용 기본 Dockerfile 추가
+  - `docker/agent/entrypoint.sh`: agent-runner.jar 실행용 엔트리포인트 추가
+  - [PR #35](https://github.com/jeng832/squad/pull/35)
+
+---
+
 ## 2026-02-07
 
 ### 작업 내용

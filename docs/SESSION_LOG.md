@@ -300,6 +300,12 @@
   - Docker 조회 로직 테스트 추가
   - [PR #37](https://github.com/jeng832/squad/pull/37)
 
+- **작업 5-4: Container Lifecycle Manager**
+  - 컨테이너 생성/시작/중지/삭제를 담당하는 Lifecycle Manager 추가
+  - 컨테이너 명명 규칙(`squad-{sessionId}-{agentId}`) 적용
+  - 기본 동작 테스트 추가
+  - [PR #38](https://github.com/jeng832/squad/pull/38)
+
 ---
 
 ## 2026-02-07

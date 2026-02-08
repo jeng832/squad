@@ -306,6 +306,13 @@
   - 기본 동작 테스트 추가
   - [PR #38](https://github.com/jeng832/squad/pull/38)
 
+- **작업 5-5: Container Health Check**
+  - `/health` 엔드포인트 추가
+  - 주기적 상태 점검 및 비정상 컨테이너 재시작 로직 추가
+  - 스케줄러 활성화 설정 추가
+  - Health Checker 테스트 추가
+  - [PR #39](https://github.com/jeng832/squad/pull/39)
+
 ---
 
 ## 2026-02-07

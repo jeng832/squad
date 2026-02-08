@@ -294,6 +294,12 @@
   - 기본 파싱 테스트 추가
   - [PR #36](https://github.com/jeng832/squad/pull/36)
 
+- **작업 5-3: Docker Client 연동**
+  - DockerClient 빈 설정 추가 및 docker host 구성 지원
+  - 컨테이너 조회 유틸(`DockerContainerManager`) 추가
+  - Docker 조회 로직 테스트 추가
+  - [PR #37](https://github.com/jeng832/squad/pull/37)
+
 ---
 
 ## 2026-02-07

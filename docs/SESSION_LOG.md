@@ -288,6 +288,12 @@
   - `docker/agent/entrypoint.sh`: agent-runner.jar 실행용 엔트리포인트 추가
   - [PR #35](https://github.com/jeng832/squad/pull/35)
 
+- **작업 5-2: Agent Runner 기본 구조**
+  - `AgentRunnerApplication`: Agent Runner 진입점 추가
+  - `AgentConfig`/`AgentConfigLoader`: AGENT_CONFIG 파싱 및 AGENT_ID override 지원
+  - 기본 파싱 테스트 추가
+  - [PR #36](https://github.com/jeng832/squad/pull/36)
+
 ---
 
 ## 2026-02-07

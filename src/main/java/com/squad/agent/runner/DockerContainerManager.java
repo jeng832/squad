@@ -3,15 +3,16 @@ package com.squad.agent.runner;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.command.InspectContainerResponse;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
+import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
 
 /**
  * Docker 컨테이너 조회를 위한 간단한 래퍼.
  */
-@Component
+@Service
 public class DockerContainerManager {
 
     private final DockerClient dockerClient;
@@ -29,10 +30,10 @@ public class DockerContainerManager {
             if (container.getNames() == null) {
                 continue;
             }
-            for (String containerName : container.getNames()) {
-                if (containerName.equals(name) || containerName.equals("/" + name)) {
-                    return Optional.of(container);
-                }
+            boolean matched = Arrays.stream(container.getNames())
+                    .anyMatch(containerName -> containerName.equals(name) || containerName.equals("/" + name));
+            if (matched) {
+                return Optional.of(container);
             }
         }
         return Optional.empty();

@@ -55,6 +55,9 @@ squad:
       max-tokens: 4096
       timeout: 60000
 
+  messaging:
+    provider: redis
+
   docker:
     host: unix:///var/run/docker.sock
     network: squad-network-test

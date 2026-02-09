@@ -1,4 +1,4 @@
-package com.squad.messaging;
+package com.squad.messaging.redis;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;

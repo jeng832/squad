@@ -96,6 +96,10 @@ squad:
         max-backoff: 2000
         jitter: 0.2
 
+  # Messaging Configuration
+  messaging:
+    provider: redis
+
   # Docker Configuration
   docker:
     host: ${DOCKER_HOST:unix:///var/run/docker.sock}

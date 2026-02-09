@@ -1,6 +1,7 @@
-package com.squad.messaging;
+package com.squad.messaging.redis;
 
-import com.squad.messaging.config.RedisTestContainerConfig;
+import com.squad.messaging.MessagePublisher;
+import com.squad.messaging.SessionMessage;
 import com.squad.session.domain.MessageType;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -17,8 +18,8 @@ import java.util.concurrent.atomic.AtomicReference;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest
-@DisplayName("MessagePublisher 통합 테스트")
-class MessagePublisherTest extends RedisTestContainerConfig {
+@DisplayName("RedisMessagePublisher 통합 테스트")
+class RedisMessagePublisherTest extends RedisTestContainerConfig {
 
     @Autowired
     private MessagePublisher messagePublisher;

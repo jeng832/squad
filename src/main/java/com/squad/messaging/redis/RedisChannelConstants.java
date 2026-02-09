@@ -1,16 +1,16 @@
-package com.squad.messaging;
+package com.squad.messaging.redis;
 
 /**
  * Redis Pub/Sub 채널 네이밍 규칙을 정의하는 유틸리티 클래스.
  *
- * <p>채널 구조:</p>
+ * <p>Redis 구현체 내부에서만 사용되며, 채널 구조는 다음과 같다:</p>
  * <ul>
  *   <li>{@code session:{sessionId}:orchestrator} - Orchestrator 전용 채널</li>
  *   <li>{@code session:{sessionId}:agent:{agentId}} - 개별 Agent 채널</li>
  *   <li>{@code session:{sessionId}:broadcast} - 전체 브로드캐스트 채널</li>
  * </ul>
  */
-public final class RedisChannelConstants {
+final class RedisChannelConstants {
 
     private static final String SESSION_PREFIX = "session:";
     private static final String ORCHESTRATOR_SUFFIX = ":orchestrator";
@@ -26,7 +26,7 @@ public final class RedisChannelConstants {
      * @param sessionId 세션 ID
      * @return {@code session:{sessionId}:orchestrator} 형식의 채널명
      */
-    public static String orchestratorChannel(Long sessionId) {
+    static String orchestratorChannel(Long sessionId) {
         return SESSION_PREFIX + sessionId + ORCHESTRATOR_SUFFIX;
     }
 
@@ -37,7 +37,7 @@ public final class RedisChannelConstants {
      * @param agentId   Agent ID
      * @return {@code session:{sessionId}:agent:{agentId}} 형식의 채널명
      */
-    public static String agentChannel(Long sessionId, Long agentId) {
+    static String agentChannel(Long sessionId, Long agentId) {
         return SESSION_PREFIX + sessionId + AGENT_INFIX + agentId;
     }
 
@@ -47,7 +47,7 @@ public final class RedisChannelConstants {
      * @param sessionId 세션 ID
      * @return {@code session:{sessionId}:broadcast} 형식의 채널명
      */
-    public static String broadcastChannel(Long sessionId) {
+    static String broadcastChannel(Long sessionId) {
         return SESSION_PREFIX + sessionId + BROADCAST_SUFFIX;
     }
 
@@ -57,7 +57,7 @@ public final class RedisChannelConstants {
      * @param sessionId 세션 ID
      * @return {@code session:{sessionId}:*} 형식의 패턴
      */
-    public static String sessionPattern(Long sessionId) {
+    static String sessionPattern(Long sessionId) {
         return SESSION_PREFIX + sessionId + ":*";
     }
 }

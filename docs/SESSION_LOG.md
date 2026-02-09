@@ -333,6 +333,15 @@
     - 빈 로딩, 직렬화 라운드트립, Redis ping, Pub/Sub 발행/구독 라운드트립
   - [PR #40](https://github.com/jeng832/squad/pull/40)
 
+- **작업 6-2: Message Publisher 구현**
+  - `SessionMessage`: Redis Pub/Sub 채널 전송용 메시지 DTO
+    - `of()` 팩토리 메서드, `system()` 팩토리 메서드
+  - `MessagePublisher`: Redis Pub/Sub 메시지 발행기
+    - `sendToAgent()`, `sendToOrchestrator()`, `broadcast()`
+  - `MessagePublisherTest`: Testcontainers Redis 기반 통합 테스트 5가지
+    - Agent/Orchestrator/Broadcast 채널 발행/수신, 메시지 타입 보존, 세션 격리 검증
+  - [PR #41](https://github.com/jeng832/squad/pull/41)
+
 ---
 
 ## 2026-02-07

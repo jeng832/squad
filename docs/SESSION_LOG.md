@@ -354,6 +354,27 @@
   - **보류 작업 → 6-3에서 수행**: messageSerializer 빈과 Subscriber 역직렬화 경로 정리
   - [PR #41](https://github.com/jeng832/squad/pull/41)
 
+- **작업 6-3: Message Subscriber 구현**
+  - codex-cli와 설계 논의 및 코드 리뷰를 통해 구현
+  - `Subscription`: 구독 lifecycle 관리 인터페이스 (unsubscribe만, 멱등)
+  - `MessageHandler`: @FunctionalInterface (도메인 의미 명확화, Consumer 대신 채택 - codex와 합의)
+  - `MessageSubscriber`: 도메인 포트 인터페이스
+    - `subscribeToAgent(sessionId, agentId, handler)` → Subscription
+    - `subscribeToOrchestrator(sessionId, handler)` → Subscription
+    - `subscribeToBroadcast(sessionId, handler)` → Subscription
+  - `RedisMessageSubscriber`: Redis Pub/Sub 구현체
+    - `@ConditionalOnProperty(name="squad.messaging.provider", havingValue="redis")` 적용
+    - `messageSerializer`로 1차 역직렬화 후 `ObjectMapper.convertValue` fallback (private 생성자 대응)
+    - `AtomicBoolean` 기반 멱등한 구독 해제, 실패 시 active 상태 복원
+    - null 역직렬화 가드 (log+drop)
+    - Assert.notNull 파라미터 검증 (RedisMessagePublisher와 동일 패턴)
+  - codex-cli 리뷰 6건 중 5건 수정, 1건(AutoCloseable) 보류 합의
+    - Thread.sleep → retry-publish 패턴 (`publishUntilReceived`) 으로 테스트 안정성 개선
+    - AutoCloseable 보류: 구독은 long-lived이므로 try-with-resources 유도 부적절
+  - 통합 테스트 15개 (구독/수신, 해제, 멱등성, 세션 격리, null 검증 7개, 비활성화)
+  - 6-2 보류 항목 해소: messageSerializer 빈과 Subscriber 역직렬화 경로 정리 완료
+  - [PR #42](https://github.com/jeng832/squad/pull/42)
+
 ---
 
 ## 2026-02-07

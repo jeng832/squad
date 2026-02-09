@@ -40,6 +40,8 @@ public class DefaultMessageRouter implements MessageRouter {
             case TASK_REQUEST, HELP_RESPONSE -> routeToAgent(message);
             case TASK_RESULT, HELP_REQUEST -> routeToOrchestrator(message);
             case SYSTEM -> broadcast(message);
+            default -> throw new IllegalArgumentException(
+                    "지원하지 않는 메시지 타입: " + message.getType());
         }
     }
 

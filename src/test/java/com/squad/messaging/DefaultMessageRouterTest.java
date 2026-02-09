@@ -11,6 +11,7 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("DefaultMessageRouter 단위 테스트")
@@ -31,6 +32,7 @@ class DefaultMessageRouterTest {
         messageRouter.route(message);
 
         verify(messagePublisher).sendToAgent(message);
+        verifyNoMoreInteractions(messagePublisher);
     }
 
     @Test
@@ -42,6 +44,7 @@ class DefaultMessageRouterTest {
         messageRouter.route(message);
 
         verify(messagePublisher).sendToOrchestrator(message);
+        verifyNoMoreInteractions(messagePublisher);
     }
 
     @Test
@@ -53,6 +56,7 @@ class DefaultMessageRouterTest {
         messageRouter.route(message);
 
         verify(messagePublisher).sendToOrchestrator(message);
+        verifyNoMoreInteractions(messagePublisher);
     }
 
     @Test
@@ -64,6 +68,7 @@ class DefaultMessageRouterTest {
         messageRouter.route(message);
 
         verify(messagePublisher).sendToAgent(message);
+        verifyNoMoreInteractions(messagePublisher);
     }
 
     @Test
@@ -74,6 +79,7 @@ class DefaultMessageRouterTest {
         messageRouter.route(message);
 
         verify(messagePublisher).broadcast(message);
+        verifyNoMoreInteractions(messagePublisher);
     }
 
     @Test

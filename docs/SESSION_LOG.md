@@ -327,8 +327,10 @@
     - `session:{sessionId}:agent:{agentId}` - 개별 Agent 채널
     - `session:{sessionId}:broadcast` - 전체 브로드캐스트 채널
     - `session:{sessionId}:*` - 세션 패턴
+  - `RedisTestContainerConfig`: Testcontainers Redis 공통 설정 (이후 6-2~6-4, 10-3 재활용)
   - `RedisChannelConstantsTest`: 채널 네이밍 검증 6가지 테스트
-  - `RedisMessageConfigTest`: 빈 로딩 및 직렬화 라운드트립 3가지 테스트
+  - `RedisMessageConfigTest`: Testcontainers Redis 기반 통합 테스트 5가지
+    - 빈 로딩, 직렬화 라운드트립, Redis ping, Pub/Sub 발행/구독 라운드트립
   - [PR #40](https://github.com/jeng832/squad/pull/40)
 
 ---

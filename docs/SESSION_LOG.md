@@ -315,6 +315,24 @@
 
 ---
 
+## 2026-02-09
+
+### 작업 내용
+- **작업 6-1: Redis Pub/Sub 연결 설정**
+  - `RedisMessageConfig`: Pub/Sub 전용 설정 클래스 추가
+    - `RedisMessageListenerContainer` 빈: 동적 채널 구독/해제 관리
+    - `messageSerializer` 빈: Jackson 기반 JSON 직렬화기
+  - `RedisChannelConstants`: 채널 네이밍 규칙 유틸리티
+    - `session:{sessionId}:orchestrator` - Orchestrator 전용 채널
+    - `session:{sessionId}:agent:{agentId}` - 개별 Agent 채널
+    - `session:{sessionId}:broadcast` - 전체 브로드캐스트 채널
+    - `session:{sessionId}:*` - 세션 패턴
+  - `RedisChannelConstantsTest`: 채널 네이밍 검증 6가지 테스트
+  - `RedisMessageConfigTest`: 빈 로딩 및 직렬화 라운드트립 3가지 테스트
+  - [PR #40](https://github.com/jeng832/squad/pull/40)
+
+---
+
 ## 2026-02-07
 
 ### 작업 내용

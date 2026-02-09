@@ -7,6 +7,7 @@ import com.squad.common.exception.ValidationException;
 import com.squad.session.domain.SessionStatus;
 import com.squad.session.dto.SessionCreateRequest;
 import com.squad.session.dto.SessionResponse;
+import com.squad.session.service.SessionExecutionService;
 import com.squad.session.service.SessionService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +38,9 @@ class SessionControllerTest {
 
     @MockitoBean
     private SessionService sessionService;
+
+    @MockitoBean
+    private SessionExecutionService sessionExecutionService;
 
     private static final LocalDateTime NOW = LocalDateTime.now();
 
@@ -145,6 +149,40 @@ class SessionControllerTest {
                 .andExpect(status().isNotFound())
                 .andExpect(jsonPath("$.success").value(false))
                 .andExpect(jsonPath("$.errorCode").value("SQUAD_NOT_FOUND"));
+    }
+
+    @Test
+    void 세션_시작_시_성공_응답_반환() throws Exception {
+        SessionResponse response = sampleResponse(SessionStatus.RUNNING);
+        given(sessionExecutionService.start(1L)).willReturn(response);
+
+        mockMvc.perform(post("/api/v1/sessions/1/start"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data.status").value("RUNNING"))
+                .andExpect(jsonPath("$.message").value("세션이 시작되었습니다."));
+    }
+
+    @Test
+    void 존재하지_않는_세션_시작_시_404_응답() throws Exception {
+        given(sessionExecutionService.start(99L))
+                .willThrow(new NotFoundException(ErrorCode.SESSION_NOT_FOUND));
+
+        mockMvc.perform(post("/api/v1/sessions/99/start"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("SESSION_NOT_FOUND"));
+    }
+
+    @Test
+    void PENDING이_아닌_세션_시작_시_400_응답() throws Exception {
+        given(sessionExecutionService.start(1L))
+                .willThrow(new ValidationException(ErrorCode.INVALID_SESSION_STATE, "PENDING 상태만 시작 가능"));
+
+        mockMvc.perform(post("/api/v1/sessions/1/start"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("INVALID_SESSION_STATE"));
     }
 
     @Test

@@ -69,12 +69,11 @@ public class SessionExecutionService {
         try {
             session.start();
             sessionRepository.flush();
+            sendPromptToOrchestrator(session, orchestrator);
         } catch (Exception e) {
             cleanupContainers(startedContainerIds);
             throw e;
         }
-
-        sendPromptToOrchestrator(session, orchestrator);
 
         log.info("세션 시작 완료: sessionId={}, squadId={}, agents={}",
                 session.getId(), squad.getId(), startedContainerIds.size());
@@ -97,14 +96,16 @@ public class SessionExecutionService {
     private List<String> startContainers(Session session, Squad squad) {
         String sessionIdStr = String.valueOf(session.getId());
         Agent orchestrator = squad.getOrchestrator();
-        Set<Agent> agents = squad.getAgents();
         List<String> startedContainerIds = new ArrayList<>();
 
         try {
             String orchestratorContainerId = startAgentContainer(sessionIdStr, orchestrator);
             startedContainerIds.add(orchestratorContainerId);
 
-            for (Agent agent : agents) {
+            for (Agent agent : squad.getAgents()) {
+                if (agent.getId().equals(orchestrator.getId())) {
+                    continue;
+                }
                 String containerId = startAgentContainer(sessionIdStr, agent);
                 startedContainerIds.add(containerId);
             }

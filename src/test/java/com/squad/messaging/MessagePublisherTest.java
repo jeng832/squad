@@ -9,7 +9,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
-import org.springframework.data.redis.serializer.RedisSerializer;
 
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
@@ -26,9 +25,6 @@ class MessagePublisherTest extends RedisTestContainerConfig {
 
     @Autowired
     private RedisMessageListenerContainer listenerContainer;
-
-    @Autowired
-    private RedisSerializer<Object> messageSerializer;
 
     @Test
     @DisplayName("Agent 채널에 메시지를 발행하면 해당 채널에서 수신할 수 있다")

@@ -9,12 +9,13 @@ import lombok.NoArgsConstructor;
 import java.time.LocalDateTime;
 
 /**
- * Redis Pub/Sub 채널로 전송되는 세션 메시지 DTO.
+ * 세션 내 에이전트 간 통신에 사용되는 메시지 DTO.
  *
- * <p>에이전트 간 통신에 사용되며, JSON으로 직렬화되어 Redis 채널을 통해 전달된다.</p>
+ * <p>메시지의 라우팅 정보(sessionId, fromAgentId, toAgentId)와
+ * 메시지 내용(type, content)을 포함하며, {@link MessagePublisher}를 통해 발행된다.</p>
  *
  * @see MessageType
- * @see RedisChannelConstants
+ * @see MessagePublisher
  */
 @Getter
 @NoArgsConstructor(access = AccessLevel.PRIVATE)

@@ -18,7 +18,7 @@ import org.springframework.data.redis.serializer.RedisSerializer;
  * <p>{@code squad.messaging.provider=redis}일 때 활성화된다.</p>
  */
 @Configuration
-@ConditionalOnProperty(name = "squad.messaging.provider", havingValue = "redis", matchIfMissing = true)
+@ConditionalOnProperty(name = "squad.messaging.provider", havingValue = "redis")
 public class RedisMessageConfig {
 
     /**

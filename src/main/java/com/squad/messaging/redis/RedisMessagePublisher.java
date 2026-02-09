@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
+import org.springframework.util.Assert;
 
 /**
  * Redis Pub/Sub 기반 {@link MessagePublisher} 구현체.
@@ -15,32 +16,37 @@ import org.springframework.stereotype.Service;
  * {@link RedisTemplate#convertAndSend}를 사용하여 메시지를 발행한다.</p>
  *
  * <p>{@code squad.messaging.provider=redis}일 때 활성화된다.</p>
- *
- * @see RedisChannelConstants
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
-@ConditionalOnProperty(name = "squad.messaging.provider", havingValue = "redis", matchIfMissing = true)
+@ConditionalOnProperty(name = "squad.messaging.provider", havingValue = "redis")
 public class RedisMessagePublisher implements MessagePublisher {
 
     private final RedisTemplate<String, Object> redisTemplate;
 
     @Override
-    public void sendToAgent(Long sessionId, Long agentId, SessionMessage message) {
-        String channel = RedisChannelConstants.agentChannel(sessionId, agentId);
+    public void sendToAgent(SessionMessage message) {
+        Assert.notNull(message.getSessionId(), "sessionId는 필수입니다");
+        Assert.notNull(message.getToAgentId(), "toAgentId는 필수입니다");
+
+        String channel = RedisChannelConstants.agentChannel(message.getSessionId(), message.getToAgentId());
         publish(channel, message);
     }
 
     @Override
-    public void sendToOrchestrator(Long sessionId, SessionMessage message) {
-        String channel = RedisChannelConstants.orchestratorChannel(sessionId);
+    public void sendToOrchestrator(SessionMessage message) {
+        Assert.notNull(message.getSessionId(), "sessionId는 필수입니다");
+
+        String channel = RedisChannelConstants.orchestratorChannel(message.getSessionId());
         publish(channel, message);
     }
 
     @Override
-    public void broadcast(Long sessionId, SessionMessage message) {
-        String channel = RedisChannelConstants.broadcastChannel(sessionId);
+    public void broadcast(SessionMessage message) {
+        Assert.notNull(message.getSessionId(), "sessionId는 필수입니다");
+
+        String channel = RedisChannelConstants.broadcastChannel(message.getSessionId());
         publish(channel, message);
     }
 

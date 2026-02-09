@@ -375,6 +375,17 @@
   - 6-2 보류 항목 해소: messageSerializer 빈과 Subscriber 역직렬화 경로 정리 완료
   - [PR #42](https://github.com/jeng832/squad/pull/42)
 
+- **작업 6-4: 메시지 라우팅 로직**
+  - `MessageRouter`: 메시지 타입 기반 라우팅 인터페이스
+  - `DefaultMessageRouter`: MessageType → 채널 라우팅 구현
+    - TASK_REQUEST, HELP_RESPONSE → `sendToAgent` (toAgentId 필수)
+    - TASK_RESULT, HELP_REQUEST → `sendToOrchestrator`
+    - SYSTEM → `broadcast`
+  - `@ConditionalOnBean(MessagePublisher.class)`: MessagePublisher 존재 시에만 활성화
+  - 단위 테스트 10개 (타입별 라우팅 5개, 검증 실패 5개)
+  - provider 비활성화 시 MessageRouter 빈 미생성 검증 추가
+  - [PR #43](https://github.com/jeng832/squad/pull/43) (Closes #8: 메시징 이슈 완료)
+
 ---
 
 ## 2026-02-07

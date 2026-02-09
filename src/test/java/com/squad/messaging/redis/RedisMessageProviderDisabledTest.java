@@ -1,6 +1,7 @@
 package com.squad.messaging.redis;
 
 import com.squad.messaging.MessagePublisher;
+import com.squad.messaging.MessageRouter;
 import com.squad.messaging.MessageSubscriber;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,9 @@ class RedisMessageProviderDisabledTest {
     private MessageSubscriber messageSubscriber;
 
     @Autowired(required = false)
+    private MessageRouter messageRouter;
+
+    @Autowired(required = false)
     private RedisMessageListenerContainer listenerContainer;
 
     @Test
@@ -33,6 +37,12 @@ class RedisMessageProviderDisabledTest {
     @DisplayName("provider가 redis가 아니면 MessageSubscriber 빈이 생성되지 않는다")
     void subscriberBeanNotCreated() {
         assertThat(messageSubscriber).isNull();
+    }
+
+    @Test
+    @DisplayName("provider가 redis가 아니면 MessageRouter 빈이 생성되지 않는다")
+    void routerBeanNotCreated() {
+        assertThat(messageRouter).isNull();
     }
 
     @Test

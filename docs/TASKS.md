@@ -72,8 +72,8 @@
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
 | 6-1 | Redis 연결 설정 | RedisTemplate 설정, 연결 풀 설정 | 2~3개 파일 | [#40](https://github.com/jeng832/squad/pull/40) |
-| 6-2 | Message Publisher 구현 | 세션/에이전트 채널로 메시지 발행 (`session:{id}:agent:{agentId}`) | 2~3개 파일 | |
-| 6-3 | Message Subscriber 구현 | 채널 구독, 메시지 수신 리스너, Agent Runner에서 사용 | 3~4개 파일 | |
+| 6-2 | Message Publisher 구현 | 세션/에이전트 채널로 메시지 발행 (`session:{id}:agent:{agentId}`) | 2~3개 파일 | [#41](https://github.com/jeng832/squad/pull/41) |
+| 6-3 | Message Subscriber 구현 | 채널 구독, 메시지 수신 리스너, Agent Runner에서 사용. **[보류 반영] MessageSubscriber 인터페이스 + RedisMessageSubscriber 구현체 패턴 적용, Subscription 반환으로 lifecycle 관리, messageSerializer 빈과 Subscriber 역직렬화 경로 정리** | 3~4개 파일 | |
 | 6-4 | 메시지 라우팅 로직 | Orchestrator↔Agent 간 메시지 라우팅, 메시지 타입별 처리 (TASK_REQUEST, TASK_RESULT 등) | 3~4개 파일 | |
 
 ---

@@ -89,7 +89,7 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 | **Squad Platform Server** | 에이전트/Squad/세션 관리, API 제공, 모니터링 |
 | **Agent Container** | 개별 에이전트 실행 환경, LLM/MCP 연동 |
 | **MySQL** | 에이전트, Squad, 세션, 메시지 등 영속 데이터 저장 |
-| **Redis** | 에이전트 간 메시지 전달 (Pub/Sub), 실시간 상태 공유 |
+| **Redis** | 에이전트 간 메시지 전달 (Pub/Sub), 실시간 상태 공유. 메시징은 인터페이스 기반으로 추상화되어 있으며, `squad.messaging.provider` 설정으로 구현체 전환 가능 |
 | **LLM APIs** | Claude, OpenAI 등 외부 LLM 서비스 |
 
 ---
@@ -166,10 +166,24 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 └─────────────────┘                              └─────────────────┘
 ```
 
-**통신 채널 구조:**
+**통신 채널 구조 (Redis 구현):**
 - `session:{sessionId}:orchestrator` - Orchestrator 전용 채널
 - `session:{sessionId}:agent:{agentId}` - 개별 Agent 채널
 - `session:{sessionId}:broadcast` - 전체 브로드캐스트
+
+**메시징 추상화 구조:**
+```
+messaging/
+├── MessagePublisher          (인터페이스 - 도메인 포트)
+├── SessionMessage            (메시지 DTO)
+└── redis/                    (Redis 구현 어댑터)
+    ├── RedisMessagePublisher (@ConditionalOnProperty)
+    ├── RedisMessageConfig    (@ConditionalOnProperty)
+    └── RedisChannelConstants (package-private, 채널 네이밍)
+```
+- `MessagePublisher` 인터페이스를 통해 발행 동작을 추상화
+- `squad.messaging.provider` 설정으로 구현체 전환 (기본값: `redis`)
+- 향후 Kafka, AWS SNS 등 추가 시 `messaging/kafka/` 패키지만 추가하면 됨
 
 ### 3.4 샌드박스 및 Workspace 구조
 

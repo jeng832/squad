@@ -1,4 +1,4 @@
-package com.squad.messaging.config;
+package com.squad.messaging.redis;
 
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;

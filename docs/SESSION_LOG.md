@@ -333,6 +333,27 @@
     - 빈 로딩, 직렬화 라운드트립, Redis ping, Pub/Sub 발행/구독 라운드트립
   - [PR #40](https://github.com/jeng832/squad/pull/40)
 
+- **작업 6-2: Message Publisher 구현 및 인터페이스 추상화**
+  - codex-cli와 설계 논의 및 코드 리뷰를 통해 구조 개선
+  - `MessagePublisher`: 인터페이스로 분리 (도메인 포트)
+    - `sendToAgent(message)`, `sendToOrchestrator(message)`, `broadcast(message)`
+    - 라우팅 정보를 SessionMessage 단일 소스로 통일
+  - `RedisMessagePublisher`: Redis Pub/Sub 구현체
+    - `@ConditionalOnProperty(name="squad.messaging.provider", havingValue="redis")` 적용
+    - 필수 필드(sessionId, toAgentId) 검증 추가
+  - `SessionMessage`: 메시지 DTO (Redis 참조 제거, 순수 도메인 DTO화)
+  - Redis 관련 클래스를 `messaging.redis` 패키지로 이동
+    - `RedisChannelConstants`: package-private으로 접근 범위 축소
+    - `RedisMessageConfig`: `@ConditionalOnProperty` 적용 (`matchIfMissing=false`)
+  - 테스트 안정성 개선
+    - `AwaitableMessageListener`: `SubscriptionListener` 기반 구독 확정 대기 (Thread.sleep 제거)
+    - 모든 테스트에 `try/finally` 리스너 해제 보장
+    - `RedisMessageProviderDisabledTest`: provider 비활성화 시 빈 미생성 검증
+    - `RedisMessagePublisherTest`: 7가지 테스트 (발행/수신, 타입 보존, 세션 격리, null 검증)
+  - ARCHITECTURE.md에 메시징 추상화 구조 반영
+  - **보류 작업 → 6-3에서 수행**: messageSerializer 빈과 Subscriber 역직렬화 경로 정리
+  - [PR #41](https://github.com/jeng832/squad/pull/41)
+
 ---
 
 ## 2026-02-07

@@ -1,6 +1,7 @@
-package com.squad.messaging.config;
+package com.squad.messaging.redis;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
@@ -12,14 +13,12 @@ import org.springframework.data.redis.serializer.RedisSerializer;
  * Redis Pub/Sub 메시징 전용 설정 클래스.
  *
  * <p>{@link RedisMessageListenerContainer}를 구성하여 Redis 채널 구독을 지원하고,
- * Pub/Sub 메시지 직렬화를 위한 {@link RedisSerializer} 빈을 제공합니다.</p>
+ * Pub/Sub 메시지 직렬화를 위한 {@link RedisSerializer} 빈을 제공한다.</p>
  *
- * <p>채널 구독은 세션 시작 시 동적으로 등록되며,
- * 세션 종료 시 구독이 해제됩니다.</p>
- *
- * @see com.squad.messaging.RedisChannelConstants
+ * <p>{@code squad.messaging.provider=redis}일 때 활성화된다.</p>
  */
 @Configuration
+@ConditionalOnProperty(name = "squad.messaging.provider", havingValue = "redis")
 public class RedisMessageConfig {
 
     /**
@@ -40,8 +39,6 @@ public class RedisMessageConfig {
 
     /**
      * Pub/Sub 메시지 직렬화/역직렬화에 사용할 {@link RedisSerializer}를 생성한다.
-     *
-     * <p>Jackson 기반 JSON 직렬화를 사용하여 메시지 객체를 직렬화한다.</p>
      *
      * @param objectMapper Jackson ObjectMapper
      * @return JSON 기반 Redis 직렬화기

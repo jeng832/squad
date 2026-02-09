@@ -1,4 +1,4 @@
-package com.squad.messaging.config;
+package com.squad.messaging.redis;
 
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -6,14 +6,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.data.redis.connection.RedisConnectionFactory;
 import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.connection.MessageListener;
 import org.springframework.data.redis.listener.ChannelTopic;
 import org.springframework.data.redis.listener.RedisMessageListenerContainer;
 import org.springframework.data.redis.serializer.RedisSerializer;
 
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicReference;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -70,29 +67,19 @@ class RedisMessageConfigTest extends RedisTestContainerConfig {
     @DisplayName("Redis Pub/Sub으로 메시지를 발행하고 수신할 수 있다")
     void pubSubRoundTrip() throws InterruptedException {
         String channel = "test:pubsub";
-        String message = "hello-pubsub";
-
-        CountDownLatch latch = new CountDownLatch(1);
-        AtomicReference<String> received = new AtomicReference<>();
-
-        MessageListener listener = (msg, pattern) -> {
-            Object deserialized = messageSerializer.deserialize(msg.getBody());
-            received.set(String.valueOf(deserialized));
-            latch.countDown();
-        };
-
+        AwaitableMessageListener listener = new AwaitableMessageListener(channel);
         ChannelTopic topic = new ChannelTopic(channel);
-        redisMessageListenerContainer.addMessageListener(listener, topic);
 
-        Thread.sleep(200);
+        try {
+            redisMessageListenerContainer.addMessageListener(listener, topic);
+            assertThat(listener.awaitSubscribed(3, TimeUnit.SECONDS)).isTrue();
 
-        redisTemplate.convertAndSend(channel, message);
+            redisTemplate.convertAndSend(channel, "hello-pubsub");
 
-        boolean completed = latch.await(5, TimeUnit.SECONDS);
-
-        redisMessageListenerContainer.removeMessageListener(listener, topic);
-
-        assertThat(completed).isTrue();
-        assertThat(received.get()).isEqualTo(message);
+            assertThat(listener.awaitMessage(5, TimeUnit.SECONDS)).isTrue();
+            assertThat(listener.getReceivedBody()).contains("hello-pubsub");
+        } finally {
+            redisMessageListenerContainer.removeMessageListener(listener, topic);
+        }
     }
 }

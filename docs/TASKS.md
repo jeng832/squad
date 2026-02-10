@@ -94,7 +94,7 @@
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
 | 8-1 | WebSocket 설정 | STOMP over WebSocket 설정, 엔드포인트 (`/ws/sessions/{sessionId}`) | 2~3개 파일 | [#48](https://github.com/jeng832/squad/pull/48) |
-| 8-2 | 실시간 상태 전송 | Agent 상태 변경 시 WebSocket으로 클라이언트에 푸시 (AGENT_STATUS, MESSAGE 이벤트) | 3~4개 파일 | |
+| 8-2 | 실시간 상태 전송 | Agent 상태 변경 시 WebSocket으로 클라이언트에 푸시 (AGENT_STATUS, MESSAGE 이벤트) | 3~4개 파일 | [#49](https://github.com/jeng832/squad/pull/49) |
 | 8-3 | 세션 완료 알림 | SESSION_COMPLETE 이벤트 전송, 연결 정리 | 2~3개 파일 | |
 
 ---

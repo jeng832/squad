@@ -469,6 +469,15 @@
   - `application.yml`에 `squad.websocket.allowed-origins` 설정 추가
   - 단위 테스트 4개 작성
   - codex-cli와 설계 논의: 패키지명(monitoring), CORS(명시적 origin), SockJS(불필요), Simple Broker(MVP 충분)
+  - codex-cli 리뷰: P0 1건 (heartbeat TaskScheduler 누락), P2 1건 (TaskScheduler Spring 빈 관리) → 모두 해결
+
+- **8-2: 실시간 상태 전송** ([PR #49](https://github.com/jeng832/squad/pull/49))
+  - `SessionEventPublisher`: `SimpMessagingTemplate` 기반 WebSocket 이벤트 발행
+    - `publishMessage()`: Agent 간 메시지 이벤트 (content 200자 truncate)
+    - `publishAgentStatus()`: Agent 상태 변경 이벤트 (WORKING, IDLE)
+  - `OrchestratorService` 통합: 작업 분배 시 AGENT_STATUS + MESSAGE, 결과 수신 시 AGENT_STATUS + MESSAGE
+  - `WorkerService` 통합: 태스크 수신/완료 시 AGENT_STATUS 이벤트
+  - 단위 테스트 5개 작성 (SessionEventPublisherTest)
 
 ### 주요 결정사항
 - Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계

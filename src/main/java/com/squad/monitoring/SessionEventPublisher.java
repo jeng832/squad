@@ -31,14 +31,22 @@ public class SessionEventPublisher {
     /**
      * 세션 이벤트를 WebSocket 클라이언트에게 전송한다.
      *
+     * <p>이벤트 발행 실패는 핵심 비즈니스 로직에 영향을 주지 않도록
+     * 예외를 내부에서 처리하고 로그만 남긴다.</p>
+     *
      * @param event 전송할 세션 이벤트
      */
     public void publish(SessionEvent event) {
-        String destination = TOPIC_PREFIX + event.getSessionId();
-        messagingTemplate.convertAndSend(destination, event);
+        try {
+            String destination = TOPIC_PREFIX + event.getSessionId();
+            messagingTemplate.convertAndSend(destination, event);
 
-        log.debug("세션 이벤트 발행: sessionId={}, type={}, destination={}",
-                event.getSessionId(), event.getType(), destination);
+            log.debug("세션 이벤트 발행: sessionId={}, type={}, destination={}",
+                    event.getSessionId(), event.getType(), destination);
+        } catch (Exception e) {
+            log.warn("세션 이벤트 발행 실패: sessionId={}, type={}",
+                    event.getSessionId(), event.getType(), e);
+        }
     }
 
     /**

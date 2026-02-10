@@ -3,6 +3,16 @@
 ## 2026-02-10
 
 ### 작업 내용
+- **7-3: Worker Agent 실행 로직 구현** ([PR #46](https://github.com/jeng832/squad/pull/46))
+  - `WorkerContext`: Worker Agent별 실행 상태 관리 (CopyOnWriteArrayList, volatile Subscription)
+  - `WorkerService`: 태스크 수신 → LLM 호출 → 결과 반환 전체 흐름
+    - startWorker/stopWorker/stopAllWorkers lifecycle 관리
+    - TASK_REQUEST 수신 시 LLM 호출 후 TASK_RESULT 반환
+    - LLM 호출 실패 시 에러 결과를 Orchestrator에게 전달 (sendErrorResult)
+  - `SessionExecutionService` 통합: Worker 구독 → Orchestrator 구독 → 프롬프트 발행 순서 보장
+  - 단위 테스트 9개 작성 (WorkerServiceTest)
+  - codex-cli 리뷰: P2 1건 (세션 완료 시 Worker 정리) → 7-4 범위로 기록
+
 - **7-2: Orchestrator 작업 분배 로직 구현** ([PR #45](https://github.com/jeng832/squad/pull/45))
   - `OrchestrationContext`: 세션별 Orchestration 상태 관리 (스레드 안전)
     - `CopyOnWriteArrayList`로 대화 히스토리, `AtomicInteger`로 대기 작업 수 관리

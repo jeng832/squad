@@ -9,6 +9,7 @@ import com.squad.common.exception.ValidationException;
 import com.squad.messaging.MessagePublisher;
 import com.squad.messaging.SessionMessage;
 import com.squad.orchestration.OrchestratorService;
+import com.squad.worker.WorkerService;
 import com.squad.session.domain.MessageType;
 import com.squad.session.domain.Session;
 import com.squad.session.domain.SessionStatus;
@@ -48,6 +49,9 @@ class SessionExecutionServiceTest {
 
     @Mock
     private OrchestratorService orchestratorService;
+
+    @Mock
+    private WorkerService workerService;
 
     @InjectMocks
     private SessionExecutionService sessionExecutionService;

@@ -13,6 +13,7 @@ import com.squad.session.domain.SessionStatus;
 import com.squad.session.dto.SessionResponse;
 import com.squad.session.repository.SessionRepository;
 import com.squad.squad.domain.Squad;
+import com.squad.worker.WorkerService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -48,6 +49,7 @@ public class SessionExecutionService {
     private final ContainerLifecycleManager containerLifecycleManager;
     private final MessagePublisher messagePublisher;
     private final OrchestratorService orchestratorService;
+    private final WorkerService workerService;
 
     /**
      * 세션을 시작한다.
@@ -71,9 +73,11 @@ public class SessionExecutionService {
         try {
             session.start();
             sessionRepository.flush();
+            startWorkers(session.getId(), squad);
             orchestratorService.startOrchestration(session.getId(), orchestrator, squad.getAgents());
             sendPromptToOrchestrator(session, orchestrator);
         } catch (Exception e) {
+            workerService.stopAllWorkers(session.getId());
             orchestratorService.stopOrchestration(session.getId());
             cleanupContainers(startedContainerIds);
             throw e;
@@ -140,6 +144,16 @@ public class SessionExecutionService {
                 "AGENT_ROLE=" + agent.getRole(),
                 "AGENT_ROLE_TYPE=" + agent.getRoleType().name()
         );
+    }
+
+    private void startWorkers(Long sessionId, Squad squad) {
+        Agent orchestrator = squad.getOrchestrator();
+        for (Agent agent : squad.getAgents()) {
+            if (agent.getId().equals(orchestrator.getId())) {
+                continue;
+            }
+            workerService.startWorker(sessionId, agent);
+        }
     }
 
     private void sendPromptToOrchestrator(Session session, Agent orchestrator) {

@@ -19,6 +19,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -51,6 +52,7 @@ public class SessionExecutionService {
     private final MessagePublisher messagePublisher;
     private final OrchestratorService orchestratorService;
     private final WorkerService workerService;
+    private final TransactionTemplate transactionTemplate;
 
     /**
      * 세션을 시작한다.
@@ -181,22 +183,26 @@ public class SessionExecutionService {
      * <p>세션 상태를 COMPLETED로 전이하고, Worker 구독 정리,
      * Container 정리 등의 리소스 해제를 수행한다.</p>
      *
+     * <p>{@link TransactionTemplate}을 사용하여 콜백 호출 시에도
+     * 트랜잭션이 보장되도록 한다. (Spring AOP 프록시 우회 방지)</p>
+     *
      * @param sessionId 완료할 세션 ID
      * @param result    최종 결과
      */
-    @Transactional
     public void complete(Long sessionId, String result) {
-        Session session = sessionRepository.findById(sessionId)
-                .orElseThrow(() -> new NotFoundException(ErrorCode.SESSION_NOT_FOUND));
+        transactionTemplate.executeWithoutResult(status -> {
+            Session session = sessionRepository.findById(sessionId)
+                    .orElseThrow(() -> new NotFoundException(ErrorCode.SESSION_NOT_FOUND));
 
-        Squad squad = session.getSquad();
+            Squad squad = session.getSquad();
 
-        session.complete(result);
-        workerService.stopAllWorkers(sessionId);
-        cleanupSessionContainers(sessionId, squad);
+            session.complete(result);
+            workerService.stopAllWorkers(sessionId);
+            cleanupSessionContainers(sessionId, squad);
 
-        log.info("세션 완료: sessionId={}, result={}",
-                sessionId, result.substring(0, Math.min(100, result.length())));
+            log.info("세션 완료: sessionId={}, result={}",
+                    sessionId, result.substring(0, Math.min(100, result.length())));
+        });
     }
 
     private SessionCompleteHandler buildCompleteHandler(Squad squad) {

@@ -17,13 +17,14 @@ import com.squad.session.dto.SessionResponse;
 import com.squad.session.repository.SessionRepository;
 import com.squad.squad.domain.Squad;
 import com.squad.orchestration.SessionCompleteHandler;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -35,6 +36,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SessionExecutionService 단위 테스트")
@@ -55,8 +57,22 @@ class SessionExecutionServiceTest {
     @Mock
     private WorkerService workerService;
 
-    @InjectMocks
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private SessionExecutionService sessionExecutionService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().doAnswer(invocation -> {
+            invocation.getArgument(0, java.util.function.Consumer.class).accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
+
+        sessionExecutionService = new SessionExecutionService(
+                sessionRepository, containerLifecycleManager, messagePublisher,
+                orchestratorService, workerService, transactionTemplate);
+    }
 
     private Agent createAgent(Long id, String name, RoleType roleType) {
         return Agent.builder()

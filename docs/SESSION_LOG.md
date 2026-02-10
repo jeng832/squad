@@ -3,6 +3,16 @@
 ## 2026-02-10
 
 ### 작업 내용
+- **7-4: 세션 완료 처리 로직 구현** ([PR #47](https://github.com/jeng832/squad/pull/47))
+  - `SessionCompleteHandler`: 콜백 인터페이스 도입 (순환 의존 방지)
+  - `OrchestratorService.completeSession()`: 핸들러 호출로 세션 완료 위임
+  - `SessionExecutionService.complete()`: 세션 COMPLETED 전이, Worker 구독 정리, Container 정리
+  - `TransactionTemplate` 적용: 콜백에서의 self-invocation 시 트랜잭션 보장 (codex-cli 리뷰 반영)
+  - Container 정리 시 `buildContainerName()`으로 이름 재구성
+  - 단위 테스트 추가: OrchestratorServiceTest 1개, SessionExecutionServiceTest 4개
+  - codex-cli 리뷰: P1 1건 (Spring AOP 프록시 우회) → TransactionTemplate으로 해결
+  - **이슈 #9 완료** (Closes #9)
+
 - **7-3: Worker Agent 실행 로직 구현** ([PR #46](https://github.com/jeng832/squad/pull/46))
   - `WorkerContext`: Worker Agent별 실행 상태 관리 (CopyOnWriteArrayList, volatile Subscription)
   - `WorkerService`: 태스크 수신 → LLM 호출 → 결과 반환 전체 흐름

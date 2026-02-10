@@ -16,12 +16,15 @@ import com.squad.session.domain.SessionStatus;
 import com.squad.session.dto.SessionResponse;
 import com.squad.session.repository.SessionRepository;
 import com.squad.squad.domain.Squad;
+import com.squad.orchestration.SessionCompleteHandler;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +36,7 @@ import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.BDDMockito.given;
 import static org.mockito.BDDMockito.willDoNothing;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 @ExtendWith(MockitoExtension.class)
 @DisplayName("SessionExecutionService 단위 테스트")
@@ -53,8 +57,22 @@ class SessionExecutionServiceTest {
     @Mock
     private WorkerService workerService;
 
-    @InjectMocks
+    @Mock
+    private TransactionTemplate transactionTemplate;
+
     private SessionExecutionService sessionExecutionService;
+
+    @BeforeEach
+    void setUp() {
+        lenient().doAnswer(invocation -> {
+            invocation.getArgument(0, java.util.function.Consumer.class).accept(null);
+            return null;
+        }).when(transactionTemplate).executeWithoutResult(any());
+
+        sessionExecutionService = new SessionExecutionService(
+                sessionRepository, containerLifecycleManager, messagePublisher,
+                orchestratorService, workerService, transactionTemplate);
+    }
 
     private Agent createAgent(Long id, String name, RoleType roleType) {
         return Agent.builder()
@@ -220,6 +238,78 @@ class SessionExecutionServiceTest {
         verify(containerLifecycleManager, times(2)).createAndStartContainer(anyString(), anyString(), anyList());
         verify(containerLifecycleManager).createAndStartContainer(eq("1"), eq("10"), anyList());
         verify(containerLifecycleManager).createAndStartContainer(eq("1"), eq("20"), anyList());
+    }
+
+    @Test
+    @DisplayName("startOrchestration에 SessionCompleteHandler가 전달된다")
+    void startPassesCompleteHandler() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Squad squad = createSquad(orchestrator, Set.of());
+        Session session = createPendingSession(squad);
+
+        given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(containerLifecycleManager.createAndStartContainer(eq("1"), eq("10"), anyList()))
+                .willReturn("container-orchestrator");
+
+        sessionExecutionService.start(1L);
+
+        verify(orchestratorService).startOrchestration(
+                eq(1L), eq(orchestrator), eq(Set.of()), any(SessionCompleteHandler.class));
+    }
+
+    @Test
+    @DisplayName("세션 완료 시 상태를 COMPLETED로 전이하고 리소스를 정리한다")
+    void completeSuccess() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Agent worker = createAgent(20L, "worker", RoleType.WORKER);
+        Squad squad = createSquad(orchestrator, Set.of(worker));
+        Session session = Session.builder()
+                .id(1L).squad(squad).userPrompt("프롬프트").status(SessionStatus.RUNNING).build();
+
+        given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(containerLifecycleManager.buildContainerName("1", "10")).willReturn("squad-1-10");
+        given(containerLifecycleManager.buildContainerName("1", "20")).willReturn("squad-1-20");
+
+        sessionExecutionService.complete(1L, "최종 결과입니다");
+
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+        assertThat(session.getResult()).isEqualTo("최종 결과입니다");
+        verify(workerService).stopAllWorkers(1L);
+        verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-10");
+        verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-20");
+    }
+
+    @Test
+    @DisplayName("세션 완료 시 존재하지 않는 세션이면 NotFoundException 발생")
+    void completeWithNonExistentSession() {
+        given(sessionRepository.findById(99L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> sessionExecutionService.complete(99L, "결과"))
+                .isInstanceOf(NotFoundException.class);
+        verifyNoInteractions(workerService);
+        verifyNoInteractions(containerLifecycleManager);
+    }
+
+    @Test
+    @DisplayName("세션 완료 시 Container 정리 실패해도 다른 Container는 정리된다")
+    void completeContainerCleanupPartialFailure() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Agent worker = createAgent(20L, "worker", RoleType.WORKER);
+        Squad squad = createSquad(orchestrator, Set.of(worker));
+        Session session = Session.builder()
+                .id(1L).squad(squad).userPrompt("프롬프트").status(SessionStatus.RUNNING).build();
+
+        given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(containerLifecycleManager.buildContainerName("1", "10")).willReturn("squad-1-10");
+        given(containerLifecycleManager.buildContainerName("1", "20")).willReturn("squad-1-20");
+        doThrow(new RuntimeException("Docker 오류"))
+                .when(containerLifecycleManager).stopAndRemoveContainer("squad-1-10");
+
+        sessionExecutionService.complete(1L, "결과");
+
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
+        verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-10");
+        verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-20");
     }
 
     @Test

@@ -130,14 +130,16 @@ public class WorkerService {
                 context.getSessionId(), context.getAgent().getId(),
                 context.getAgent().getName(), "WORKING");
 
-        context.addMessage(new LlmMessage("user", message.getContent()));
+        try {
+            context.addMessage(new LlmMessage("user", message.getContent()));
 
-        String result = callLlm(context);
-        sendTaskResult(context, result);
-
-        sessionEventPublisher.publishAgentStatus(
-                context.getSessionId(), context.getAgent().getId(),
-                context.getAgent().getName(), "IDLE");
+            String result = callLlm(context);
+            sendTaskResult(context, result);
+        } finally {
+            sessionEventPublisher.publishAgentStatus(
+                    context.getSessionId(), context.getAgent().getId(),
+                    context.getAgent().getName(), "IDLE");
+        }
     }
 
     private String callLlm(WorkerContext context) {

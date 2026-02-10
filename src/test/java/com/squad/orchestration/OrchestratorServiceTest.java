@@ -47,6 +47,9 @@ class OrchestratorServiceTest {
     @Mock
     private Subscription orchestratorSubscription;
 
+    @Mock
+    private SessionCompleteHandler completeHandler;
+
     private OrchestratorService orchestratorService;
 
     private Agent orchestrator;
@@ -84,7 +87,7 @@ class OrchestratorServiceTest {
         given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
                 .willReturn(orchestratorSubscription);
 
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
 
         verify(messageSubscriber).subscribeToAgent(eq(1L), eq(1L), any(MessageHandler.class));
         verify(messageSubscriber).subscribeToOrchestrator(eq(1L), any(MessageHandler.class));
@@ -98,7 +101,7 @@ class OrchestratorServiceTest {
         given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
                 .willReturn(orchestratorSubscription);
 
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
         orchestratorService.stopOrchestration(1L);
 
         verify(agentSubscription).unsubscribe();
@@ -125,7 +128,7 @@ class OrchestratorServiceTest {
         given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
 
         // When
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
         SessionMessage prompt = SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "프로젝트를 분석해주세요");
         agentHandlerCaptor.getValue().handle(prompt);
 
@@ -169,7 +172,7 @@ class OrchestratorServiceTest {
                 .willReturn(secondResponse);
 
         // When: 프롬프트 수신 → 작업 분배
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
         agentHandlerCaptor.getValue().handle(
                 SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "분석해주세요"));
 
@@ -201,7 +204,7 @@ class OrchestratorServiceTest {
         given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
         given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
 
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
         agentHandlerCaptor.getValue().handle(
                 SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "간단한 질문"));
 
@@ -246,7 +249,7 @@ class OrchestratorServiceTest {
                 .willReturn(orchestratorSubscription);
         given(llmProviderFactory.getProvider("claude")).willReturn(Optional.empty());
 
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
 
         // handleMessage catches exceptions internally, so no exception propagated
         agentHandlerCaptor.getValue().handle(
@@ -278,7 +281,7 @@ class OrchestratorServiceTest {
         Agent worker2 = Agent.builder().id(3L).name("Worker2").roleType(RoleType.WORKER)
                 .role("분석").llmConfig(Map.of("provider", "claude")).build();
 
-        orchestratorService.startOrchestration(1L, orchestrator, Set.of(worker, worker2));
+        orchestratorService.startOrchestration(1L, orchestrator, Set.of(worker, worker2), completeHandler);
         agentHandlerCaptor.getValue().handle(
                 SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "프롬프트"));
 
@@ -308,7 +311,7 @@ class OrchestratorServiceTest {
         given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
         given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
 
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
         agentHandlerCaptor.getValue().handle(
                 SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "테스트"));
 
@@ -332,13 +335,37 @@ class OrchestratorServiceTest {
         given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
         given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
 
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
         agentHandlerCaptor.getValue().handle(
                 SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "테스트"));
 
         // complete_session 후 구독이 해제됨
         verify(agentSubscription).unsubscribe();
         verify(orchestratorSubscription).unsubscribe();
+    }
+
+    @Test
+    @DisplayName("complete_session 호출 시 SessionCompleteHandler가 실행된다")
+    void completeSessionInvokesHandler() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
+                .willReturn(orchestratorSubscription);
+
+        LlmToolCall completeCall = new LlmToolCall("call-1", "complete_session",
+                Map.of("result", "최종 결과입니다"));
+        LlmResponse llmResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(completeCall), null);
+
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "작업 요청"));
+
+        verify(completeHandler).onSessionComplete(1L, "최종 결과입니다");
     }
 
     @Test
@@ -366,7 +393,7 @@ class OrchestratorServiceTest {
                 .willReturn(firstResponse)
                 .willReturn(secondResponse);
 
-        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
         agentHandlerCaptor.getValue().handle(
                 SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "프롬프트"));
 

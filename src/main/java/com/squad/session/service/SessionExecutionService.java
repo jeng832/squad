@@ -8,6 +8,7 @@ import com.squad.common.exception.ValidationException;
 import com.squad.messaging.MessagePublisher;
 import com.squad.messaging.SessionMessage;
 import com.squad.orchestration.OrchestratorService;
+import com.squad.orchestration.SessionCompleteHandler;
 import com.squad.session.domain.Session;
 import com.squad.session.domain.SessionStatus;
 import com.squad.session.dto.SessionResponse;
@@ -74,7 +75,10 @@ public class SessionExecutionService {
             session.start();
             sessionRepository.flush();
             startWorkers(session.getId(), squad);
-            orchestratorService.startOrchestration(session.getId(), orchestrator, squad.getAgents());
+            orchestratorService.startOrchestration(
+                    session.getId(), orchestrator, squad.getAgents(),
+                    buildCompleteHandler(squad)
+            );
             sendPromptToOrchestrator(session, orchestrator);
         } catch (Exception e) {
             workerService.stopAllWorkers(session.getId());
@@ -169,6 +173,57 @@ public class SessionExecutionService {
 
         log.debug("Orchestrator에 프롬프트 전달: sessionId={}, orchestratorId={}",
                 session.getId(), orchestrator.getId());
+    }
+
+    /**
+     * 세션 완료 처리를 수행한다.
+     *
+     * <p>세션 상태를 COMPLETED로 전이하고, Worker 구독 정리,
+     * Container 정리 등의 리소스 해제를 수행한다.</p>
+     *
+     * @param sessionId 완료할 세션 ID
+     * @param result    최종 결과
+     */
+    @Transactional
+    public void complete(Long sessionId, String result) {
+        Session session = sessionRepository.findById(sessionId)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.SESSION_NOT_FOUND));
+
+        Squad squad = session.getSquad();
+
+        session.complete(result);
+        workerService.stopAllWorkers(sessionId);
+        cleanupSessionContainers(sessionId, squad);
+
+        log.info("세션 완료: sessionId={}, result={}",
+                sessionId, result.substring(0, Math.min(100, result.length())));
+    }
+
+    private SessionCompleteHandler buildCompleteHandler(Squad squad) {
+        return (sessionId, result) -> complete(sessionId, result);
+    }
+
+    private void cleanupSessionContainers(Long sessionId, Squad squad) {
+        String sessionIdStr = String.valueOf(sessionId);
+        Agent orchestrator = squad.getOrchestrator();
+
+        stopContainer(sessionIdStr, orchestrator);
+        for (Agent agent : squad.getAgents()) {
+            if (agent.getId().equals(orchestrator.getId())) {
+                continue;
+            }
+            stopContainer(sessionIdStr, agent);
+        }
+    }
+
+    private void stopContainer(String sessionId, Agent agent) {
+        try {
+            String containerName = containerLifecycleManager.buildContainerName(
+                    sessionId, String.valueOf(agent.getId()));
+            containerLifecycleManager.stopAndRemoveContainer(containerName);
+        } catch (Exception e) {
+            log.warn("Container 정리 실패: sessionId={}, agentId={}", sessionId, agent.getId(), e);
+        }
     }
 
     private void cleanupContainers(List<String> containerIds) {

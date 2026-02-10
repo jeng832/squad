@@ -48,6 +48,7 @@ public class OrchestratorService {
     private final MessageSubscriber messageSubscriber;
 
     private final Map<Long, OrchestrationContext> activeOrchestrations = new ConcurrentHashMap<>();
+    private final Map<Long, SessionCompleteHandler> completeHandlers = new ConcurrentHashMap<>();
 
     /**
      * 세션에 대한 Orchestrator 작업 분배를 시작한다.
@@ -58,11 +59,14 @@ public class OrchestratorService {
      * <p>반드시 사용자 프롬프트 발행 전에 호출해야 한다.
      * 구독이 설정되기 전에 메시지가 발행되면 유실될 수 있다.</p>
      *
-     * @param sessionId    세션 ID
-     * @param orchestrator Orchestrator Agent
-     * @param agents       작업 대상 Agent 목록
+     * @param sessionId       세션 ID
+     * @param orchestrator    Orchestrator Agent
+     * @param agents          작업 대상 Agent 목록
+     * @param completeHandler 세션 완료 시 호출할 콜백
      */
-    public void startOrchestration(Long sessionId, Agent orchestrator, Set<Agent> agents) {
+    public void startOrchestration(Long sessionId, Agent orchestrator, Set<Agent> agents,
+                                   SessionCompleteHandler completeHandler) {
+        completeHandlers.put(sessionId, completeHandler);
         OrchestrationContext context = OrchestrationContext.of(sessionId, orchestrator, agents);
         activeOrchestrations.put(sessionId, context);
 
@@ -88,6 +92,7 @@ public class OrchestratorService {
      * @param sessionId 세션 ID
      */
     public void stopOrchestration(Long sessionId) {
+        completeHandlers.remove(sessionId);
         OrchestrationContext context = activeOrchestrations.remove(sessionId);
         if (context != null) {
             context.unsubscribeAll();
@@ -207,18 +212,25 @@ public class OrchestratorService {
 
     private void completeSession(OrchestrationContext context, LlmToolCall toolCall) {
         String result = (String) toolCall.arguments().get("result");
+        Long sessionId = context.getSessionId();
 
-        log.info("Orchestrator 완료 결정: sessionId={}", context.getSessionId());
+        log.info("Orchestrator 완료 결정: sessionId={}", sessionId);
 
         SessionMessage completeMessage = SessionMessage.of(
-                context.getSessionId(),
+                sessionId,
                 context.getOrchestrator().getId(),
                 null,
                 MessageType.SYSTEM,
                 result
         );
         messageRouter.route(completeMessage);
-        stopOrchestration(context.getSessionId());
+
+        SessionCompleteHandler handler = completeHandlers.get(sessionId);
+        stopOrchestration(sessionId);
+
+        if (handler != null) {
+            handler.onSessionComplete(sessionId, result);
+        }
     }
 
     private LlmProvider resolveProvider(Agent orchestrator) {

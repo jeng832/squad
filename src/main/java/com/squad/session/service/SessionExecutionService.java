@@ -7,6 +7,7 @@ import com.squad.common.exception.NotFoundException;
 import com.squad.common.exception.ValidationException;
 import com.squad.messaging.MessagePublisher;
 import com.squad.messaging.SessionMessage;
+import com.squad.orchestration.OrchestratorService;
 import com.squad.session.domain.Session;
 import com.squad.session.domain.SessionStatus;
 import com.squad.session.dto.SessionResponse;
@@ -46,6 +47,7 @@ public class SessionExecutionService {
     private final SessionRepository sessionRepository;
     private final ContainerLifecycleManager containerLifecycleManager;
     private final MessagePublisher messagePublisher;
+    private final OrchestratorService orchestratorService;
 
     /**
      * 세션을 시작한다.
@@ -69,8 +71,10 @@ public class SessionExecutionService {
         try {
             session.start();
             sessionRepository.flush();
+            orchestratorService.startOrchestration(session.getId(), orchestrator, squad.getAgents());
             sendPromptToOrchestrator(session, orchestrator);
         } catch (Exception e) {
+            orchestratorService.stopOrchestration(session.getId());
             cleanupContainers(startedContainerIds);
             throw e;
         }

@@ -91,4 +91,33 @@ class SessionEventPublisherTest {
         assertThat(content).hasSize(203); // 200 + "..."
         assertThat(content).endsWith("...");
     }
+
+    @Test
+    @DisplayName("publishSessionComplete()는 SESSION_COMPLETE 타입 이벤트를 생성하여 전송한다")
+    void publishSessionCompleteCreatesSessionCompleteEvent() {
+        sessionEventPublisher.publishSessionComplete(1L, "최종 결과입니다");
+
+        ArgumentCaptor<SessionEvent> captor = ArgumentCaptor.forClass(SessionEvent.class);
+        verify(messagingTemplate).convertAndSend(eq("/topic/sessions/1"), captor.capture());
+
+        SessionEvent event = captor.getValue();
+        assertThat(event.getType()).isEqualTo(SessionEventType.SESSION_COMPLETE);
+        assertThat(event.getSessionId()).isEqualTo(1L);
+        assertThat(event.getPayload()).containsEntry("result", "최종 결과입니다");
+    }
+
+    @Test
+    @DisplayName("publishSessionComplete()는 500자 이상의 result를 잘라낸다")
+    void publishSessionCompleteTruncatesLongResult() {
+        String longResult = "y".repeat(600);
+
+        sessionEventPublisher.publishSessionComplete(1L, longResult);
+
+        ArgumentCaptor<SessionEvent> captor = ArgumentCaptor.forClass(SessionEvent.class);
+        verify(messagingTemplate).convertAndSend(eq("/topic/sessions/1"), captor.capture());
+
+        String result = (String) captor.getValue().getPayload().get("result");
+        assertThat(result).hasSize(503); // 500 + "..."
+        assertThat(result).endsWith("...");
+    }
 }

@@ -7,6 +7,7 @@ import com.squad.common.exception.NotFoundException;
 import com.squad.common.exception.ValidationException;
 import com.squad.messaging.MessagePublisher;
 import com.squad.messaging.SessionMessage;
+import com.squad.monitoring.SessionEventPublisher;
 import com.squad.orchestration.OrchestratorService;
 import com.squad.orchestration.SessionCompleteHandler;
 import com.squad.session.domain.Session;
@@ -52,6 +53,7 @@ public class SessionExecutionService {
     private final MessagePublisher messagePublisher;
     private final OrchestratorService orchestratorService;
     private final WorkerService workerService;
+    private final SessionEventPublisher sessionEventPublisher;
     private final TransactionTemplate transactionTemplate;
 
     /**
@@ -203,6 +205,8 @@ public class SessionExecutionService {
             log.info("세션 완료: sessionId={}, result={}",
                     sessionId, result.substring(0, Math.min(100, result.length())));
         });
+
+        sessionEventPublisher.publishSessionComplete(sessionId, result);
     }
 
     private SessionCompleteHandler buildCompleteHandler(Squad squad) {

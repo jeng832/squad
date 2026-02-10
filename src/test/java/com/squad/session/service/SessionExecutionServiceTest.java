@@ -8,6 +8,7 @@ import com.squad.common.exception.NotFoundException;
 import com.squad.common.exception.ValidationException;
 import com.squad.messaging.MessagePublisher;
 import com.squad.messaging.SessionMessage;
+import com.squad.monitoring.SessionEventPublisher;
 import com.squad.orchestration.OrchestratorService;
 import com.squad.worker.WorkerService;
 import com.squad.session.domain.MessageType;
@@ -58,6 +59,9 @@ class SessionExecutionServiceTest {
     private WorkerService workerService;
 
     @Mock
+    private SessionEventPublisher sessionEventPublisher;
+
+    @Mock
     private TransactionTemplate transactionTemplate;
 
     private SessionExecutionService sessionExecutionService;
@@ -71,7 +75,8 @@ class SessionExecutionServiceTest {
 
         sessionExecutionService = new SessionExecutionService(
                 sessionRepository, containerLifecycleManager, messagePublisher,
-                orchestratorService, workerService, transactionTemplate);
+                orchestratorService, workerService, sessionEventPublisher,
+                transactionTemplate);
     }
 
     private Agent createAgent(Long id, String name, RoleType roleType) {
@@ -310,6 +315,33 @@ class SessionExecutionServiceTest {
         assertThat(session.getStatus()).isEqualTo(SessionStatus.COMPLETED);
         verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-10");
         verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-20");
+    }
+
+    @Test
+    @DisplayName("세션 완료 시 SESSION_COMPLETE 이벤트를 발행한다")
+    void completePublishesSessionCompleteEvent() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Squad squad = createSquad(orchestrator, Set.of());
+        Session session = Session.builder()
+                .id(1L).squad(squad).userPrompt("프롬프트").status(SessionStatus.RUNNING).build();
+
+        given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(containerLifecycleManager.buildContainerName("1", "10")).willReturn("squad-1-10");
+
+        sessionExecutionService.complete(1L, "최종 결과입니다");
+
+        verify(sessionEventPublisher).publishSessionComplete(1L, "최종 결과입니다");
+    }
+
+    @Test
+    @DisplayName("세션 완료 시 트랜잭션 실패하면 SESSION_COMPLETE 이벤트를 발행하지 않는다")
+    void completeTransactionFailureSkipsEvent() {
+        given(sessionRepository.findById(1L)).willReturn(Optional.empty());
+
+        assertThatThrownBy(() -> sessionExecutionService.complete(1L, "결과"))
+                .isInstanceOf(NotFoundException.class);
+
+        verifyNoInteractions(sessionEventPublisher);
     }
 
     @Test

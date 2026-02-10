@@ -91,6 +91,22 @@ public class SessionEventPublisher {
         publish(event);
     }
 
+    /**
+     * SESSION_COMPLETE 타입 이벤트를 발행한다.
+     *
+     * <p>세션이 완료되었을 때 호출하여 클라이언트에게 최종 결과를 전달한다.
+     * 클라이언트는 이 이벤트를 수신한 후 WebSocket 연결을 종료할 수 있다.</p>
+     *
+     * @param sessionId 세션 ID
+     * @param result    세션 최종 결과 (요약)
+     */
+    public void publishSessionComplete(Long sessionId, String result) {
+        SessionEvent event = SessionEvent.of(sessionId, SessionEventType.SESSION_COMPLETE, Map.of(
+                "result", truncate(result, 500)
+        ));
+        publish(event);
+    }
+
     private String truncate(String text, int maxLength) {
         if (text == null) {
             return "";

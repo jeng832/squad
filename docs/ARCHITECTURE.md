@@ -194,9 +194,8 @@ messaging/
 | `RedisMessagePublisher` | `@ConditionalOnProperty(name="squad.messaging.provider", havingValue="redis")` | Redis 메시징 활성화 시에만 등록 |
 | `RedisMessageSubscriber` | `@ConditionalOnProperty(name="squad.messaging.provider", havingValue="redis")` | Redis 메시징 활성화 시에만 등록 |
 | `DefaultMessageRouter` | `@ConditionalOnBean(MessagePublisher.class)` | MessagePublisher 존재 시에만 등록 (provider 무관) |
-| `SessionExecutionService` | `@ConditionalOnBean(MessagePublisher.class)` | 세션 실행에 MessagePublisher가 필수이므로, 존재 시에만 등록 |
 
-메시징이 비활성화되면(`squad.messaging.provider=none`) 위 빈들이 모두 생성되지 않는다. `SessionController`는 `SessionExecutionService`를 `@Autowired(required = false)`로 선택적 주입받아, CRUD API는 정상 동작하되 세션 시작 API만 503 응답을 반환한다.
+메시징이 비활성화되면(`squad.messaging.provider=none`) 위 빈들이 모두 생성되지 않는다. 단, `SessionExecutionService`처럼 메시징에 필수 의존하는 서비스는 조건부 빈이 아닌 **필수 의존**으로 유지한다. 운영 환경에서 메시징은 반드시 활성화되어야 하며, 누락 시 애플리케이션이 즉시 실패(fail-fast)하는 것이 올바른 동작이다.
 
 ### 3.4 샌드박스 및 Workspace 구조
 

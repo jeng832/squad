@@ -1,5 +1,6 @@
 package com.squad.mcp.process;
 
+import jakarta.annotation.PreDestroy;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
@@ -79,7 +80,11 @@ public class McpProcessManager {
 
     /**
      * 모든 MCP 연결을 종료한다.
+     *
+     * <p>Spring 컨텍스트 종료 시 자동으로 호출되어
+     * orphan 프로세스를 방지한다.</p>
      */
+    @PreDestroy
     public void stopAll() {
         connections.forEach((name, connection) -> {
             connection.close();
@@ -91,20 +96,50 @@ public class McpProcessManager {
     /**
      * 활성 MCP 연결을 조회한다.
      *
+     * <p>프로세스가 예기치 않게 종료된 경우 연결을 정리하고
+     * empty를 반환한다.</p>
+     *
      * @param name MCP 이름
-     * @return MCP 연결 (없으면 empty)
+     * @return MCP 연결 (없거나 dead이면 empty)
      */
     public Optional<McpConnection> getConnection(String name) {
-        return Optional.ofNullable(connections.get(name));
+        McpConnection connection = connections.get(name);
+        if (connection == null) {
+            return Optional.empty();
+        }
+
+        if (!connection.isAlive()) {
+            connections.remove(name);
+            connection.close();
+            log.warn("MCP 프로세스가 예기치 않게 종료됨, 연결 정리: name={}", name);
+            return Optional.empty();
+        }
+
+        return Optional.of(connection);
     }
 
     /**
      * 현재 활성 연결 수를 반환한다.
      *
+     * <p>dead 프로세스는 카운트에 포함되지 않도록
+     * liveness 체크 후 정리한다.</p>
+     *
      * @return 활성 연결 수
      */
     public int getActiveConnectionCount() {
+        pruneDeadConnections();
         return connections.size();
+    }
+
+    private void pruneDeadConnections() {
+        connections.entrySet().removeIf(entry -> {
+            if (!entry.getValue().isAlive()) {
+                entry.getValue().close();
+                log.warn("MCP 프로세스가 예기치 않게 종료됨, 연결 정리: name={}", entry.getKey());
+                return true;
+            }
+            return false;
+        });
     }
 
     private Process buildProcess(McpConfig config) throws IOException {

@@ -494,6 +494,14 @@
   - `McpProcessManager`: 프로세스 lifecycle 관리 (시작/종료/조회), 중복 시작 시 기존 연결 정리
   - `McpProcessException`: 프로세스 관련 예외
   - 단위 테스트 14건 (McpConfig 4건, McpConnection 3건, McpProcessManager 7건)
+  - codex-cli 리뷰 7회:
+    - 1차: P1 1건 (@PreDestroy 누락), P2 1건 (dead 프로세스 반환) → 해결
+    - 2차: P1 1건 (start/stop 원자성), P2 1건 (config 타입 검증) → 해결
+    - 3차: P1 1건 (getConnection race condition) → value-aware removal로 해결
+    - 4차: P2 1건 (args null 요소 NPE) → null 검증 추가
+    - 5차: P2 1건 (비IO 예외 래핑) → catch Exception으로 해결
+    - 6차: P1 1건 (시작 직후 liveness 체크), P2 1건 (stopAll synchronized) → 해결
+    - 7차: 이슈 없음
 
 ### 주요 결정사항
 - Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계

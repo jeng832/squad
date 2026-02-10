@@ -109,7 +109,7 @@ public class McpProcessManager {
         }
 
         if (!connection.isAlive()) {
-            connections.remove(name);
+            connections.remove(name, connection);
             connection.close();
             log.warn("MCP 프로세스가 예기치 않게 종료됨, 연결 정리: name={}", name);
             return Optional.empty();

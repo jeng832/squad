@@ -20,7 +20,7 @@ public class WorkerContext {
     private final Long sessionId;
     private final Agent agent;
     private final CopyOnWriteArrayList<LlmMessage> messages;
-    private volatile Subscription subscription;
+    private Subscription subscription;
 
     private WorkerContext(Long sessionId, Agent agent) {
         this.sessionId = sessionId;

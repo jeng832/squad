@@ -185,6 +185,19 @@ messaging/
 - `squad.messaging.provider` 설정으로 구현체 전환 (기본값: `redis`)
 - 향후 Kafka, AWS SNS 등 추가 시 `messaging/kafka/` 패키지만 추가하면 됨
 
+**메시징 의존 빈의 조건부 등록:**
+
+메시징 인프라에 의존하는 빈들은 `@ConditionalOnBean` / `@ConditionalOnProperty`를 사용하여 메시징이 비활성화된 환경에서도 애플리케이션이 정상 기동되도록 설계되어 있다.
+
+| 빈 | 조건부 어노테이션 | 설명 |
+|----|-------------------|------|
+| `RedisMessagePublisher` | `@ConditionalOnProperty(name="squad.messaging.provider", havingValue="redis")` | Redis 메시징 활성화 시에만 등록 |
+| `RedisMessageSubscriber` | `@ConditionalOnProperty(name="squad.messaging.provider", havingValue="redis")` | Redis 메시징 활성화 시에만 등록 |
+| `DefaultMessageRouter` | `@ConditionalOnBean(MessagePublisher.class)` | MessagePublisher 존재 시에만 등록 (provider 무관) |
+| `SessionExecutionService` | `@ConditionalOnBean(MessagePublisher.class)` | 세션 실행에 MessagePublisher가 필수이므로, 존재 시에만 등록 |
+
+메시징이 비활성화되면(`squad.messaging.provider=none`) 위 빈들이 모두 생성되지 않는다. `SessionController`는 `SessionExecutionService`를 `@Autowired(required = false)`로 선택적 주입받아, CRUD API는 정상 동작하되 세션 시작 API만 503 응답을 반환한다.
+
 ### 3.4 샌드박스 및 Workspace 구조
 
 각 Agent Container는 완전히 격리된 샌드박스 환경에서 동작하며, 독립적인 Workspace를 가집니다.

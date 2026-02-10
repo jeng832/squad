@@ -35,7 +35,20 @@ import java.util.Set;
  *
  * <p>Container 시작 실패 시 이미 시작된 Container를 정리하고 예외를 전파한다.</p>
  *
- * <p>{@link MessagePublisher} 빈이 존재할 때만 활성화된다.</p>
+ * <h3>조건부 빈 등록 ({@code @ConditionalOnBean})</h3>
+ * <p>이 서비스는 {@link MessagePublisher} 빈이 존재할 때만 스프링 컨테이너에 등록된다.
+ * {@code MessagePublisher}는 메시징 인프라(예: Redis)가 활성화되어야 생성되는 빈으로,
+ * {@code squad.messaging.provider} 설정에 의해 제어된다.</p>
+ *
+ * <p>메시징이 비활성화된 환경(예: {@code squad.messaging.provider=none})에서는
+ * {@code MessagePublisher} 빈이 생성되지 않으며, 따라서 이 서비스도 빈으로 등록되지 않는다.
+ * 이렇게 설계한 이유는 세션 실행에 메시징이 필수적이기 때문이다. Orchestrator에게 프롬프트를
+ * 전달하려면 반드시 {@code MessagePublisher}가 필요하므로, 메시징 없이는 세션 시작 자체가
+ * 불가능하다.</p>
+ *
+ * <p>이 빈이 등록되지 않으면, 이를 의존하는 {@link com.squad.session.controller.SessionController}는
+ * {@code @Autowired(required = false)}로 {@code null}을 주입받아 CRUD API는 정상 동작하되,
+ * 세션 시작 API 호출 시에만 503 Service Unavailable을 반환한다.</p>
  *
  * @see Session
  * @see ContainerLifecycleManager

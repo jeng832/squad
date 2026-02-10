@@ -1,5 +1,22 @@
 # 세션 로그
 
+## 2026-02-10
+
+### 작업 내용
+- **7-1: 세션 시작 흐름 구현** ([PR #44](https://github.com/jeng832/squad/pull/44))
+  - `SessionExecutionService` 구현: 세션 시작 lifecycle 조율
+    - PENDING 상태 검증 → Container 생성/시작 → RUNNING 상태 전이 → Orchestrator에 프롬프트 전달
+    - Container 시작 실패 및 DB flush 실패 시 cleanup 로직 포함
+  - `SessionController`에 `POST /api/v1/sessions/{id}/start` 엔드포인트 추가
+  - `SessionExecutionServiceTest` 6개 단위 테스트 작성
+  - `SessionControllerTest`에 start 관련 3개 테스트 추가
+
+### 주요 결정사항
+- Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계
+- Orchestrator Container를 먼저 시작한 후 Agent Container를 순차적으로 시작
+
+---
+
 ## 2025-01-31
 
 ### 작업 내용

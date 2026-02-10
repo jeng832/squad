@@ -1,62 +1,5 @@
 # 세션 로그
 
-## 2026-02-10
-
-### 작업 내용
-- **7-4: 세션 완료 처리 로직 구현** ([PR #47](https://github.com/jeng832/squad/pull/47))
-  - `SessionCompleteHandler`: 콜백 인터페이스 도입 (순환 의존 방지)
-  - `OrchestratorService.completeSession()`: 핸들러 호출로 세션 완료 위임
-  - `SessionExecutionService.complete()`: 세션 COMPLETED 전이, Worker 구독 정리, Container 정리
-  - `TransactionTemplate` 적용: 콜백에서의 self-invocation 시 트랜잭션 보장 (codex-cli 리뷰 반영)
-  - Container 정리 시 `buildContainerName()`으로 이름 재구성
-  - 단위 테스트 추가: OrchestratorServiceTest 1개, SessionExecutionServiceTest 4개
-  - codex-cli 리뷰: P1 1건 (Spring AOP 프록시 우회) → TransactionTemplate으로 해결
-  - **이슈 #9 완료** (Closes #9)
-
-- **7-3: Worker Agent 실행 로직 구현** ([PR #46](https://github.com/jeng832/squad/pull/46))
-  - `WorkerContext`: Worker Agent별 실행 상태 관리 (CopyOnWriteArrayList, volatile Subscription)
-  - `WorkerService`: 태스크 수신 → LLM 호출 → 결과 반환 전체 흐름
-    - startWorker/stopWorker/stopAllWorkers lifecycle 관리
-    - TASK_REQUEST 수신 시 LLM 호출 후 TASK_RESULT 반환
-    - LLM 호출 실패 시 에러 결과를 Orchestrator에게 전달 (sendErrorResult)
-  - `SessionExecutionService` 통합: Worker 구독 → Orchestrator 구독 → 프롬프트 발행 순서 보장
-  - 단위 테스트 9개 작성 (WorkerServiceTest)
-  - codex-cli 리뷰: P2 1건 (세션 완료 시 Worker 정리) → 7-4 범위로 기록
-
-- **7-2: Orchestrator 작업 분배 로직 구현** ([PR #45](https://github.com/jeng832/squad/pull/45))
-  - `OrchestrationContext`: 세션별 Orchestration 상태 관리 (스레드 안전)
-    - `CopyOnWriteArrayList`로 대화 히스토리, `AtomicInteger`로 대기 작업 수 관리
-    - `synchronized` list로 구독 관리, `unsubscribeAll()`로 일괄 해제
-  - `OrchestratorService`: LLM 호출 및 tool_use 기반 작업 분배
-    - Agent 채널 + Orchestrator 채널 이중 구독
-    - TASK_REQUEST 수신 → LLM 호출 → delegate_task/complete_session tool_use 해석
-    - TASK_RESULT 수신 → 대기 작업 차감 → 모든 작업 완료 시 LLM 재호출
-    - `ConcurrentHashMap`으로 활성 Orchestration 관리
-  - `SessionExecutionService` 통합
-    - `startOrchestration()` 호출 후 `sendPromptToOrchestrator()` (구독 먼저, 발행 나중)
-    - catch 블록에 `stopOrchestration()` 추가하여 실패 시 구독 정리
-  - 단위 테스트 8개 작성 (OrchestratorServiceTest)
-    - 구독 설정/해제, TASK_REQUEST→delegate, TASK_RESULT→LLM 재호출, complete_session 브로드캐스트
-    - 시스템 프롬프트 내용 검증, 도구 정의 검증, Provider 미존재 처리, 대기 작업 잔여 시 LLM 미호출
-
-### 주요 결정사항
-- 구독 설정 → 프롬프트 발행 순서 보장: Redis Pub/Sub 메시지 유실 방지
-- 대기 작업 카운터(`AtomicInteger`) 기반 LLM 재호출 타이밍 결정
-
-- **7-1: 세션 시작 흐름 구현** ([PR #44](https://github.com/jeng832/squad/pull/44))
-  - `SessionExecutionService` 구현: 세션 시작 lifecycle 조율
-    - PENDING 상태 검증 → Container 생성/시작 → RUNNING 상태 전이 → Orchestrator에 프롬프트 전달
-    - Container 시작 실패 및 DB flush 실패 시 cleanup 로직 포함
-  - `SessionController`에 `POST /api/v1/sessions/{id}/start` 엔드포인트 추가
-  - `SessionExecutionServiceTest` 6개 단위 테스트 작성
-  - `SessionControllerTest`에 start 관련 3개 테스트 추가
-
-### 주요 결정사항
-- Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계
-- Orchestrator Container를 먼저 시작한 후 Agent Container를 순차적으로 시작
-
----
-
 ## 2025-01-31
 
 ### 작업 내용
@@ -337,6 +280,33 @@
 
 ---
 
+## 2026-02-07
+
+### 작업 내용
+- **작업 4-1: LLM 공통 인터페이스 정의**
+  - 공통 모델 추가: `LlmMessage`, `LlmRequest`, `LlmResponse`, `LlmTool`, `LlmToolCall`, `LlmUsage`
+  - `LlmProvider` 인터페이스 및 `LlmProviderFactory` 구현 (provider 이름으로 Optional 반환, 빈/미지원 provider는 호출처에서 처리)
+  - `LlmProviderFactoryTest`로 기본 동작/미지원 provider(empty 반환) 검증
+
+- **작업 4-2: Claude LLM Provider 구현**
+  - `ClaudeProvider`: Anthropic Messages API 호출, 기본 모델/토큰/타임아웃 적용, 텍스트/ToolUse 응답을 `LlmResponse`로 매핑
+  - `ClaudeConfig`: WebClient 설정 (baseUrl/apiKey 헤더, 타임아웃)
+  - `ClaudeProviderTest`: WebClient exchangeFunction 스텁으로 응답 매핑 검증
+  - 후속 보완: Claude 응답 텍스트 병합, temperature 전달, 미사용 ObjectMapper 제거 ([PR #32](https://github.com/jeng832/squad/pull/32))
+
+- **작업 4-3: LLM 재시도 및 Rate Limit 처리**
+  - Claude 호출 재시도 로직 추가 (429/5xx 및 네트워크/타임아웃 예외 대응)
+  - 지수 백오프 + 지터 적용, 재시도 설정값 추가 (`squad.llm.claude.retry`)
+  - 429 응답 후 재시도 성공 케이스 테스트 추가
+
+- **작업 4-4: Tool Use 처리 로직**
+  - `LlmToolUseService`: tool_use 감지 → tool 실행 → 후속 LLM 재호출 흐름 추가
+  - `LlmToolExecutor`/`LlmToolResult` 정의 및 기본 executor 설정
+  - tool_use 재호출 테스트 추가
+  - llm.model Javadoc 보강
+
+---
+
 ## 2026-02-08
 
 ### 작업 내용
@@ -445,27 +415,55 @@
 
 ---
 
-## 2026-02-07
+## 2026-02-10
 
 ### 작업 내용
-- **작업 4-1: LLM 공통 인터페이스 정의**
-  - 공통 모델 추가: `LlmMessage`, `LlmRequest`, `LlmResponse`, `LlmTool`, `LlmToolCall`, `LlmUsage`
-  - `LlmProvider` 인터페이스 및 `LlmProviderFactory` 구현 (provider 이름으로 Optional 반환, 빈/미지원 provider는 호출처에서 처리)
-  - `LlmProviderFactoryTest`로 기본 동작/미지원 provider(empty 반환) 검증
+- **7-1: 세션 시작 흐름 구현** ([PR #44](https://github.com/jeng832/squad/pull/44))
+  - `SessionExecutionService` 구현: 세션 시작 lifecycle 조율
+    - PENDING 상태 검증 → Container 생성/시작 → RUNNING 상태 전이 → Orchestrator에 프롬프트 전달
+    - Container 시작 실패 및 DB flush 실패 시 cleanup 로직 포함
+  - `SessionController`에 `POST /api/v1/sessions/{id}/start` 엔드포인트 추가
+  - `SessionExecutionServiceTest` 6개 단위 테스트 작성
+  - `SessionControllerTest`에 start 관련 3개 테스트 추가
 
-- **작업 4-2: Claude LLM Provider 구현**
-  - `ClaudeProvider`: Anthropic Messages API 호출, 기본 모델/토큰/타임아웃 적용, 텍스트/ToolUse 응답을 `LlmResponse`로 매핑
-  - `ClaudeConfig`: WebClient 설정 (baseUrl/apiKey 헤더, 타임아웃)
-  - `ClaudeProviderTest`: WebClient exchangeFunction 스텁으로 응답 매핑 검증
-  - 후속 보완: Claude 응답 텍스트 병합, temperature 전달, 미사용 ObjectMapper 제거 ([PR #32](https://github.com/jeng832/squad/pull/32))
+- **7-2: Orchestrator 작업 분배 로직 구현** ([PR #45](https://github.com/jeng832/squad/pull/45))
+  - `OrchestrationContext`: 세션별 Orchestration 상태 관리 (스레드 안전)
+    - `CopyOnWriteArrayList`로 대화 히스토리, `AtomicInteger`로 대기 작업 수 관리
+    - `synchronized` list로 구독 관리, `unsubscribeAll()`로 일괄 해제
+  - `OrchestratorService`: LLM 호출 및 tool_use 기반 작업 분배
+    - Agent 채널 + Orchestrator 채널 이중 구독
+    - TASK_REQUEST 수신 → LLM 호출 → delegate_task/complete_session tool_use 해석
+    - TASK_RESULT 수신 → 대기 작업 차감 → 모든 작업 완료 시 LLM 재호출
+    - `ConcurrentHashMap`으로 활성 Orchestration 관리
+  - `SessionExecutionService` 통합
+    - `startOrchestration()` 호출 후 `sendPromptToOrchestrator()` (구독 먼저, 발행 나중)
+    - catch 블록에 `stopOrchestration()` 추가하여 실패 시 구독 정리
+  - 단위 테스트 8개 작성 (OrchestratorServiceTest)
+    - 구독 설정/해제, TASK_REQUEST→delegate, TASK_RESULT→LLM 재호출, complete_session 브로드캐스트
+    - 시스템 프롬프트 내용 검증, 도구 정의 검증, Provider 미존재 처리, 대기 작업 잔여 시 LLM 미호출
 
-- **작업 4-3: LLM 재시도 및 Rate Limit 처리**
-  - Claude 호출 재시도 로직 추가 (429/5xx 및 네트워크/타임아웃 예외 대응)
-  - 지수 백오프 + 지터 적용, 재시도 설정값 추가 (`squad.llm.claude.retry`)
-  - 429 응답 후 재시도 성공 케이스 테스트 추가
+- **7-3: Worker Agent 실행 로직 구현** ([PR #46](https://github.com/jeng832/squad/pull/46))
+  - `WorkerContext`: Worker Agent별 실행 상태 관리 (CopyOnWriteArrayList, volatile Subscription)
+  - `WorkerService`: 태스크 수신 → LLM 호출 → 결과 반환 전체 흐름
+    - startWorker/stopWorker/stopAllWorkers lifecycle 관리
+    - TASK_REQUEST 수신 시 LLM 호출 후 TASK_RESULT 반환
+    - LLM 호출 실패 시 에러 결과를 Orchestrator에게 전달 (sendErrorResult)
+  - `SessionExecutionService` 통합: Worker 구독 → Orchestrator 구독 → 프롬프트 발행 순서 보장
+  - 단위 테스트 9개 작성 (WorkerServiceTest)
+  - codex-cli 리뷰: P2 1건 (세션 완료 시 Worker 정리) → 7-4 범위로 기록
 
-- **작업 4-4: Tool Use 처리 로직**
-  - `LlmToolUseService`: tool_use 감지 → tool 실행 → 후속 LLM 재호출 흐름 추가
-  - `LlmToolExecutor`/`LlmToolResult` 정의 및 기본 executor 설정
-  - tool_use 재호출 테스트 추가
-  - llm.model Javadoc 보강
+- **7-4: 세션 완료 처리 로직 구현** ([PR #47](https://github.com/jeng832/squad/pull/47))
+  - `SessionCompleteHandler`: 콜백 인터페이스 도입 (순환 의존 방지)
+  - `OrchestratorService.completeSession()`: 핸들러 호출로 세션 완료 위임
+  - `SessionExecutionService.complete()`: 세션 COMPLETED 전이, Worker 구독 정리, Container 정리
+  - `TransactionTemplate` 적용: 콜백에서의 self-invocation 시 트랜잭션 보장 (codex-cli 리뷰 반영)
+  - Container 정리 시 `buildContainerName()`으로 이름 재구성
+  - 단위 테스트 추가: OrchestratorServiceTest 1개, SessionExecutionServiceTest 4개
+  - codex-cli 리뷰: P1 1건 (Spring AOP 프록시 우회) → TransactionTemplate으로 해결
+  - **이슈 #9 완료** (Closes #9)
+
+### 주요 결정사항
+- Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계
+- Orchestrator Container를 먼저 시작한 후 Agent Container를 순차적으로 시작
+- 구독 설정 → 프롬프트 발행 순서 보장: Redis Pub/Sub 메시지 유실 방지
+- 대기 작업 카운터(`AtomicInteger`) 기반 LLM 재호출 타이밍 결정

@@ -462,6 +462,14 @@
   - codex-cli 리뷰: P1 1건 (Spring AOP 프록시 우회) → TransactionTemplate으로 해결
   - **이슈 #9 완료** (Closes #9)
 
+- **8-1: STOMP over WebSocket 설정** ([PR #48](https://github.com/jeng832/squad/pull/48))
+  - `WebSocketConfig`: STOMP over WebSocket 설정 (`/ws` 엔드포인트, `/topic` Simple Broker, heartbeat 10초)
+  - `SessionEvent`: 클라이언트 전송용 이벤트 DTO (sessionId, type, payload, timestamp)
+  - `SessionEventType`: MESSAGE, AGENT_STATUS, SESSION_COMPLETE enum
+  - `application.yml`에 `squad.websocket.allowed-origins` 설정 추가
+  - 단위 테스트 4개 작성
+  - codex-cli와 설계 논의: 패키지명(monitoring), CORS(명시적 origin), SockJS(불필요), Simple Broker(MVP 충분)
+
 ### 주요 결정사항
 - Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계
 - Orchestrator Container를 먼저 시작한 후 Agent Container를 순차적으로 시작

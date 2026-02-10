@@ -123,9 +123,16 @@ public class OrchestratorService {
         String resultContent = String.format("[Agent %d 작업 결과]\n%s",
                 message.getFromAgentId(), message.getContent());
         context.addMessage(new LlmMessage("user", resultContent));
-        context.decrementPendingTasks();
 
-        if (context.getPendingTaskCount() <= 0) {
+        int remaining = context.decrementPendingTasks();
+        if (remaining < 0) {
+            log.warn("예상치 못한 TASK_RESULT 수신, 카운터 리셋: sessionId={}, fromAgentId={}",
+                    context.getSessionId(), message.getFromAgentId());
+            context.resetPendingTasks();
+            return;
+        }
+
+        if (remaining == 0) {
             callLlmAndProcess(context);
         }
     }
@@ -171,6 +178,12 @@ public class OrchestratorService {
         Long agentId = ((Number) toolCall.arguments().get("agent_id")).longValue();
         String task = (String) toolCall.arguments().get("task");
 
+        if (!isValidAgent(context, agentId)) {
+            log.warn("유효하지 않은 Agent ID로 작업 분배 시도: sessionId={}, agentId={}",
+                    context.getSessionId(), agentId);
+            return;
+        }
+
         SessionMessage taskMessage = SessionMessage.of(
                 context.getSessionId(),
                 context.getOrchestrator().getId(),
@@ -187,6 +200,11 @@ public class OrchestratorService {
                 task.substring(0, Math.min(50, task.length())));
     }
 
+    private boolean isValidAgent(OrchestrationContext context, Long agentId) {
+        return context.getAgents().stream()
+                .anyMatch(agent -> agent.getId().equals(agentId));
+    }
+
     private void completeSession(OrchestrationContext context, LlmToolCall toolCall) {
         String result = (String) toolCall.arguments().get("result");
 
@@ -200,6 +218,7 @@ public class OrchestratorService {
                 result
         );
         messageRouter.route(completeMessage);
+        stopOrchestration(context.getSessionId());
     }
 
     private LlmProvider resolveProvider(Agent orchestrator) {

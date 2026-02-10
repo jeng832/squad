@@ -289,4 +289,96 @@ class OrchestratorServiceTest {
         // LLM은 1번만 호출됨 (초기 프롬프트 처리 시)
         verify(llmProvider, times(1)).sendMessage(any(LlmRequest.class));
     }
+
+    @Test
+    @DisplayName("유효하지 않은 Agent ID로 delegate_task 시 작업을 분배하지 않는다")
+    void invalidAgentIdSkipsDelegation() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
+                .willReturn(orchestratorSubscription);
+
+        // 존재하지 않는 Agent ID(999)로 delegate_task
+        LlmToolCall invalidDelegate = new LlmToolCall("call-1", "delegate_task",
+                Map.of("agent_id", 999, "task", "작업"));
+        LlmResponse llmResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(invalidDelegate), null);
+
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "테스트"));
+
+        verifyNoInteractions(messageRouter);
+    }
+
+    @Test
+    @DisplayName("complete_session 후 Orchestration이 정리된다")
+    void completeSessionCleansUpOrchestration() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
+                .willReturn(orchestratorSubscription);
+
+        LlmToolCall completeCall = new LlmToolCall("call-1", "complete_session",
+                Map.of("result", "완료"));
+        LlmResponse llmResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(completeCall), null);
+
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "테스트"));
+
+        // complete_session 후 구독이 해제됨
+        verify(agentSubscription).unsubscribe();
+        verify(orchestratorSubscription).unsubscribe();
+    }
+
+    @Test
+    @DisplayName("중복 TASK_RESULT 수신 시 카운터 언더플로우를 방지한다")
+    void duplicateTaskResultPreventsUnderflow() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        ArgumentCaptor<MessageHandler> orchHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), orchHandlerCaptor.capture()))
+                .willReturn(orchestratorSubscription);
+
+        // 1개의 delegate_task
+        LlmToolCall delegateCall = new LlmToolCall("call-1", "delegate_task",
+                Map.of("agent_id", 2, "task", "작업"));
+        LlmToolCall completeCall = new LlmToolCall("call-2", "complete_session",
+                Map.of("result", "완료"));
+        LlmResponse firstResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(delegateCall), null);
+        LlmResponse secondResponse = new LlmResponse("resp-2", null, "tool_use",
+                List.of(completeCall), null);
+
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class)))
+                .willReturn(firstResponse)
+                .willReturn(secondResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "프롬프트"));
+
+        // 정상 결과 1개 수신
+        orchHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, 2L, null, MessageType.TASK_RESULT, "결과"));
+
+        // 중복 결과 수신 - LLM이 추가 호출되지 않아야 함
+        orchHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, 2L, null, MessageType.TASK_RESULT, "중복 결과"));
+
+        // LLM은 2번만 호출됨 (프롬프트 + 첫 결과), 중복 결과에서는 미호출
+        verify(llmProvider, times(2)).sendMessage(any(LlmRequest.class));
+    }
 }

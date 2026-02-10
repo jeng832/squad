@@ -89,6 +89,15 @@ public class OrchestrationContext {
         return pendingTasks.decrementAndGet();
     }
 
+    /**
+     * 대기 작업 수를 0으로 리셋한다.
+     *
+     * <p>예상치 못한 TASK_RESULT로 카운터가 음수가 된 경우 복구에 사용한다.</p>
+     */
+    public void resetPendingTasks() {
+        pendingTasks.set(0);
+    }
+
     public int getPendingTaskCount() {
         return pendingTasks.get();
     }

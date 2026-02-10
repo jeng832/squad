@@ -51,12 +51,21 @@ public class McpProcessManager {
         try {
             Process process = buildProcess(config);
             McpConnection connection = McpConnection.of(config.getName(), process);
+
+            if (!connection.isAlive()) {
+                connection.close();
+                throw new McpProcessException(
+                        "MCP 프로세스가 시작 직후 종료됨: name=" + config.getName(), null);
+            }
+
             connections.put(config.getName(), connection);
 
             log.info("MCP 프로세스 시작: name={}, command={}",
                     config.getName(), config.buildCommandLine());
 
             return connection;
+        } catch (McpProcessException e) {
+            throw e;
         } catch (Exception e) {
             throw new McpProcessException(
                     "MCP 프로세스 시작 실패: name=" + config.getName(), e);
@@ -85,7 +94,7 @@ public class McpProcessManager {
      * orphan 프로세스를 방지한다.</p>
      */
     @PreDestroy
-    public void stopAll() {
+    public synchronized void stopAll() {
         connections.forEach((name, connection) -> {
             connection.close();
             log.info("MCP 프로세스 종료: name={}", name);

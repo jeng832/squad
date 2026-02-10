@@ -6,9 +6,11 @@ import com.squad.session.dto.SessionResponse;
 import com.squad.session.service.SessionExecutionService;
 import com.squad.session.service.SessionService;
 import jakarta.validation.Valid;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+import org.springframework.web.server.ResponseStatusException;
 
 import java.util.List;
 
@@ -20,7 +22,7 @@ public class SessionController {
     private final SessionExecutionService sessionExecutionService;
 
     public SessionController(SessionService sessionService,
-                             SessionExecutionService sessionExecutionService) {
+                             @Autowired(required = false) SessionExecutionService sessionExecutionService) {
         this.sessionService = sessionService;
         this.sessionExecutionService = sessionExecutionService;
     }
@@ -44,6 +46,10 @@ public class SessionController {
 
     @PostMapping("/{id}/start")
     public ApiResponse<SessionResponse> start(@PathVariable Long id) {
+        if (sessionExecutionService == null) {
+            throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,
+                    "메시징이 비활성화되어 세션을 시작할 수 없습니다.");
+        }
         return ApiResponse.success(sessionExecutionService.start(id), "세션이 시작되었습니다.");
     }
 

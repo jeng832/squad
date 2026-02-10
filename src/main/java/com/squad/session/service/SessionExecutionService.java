@@ -14,6 +14,7 @@ import com.squad.session.repository.SessionRepository;
 import com.squad.squad.domain.Squad;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnBean;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -34,6 +35,8 @@ import java.util.Set;
  *
  * <p>Container 시작 실패 시 이미 시작된 Container를 정리하고 예외를 전파한다.</p>
  *
+ * <p>{@link MessagePublisher} 빈이 존재할 때만 활성화된다.</p>
+ *
  * @see Session
  * @see ContainerLifecycleManager
  * @see MessagePublisher
@@ -41,6 +44,7 @@ import java.util.Set;
 @Slf4j
 @Service
 @RequiredArgsConstructor
+@ConditionalOnBean(MessagePublisher.class)
 public class SessionExecutionService {
 
     private final SessionRepository sessionRepository;

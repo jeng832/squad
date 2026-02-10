@@ -478,6 +478,10 @@
   - `OrchestratorService` 통합: 작업 분배 시 AGENT_STATUS + MESSAGE, 결과 수신 시 AGENT_STATUS + MESSAGE
   - `WorkerService` 통합: 태스크 수신/완료 시 AGENT_STATUS 이벤트
   - 단위 테스트 5개 작성 (SessionEventPublisherTest)
+  - codex-cli 리뷰 3회:
+    - 1차: P2 1건 (Worker 실패 시 WORKING 상태 유지) → try-finally로 해결
+    - 2차: P1 2건 (publish 실패 시 false TASK_RESULT, 세션 stuck) → publish() 예외 내부 처리로 해결
+    - 3차: 이슈 없음
 
 ### 주요 결정사항
 - Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계

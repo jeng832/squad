@@ -8,6 +8,7 @@ import com.squad.messaging.MessageRouter;
 import com.squad.messaging.MessageSubscriber;
 import com.squad.messaging.SessionMessage;
 import com.squad.messaging.Subscription;
+import com.squad.monitoring.SessionEventPublisher;
 import com.squad.session.domain.MessageType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -46,6 +47,7 @@ public class OrchestratorService {
     private final LlmProviderFactory llmProviderFactory;
     private final MessageRouter messageRouter;
     private final MessageSubscriber messageSubscriber;
+    private final SessionEventPublisher sessionEventPublisher;
 
     private final Map<Long, OrchestrationContext> activeOrchestrations = new ConcurrentHashMap<>();
     private final Map<Long, SessionCompleteHandler> completeHandlers = new ConcurrentHashMap<>();
@@ -125,6 +127,13 @@ public class OrchestratorService {
         log.debug("Agent 결과 수신: sessionId={}, fromAgentId={}",
                 context.getSessionId(), message.getFromAgentId());
 
+        sessionEventPublisher.publishAgentStatus(
+                context.getSessionId(), message.getFromAgentId(),
+                findAgentName(context, message.getFromAgentId()), "IDLE");
+        sessionEventPublisher.publishMessage(
+                context.getSessionId(), message.getFromAgentId(), context.getOrchestrator().getId(),
+                MessageType.TASK_RESULT.name(), message.getContent());
+
         String resultContent = String.format("[Agent %d 작업 결과]\n%s",
                 message.getFromAgentId(), message.getContent());
         context.addMessage(new LlmMessage("user", resultContent));
@@ -200,9 +209,23 @@ public class OrchestratorService {
         messageRouter.route(taskMessage);
         context.incrementPendingTasks();
 
+        sessionEventPublisher.publishAgentStatus(
+                context.getSessionId(), agentId, findAgentName(context, agentId), "WORKING");
+        sessionEventPublisher.publishMessage(
+                context.getSessionId(), context.getOrchestrator().getId(), agentId,
+                MessageType.TASK_REQUEST.name(), task);
+
         log.debug("작업 분배: sessionId={}, toAgentId={}, task={}",
                 context.getSessionId(), agentId,
                 task.substring(0, Math.min(50, task.length())));
+    }
+
+    private String findAgentName(OrchestrationContext context, Long agentId) {
+        return context.getAgents().stream()
+                .filter(agent -> agent.getId().equals(agentId))
+                .map(Agent::getName)
+                .findFirst()
+                .orElse("Unknown");
     }
 
     private boolean isValidAgent(OrchestrationContext context, Long agentId) {

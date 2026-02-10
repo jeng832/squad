@@ -11,6 +11,7 @@ import com.squad.messaging.MessageRouter;
 import com.squad.messaging.MessageSubscriber;
 import com.squad.messaging.SessionMessage;
 import com.squad.messaging.Subscription;
+import com.squad.monitoring.SessionEventPublisher;
 import com.squad.session.domain.MessageType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -46,6 +47,9 @@ class WorkerServiceTest {
     private LlmProvider llmProvider;
 
     @Mock
+    private SessionEventPublisher sessionEventPublisher;
+
+    @Mock
     private Subscription subscription;
 
     private WorkerService workerService;
@@ -54,7 +58,7 @@ class WorkerServiceTest {
 
     @BeforeEach
     void setUp() {
-        workerService = new WorkerService(llmProviderFactory, messageRouter, messageSubscriber);
+        workerService = new WorkerService(llmProviderFactory, messageRouter, messageSubscriber, sessionEventPublisher);
 
         worker = Agent.builder()
                 .id(2L)

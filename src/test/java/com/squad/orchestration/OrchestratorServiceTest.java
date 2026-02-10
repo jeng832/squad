@@ -6,6 +6,7 @@ import com.squad.llm.LlmProvider;
 import com.squad.llm.LlmProviderFactory;
 import com.squad.llm.model.*;
 import com.squad.messaging.*;
+import com.squad.monitoring.SessionEventPublisher;
 import com.squad.session.domain.MessageType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -48,6 +49,9 @@ class OrchestratorServiceTest {
     private Subscription orchestratorSubscription;
 
     @Mock
+    private SessionEventPublisher sessionEventPublisher;
+
+    @Mock
     private SessionCompleteHandler completeHandler;
 
     private OrchestratorService orchestratorService;
@@ -58,7 +62,7 @@ class OrchestratorServiceTest {
 
     @BeforeEach
     void setUp() {
-        orchestratorService = new OrchestratorService(llmProviderFactory, messageRouter, messageSubscriber);
+        orchestratorService = new OrchestratorService(llmProviderFactory, messageRouter, messageSubscriber, sessionEventPublisher);
 
         orchestrator = Agent.builder()
                 .id(1L)

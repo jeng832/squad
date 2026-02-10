@@ -8,6 +8,7 @@ import com.squad.messaging.MessageRouter;
 import com.squad.messaging.MessageSubscriber;
 import com.squad.messaging.SessionMessage;
 import com.squad.messaging.Subscription;
+import com.squad.monitoring.SessionEventPublisher;
 import com.squad.session.domain.MessageType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -45,6 +46,7 @@ public class WorkerService {
     private final LlmProviderFactory llmProviderFactory;
     private final MessageRouter messageRouter;
     private final MessageSubscriber messageSubscriber;
+    private final SessionEventPublisher sessionEventPublisher;
 
     private final Map<String, WorkerContext> activeWorkers = new ConcurrentHashMap<>();
 
@@ -124,10 +126,20 @@ public class WorkerService {
         log.debug("태스크 수신: sessionId={}, agentId={}, fromAgentId={}",
                 context.getSessionId(), context.getAgent().getId(), message.getFromAgentId());
 
-        context.addMessage(new LlmMessage("user", message.getContent()));
+        sessionEventPublisher.publishAgentStatus(
+                context.getSessionId(), context.getAgent().getId(),
+                context.getAgent().getName(), "WORKING");
 
-        String result = callLlm(context);
-        sendTaskResult(context, result);
+        try {
+            context.addMessage(new LlmMessage("user", message.getContent()));
+
+            String result = callLlm(context);
+            sendTaskResult(context, result);
+        } finally {
+            sessionEventPublisher.publishAgentStatus(
+                    context.getSessionId(), context.getAgent().getId(),
+                    context.getAgent().getName(), "IDLE");
+        }
     }
 
     private String callLlm(WorkerContext context) {

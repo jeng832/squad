@@ -1,8 +1,10 @@
 package com.squad.monitoring;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.scheduling.TaskScheduler;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskScheduler;
 import org.springframework.web.socket.config.annotation.EnableWebSocketMessageBroker;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
@@ -31,16 +33,32 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Value("${squad.websocket.allowed-origins:http://localhost:3000,http://localhost:5173}")
     private String[] allowedOrigins;
 
+    private final TaskScheduler heartbeatScheduler;
+
+    public WebSocketConfig(TaskScheduler heartbeatScheduler) {
+        this.heartbeatScheduler = heartbeatScheduler;
+    }
+
+    /**
+     * Heartbeat 전송용 TaskScheduler 빈.
+     *
+     * <p>Spring Context에 의해 관리되므로 앱 종료 시 스레드가 정상 정리된다.</p>
+     *
+     * @return heartbeat용 TaskScheduler
+     */
+    @Bean
+    public static TaskScheduler heartbeatScheduler() {
+        ThreadPoolTaskScheduler scheduler = new ThreadPoolTaskScheduler();
+        scheduler.setPoolSize(1);
+        scheduler.setThreadNamePrefix("ws-heartbeat-");
+        return scheduler;
+    }
+
     @Override
     public void configureMessageBroker(MessageBrokerRegistry registry) {
-        ThreadPoolTaskScheduler taskScheduler = new ThreadPoolTaskScheduler();
-        taskScheduler.setPoolSize(1);
-        taskScheduler.setThreadNamePrefix("ws-heartbeat-");
-        taskScheduler.initialize();
-
         registry.enableSimpleBroker("/topic")
                 .setHeartbeatValue(new long[]{HEARTBEAT_INTERVAL, HEARTBEAT_INTERVAL})
-                .setTaskScheduler(taskScheduler);
+                .setTaskScheduler(heartbeatScheduler);
         registry.setApplicationDestinationPrefixes("/app");
     }
 

@@ -3,6 +3,26 @@
 ## 2026-02-10
 
 ### 작업 내용
+- **7-2: Orchestrator 작업 분배 로직 구현** ([PR #45](https://github.com/jeng832/squad/pull/45))
+  - `OrchestrationContext`: 세션별 Orchestration 상태 관리 (스레드 안전)
+    - `CopyOnWriteArrayList`로 대화 히스토리, `AtomicInteger`로 대기 작업 수 관리
+    - `synchronized` list로 구독 관리, `unsubscribeAll()`로 일괄 해제
+  - `OrchestratorService`: LLM 호출 및 tool_use 기반 작업 분배
+    - Agent 채널 + Orchestrator 채널 이중 구독
+    - TASK_REQUEST 수신 → LLM 호출 → delegate_task/complete_session tool_use 해석
+    - TASK_RESULT 수신 → 대기 작업 차감 → 모든 작업 완료 시 LLM 재호출
+    - `ConcurrentHashMap`으로 활성 Orchestration 관리
+  - `SessionExecutionService` 통합
+    - `startOrchestration()` 호출 후 `sendPromptToOrchestrator()` (구독 먼저, 발행 나중)
+    - catch 블록에 `stopOrchestration()` 추가하여 실패 시 구독 정리
+  - 단위 테스트 8개 작성 (OrchestratorServiceTest)
+    - 구독 설정/해제, TASK_REQUEST→delegate, TASK_RESULT→LLM 재호출, complete_session 브로드캐스트
+    - 시스템 프롬프트 내용 검증, 도구 정의 검증, Provider 미존재 처리, 대기 작업 잔여 시 LLM 미호출
+
+### 주요 결정사항
+- 구독 설정 → 프롬프트 발행 순서 보장: Redis Pub/Sub 메시지 유실 방지
+- 대기 작업 카운터(`AtomicInteger`) 기반 LLM 재호출 타이밍 결정
+
 - **7-1: 세션 시작 흐름 구현** ([PR #44](https://github.com/jeng832/squad/pull/44))
   - `SessionExecutionService` 구현: 세션 시작 lifecycle 조율
     - PENDING 상태 검증 → Container 생성/시작 → RUNNING 상태 전이 → Orchestrator에 프롬프트 전달

@@ -71,7 +71,13 @@ public class McpConfig {
                     "MCP config의 args는 배열이어야 합니다: name=" + mcpName);
         }
         return argsList.stream()
-                .map(Object::toString)
+                .map(arg -> {
+                    if (arg == null) {
+                        throw new IllegalArgumentException(
+                                "MCP config의 args에 null 요소가 포함되어 있습니다: name=" + mcpName);
+                    }
+                    return arg.toString();
+                })
                 .toList();
     }
 

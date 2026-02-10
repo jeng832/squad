@@ -84,8 +84,8 @@
 |---|--------|------|---------------|-----|
 | 7-1 | 세션 시작 흐름 구현 | 세션 생성 → Squad 로드 → Container 시작 → Orchestrator에 프롬프트 전달 | 4~5개 파일 | [#44](https://github.com/jeng832/squad/pull/44) |
 | 7-2 | Orchestrator 작업 분배 로직 | Orchestrator의 LLM 호출, 작업 분배 결정, Agent에게 태스크 전달 | 4~5개 파일 | [#45](https://github.com/jeng832/squad/pull/45) |
-| 7-3 | Worker Agent 실행 로직 | 태스크 수신 → LLM 호출 → 결과 반환 | 3~4개 파일 | |
-| 7-4 | 세션 완료 처리 | Orchestrator의 완료 판단, 최종 결과 취합, 세션 상태 업데이트, Container 정리. **[보류 검토] Subscription에 AutoCloseable 추가 여부 판단 (구독 누수 발생 시 적용, 6-3 codex-cli 합의)** | 3~4개 파일 | |
+| 7-3 | Worker Agent 실행 로직 | 태스크 수신 → LLM 호출 → 결과 반환 | 3~4개 파일 | [#46](https://github.com/jeng832/squad/pull/46) |
+| 7-4 | 세션 완료 처리 | Orchestrator의 완료 판단, 최종 결과 취합, 세션 상태 업데이트, Container 정리. **Worker 구독 정리 포함 (7-3 codex-cli 리뷰). [보류 검토] Subscription에 AutoCloseable 추가 여부 판단 (구독 누수 발생 시 적용, 6-3 codex-cli 합의)** | 3~4개 파일 | |
 
 ---
 

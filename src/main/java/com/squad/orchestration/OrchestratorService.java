@@ -47,7 +47,7 @@ public class OrchestratorService {
     private final MessageRouter messageRouter;
     private final MessageSubscriber messageSubscriber;
 
-    private final ConcurrentHashMap<Long, OrchestrationContext> activeOrchestrations = new ConcurrentHashMap<>();
+    private final Map<Long, OrchestrationContext> activeOrchestrations = new ConcurrentHashMap<>();
 
     /**
      * 세션에 대한 Orchestrator 작업 분배를 시작한다.

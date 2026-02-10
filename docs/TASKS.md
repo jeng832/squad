@@ -103,7 +103,7 @@
 
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
-| 9-1 | MCP 프로세스 관리자 | MCP 서버 프로세스 시작/종료, stdin/stdout 통신 설정 | 3~4개 파일 | |
+| 9-1 | MCP 프로세스 관리자 | MCP 서버 프로세스 시작/종료, stdin/stdout 통신 설정 | 3~4개 파일 | [#51](https://github.com/jeng832/squad/pull/51) |
 | 9-2 | MCP 클라이언트 구현 | JSON-RPC 요청/응답 처리, tools/list, tools/call 메서드 구현 | 4~5개 파일 | |
 | 9-3 | MCP Tool 등록 | Agent 시작 시 MCP에서 사용 가능한 Tool 목록 조회, LLM에 Tool 정의 전달 | 3~4개 파일 | |
 | 9-4 | MCP Tool 실행 통합 | LLM tool_use 응답 → MCP Tool 실행 → 결과를 LLM에 반환하는 전체 흐름 | 3~4개 파일 | |

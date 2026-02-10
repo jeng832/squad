@@ -45,7 +45,7 @@ public class McpProcessManager {
      * @return MCP 연결
      * @throws McpProcessException 프로세스 시작에 실패한 경우
      */
-    public McpConnection start(McpConfig config) {
+    public synchronized McpConnection start(McpConfig config) {
         stop(config.getName());
 
         try {
@@ -70,7 +70,7 @@ public class McpProcessManager {
      *
      * @param name MCP 이름
      */
-    public void stop(String name) {
+    public synchronized void stop(String name) {
         McpConnection connection = connections.remove(name);
         if (connection != null) {
             connection.close();

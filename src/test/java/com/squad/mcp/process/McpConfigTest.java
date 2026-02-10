@@ -80,4 +80,46 @@ class McpConfigTest {
 
         assertThat(config.buildCommandLine()).containsExactly("npx", "-y", "server-github");
     }
+
+    @Test
+    @DisplayName("command가 String이 아니면 IllegalArgumentException 발생")
+    void fromMcpWithNonStringCommand() {
+        Mcp mcp = Mcp.builder()
+                .id(1L)
+                .name("invalid")
+                .config(Map.of("command", 123))
+                .build();
+
+        assertThatThrownBy(() -> McpConfig.from(mcp))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("command");
+    }
+
+    @Test
+    @DisplayName("args가 배열이 아니면 IllegalArgumentException 발생")
+    void fromMcpWithNonListArgs() {
+        Mcp mcp = Mcp.builder()
+                .id(1L)
+                .name("invalid")
+                .config(Map.of("command", "npx", "args", "not-a-list"))
+                .build();
+
+        assertThatThrownBy(() -> McpConfig.from(mcp))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("args");
+    }
+
+    @Test
+    @DisplayName("env가 Map이 아니면 IllegalArgumentException 발생")
+    void fromMcpWithNonMapEnv() {
+        Mcp mcp = Mcp.builder()
+                .id(1L)
+                .name("invalid")
+                .config(Map.of("command", "npx", "env", "not-a-map"))
+                .build();
+
+        assertThatThrownBy(() -> McpConfig.from(mcp))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("env");
+    }
 }

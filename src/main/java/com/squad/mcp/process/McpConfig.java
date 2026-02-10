@@ -42,27 +42,49 @@ public class McpConfig {
      * @return 프로세스 실행 설정
      * @throws IllegalArgumentException config에 command가 없는 경우
      */
+    /**
+     * @throws IllegalArgumentException config 형식이 잘못된 경우
+     */
     @SuppressWarnings("unchecked")
     public static McpConfig from(Mcp mcp) {
         Map<String, Object> config = mcp.getConfig();
+        String mcpName = mcp.getName();
 
-        String command = (String) config.get("command");
-        if (command == null || command.isBlank()) {
+        Object commandObj = config.get("command");
+        if (!(commandObj instanceof String command) || command.isBlank()) {
             throw new IllegalArgumentException(
-                    "MCP config에 command가 설정되지 않았습니다: name=" + mcp.getName());
+                    "MCP config에 유효한 command(String)가 설정되지 않았습니다: name=" + mcpName);
         }
 
-        List<String> args = config.containsKey("args")
-                ? ((List<Object>) config.get("args")).stream()
-                        .map(Object::toString)
-                        .toList()
-                : List.of();
+        List<String> args = parseArgs(config.get("args"), mcpName);
+        Map<String, String> env = parseEnv(config.get("env"), mcpName);
 
-        Map<String, String> env = config.containsKey("env")
-                ? toStringMap((Map<String, Object>) config.get("env"))
-                : Map.of();
+        return new McpConfig(mcpName, command, args, env);
+    }
 
-        return new McpConfig(mcp.getName(), command, args, env);
+    private static List<String> parseArgs(Object argsObj, String mcpName) {
+        if (argsObj == null) {
+            return List.of();
+        }
+        if (!(argsObj instanceof List<?> argsList)) {
+            throw new IllegalArgumentException(
+                    "MCP config의 args는 배열이어야 합니다: name=" + mcpName);
+        }
+        return argsList.stream()
+                .map(Object::toString)
+                .toList();
+    }
+
+    @SuppressWarnings("unchecked")
+    private static Map<String, String> parseEnv(Object envObj, String mcpName) {
+        if (envObj == null) {
+            return Map.of();
+        }
+        if (!(envObj instanceof Map<?, ?>)) {
+            throw new IllegalArgumentException(
+                    "MCP config의 env는 객체(Map)여야 합니다: name=" + mcpName);
+        }
+        return toStringMap((Map<String, Object>) envObj);
     }
 
     /**

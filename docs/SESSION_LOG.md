@@ -483,6 +483,11 @@
     - 2차: P1 2건 (publish 실패 시 false TASK_RESULT, 세션 stuck) → publish() 예외 내부 처리로 해결
     - 3차: 이슈 없음
 
+- **8-3: 세션 완료 알림** ([PR #50](https://github.com/jeng832/squad/pull/50))
+  - `SessionEventPublisher.publishSessionComplete()`: SESSION_COMPLETE 이벤트 전송 (result 500자 truncate)
+  - `SessionExecutionService.complete()`에서 트랜잭션 완료 후 이벤트 발행
+  - 단위 테스트 4개 추가 (publishSessionComplete 2건, 세션 완료 이벤트 발행 검증 2건)
+
 ### 주요 결정사항
 - Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계
 - Orchestrator Container를 먼저 시작한 후 Agent Container를 순차적으로 시작

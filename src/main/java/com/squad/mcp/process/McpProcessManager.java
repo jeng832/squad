@@ -57,7 +57,7 @@ public class McpProcessManager {
                     config.getName(), config.buildCommandLine());
 
             return connection;
-        } catch (IOException e) {
+        } catch (Exception e) {
             throw new McpProcessException(
                     "MCP 프로세스 시작 실패: name=" + config.getName(), e);
         }

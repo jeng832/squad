@@ -488,6 +488,21 @@
   - `SessionExecutionService.complete()`에서 트랜잭션 완료 후 이벤트 발행
   - 단위 테스트 4개 추가 (publishSessionComplete 2건, 세션 완료 이벤트 발행 검증 2건)
 
+- **9-1: MCP 프로세스 관리자** ([PR #51](https://github.com/jeng832/squad/pull/51))
+  - `McpConfig`: Mcp 엔티티 config JSON에서 command, args, env 추출
+  - `McpConnection`: 실행 중인 MCP 프로세스 stdin/stdout/stderr 래핑, 안전한 종료 (destroy → destroyForcibly)
+  - `McpProcessManager`: 프로세스 lifecycle 관리 (시작/종료/조회), 중복 시작 시 기존 연결 정리
+  - `McpProcessException`: 프로세스 관련 예외
+  - 단위 테스트 14건 (McpConfig 4건, McpConnection 3건, McpProcessManager 7건)
+  - codex-cli 리뷰 7회:
+    - 1차: P1 1건 (@PreDestroy 누락), P2 1건 (dead 프로세스 반환) → 해결
+    - 2차: P1 1건 (start/stop 원자성), P2 1건 (config 타입 검증) → 해결
+    - 3차: P1 1건 (getConnection race condition) → value-aware removal로 해결
+    - 4차: P2 1건 (args null 요소 NPE) → null 검증 추가
+    - 5차: P2 1건 (비IO 예외 래핑) → catch Exception으로 해결
+    - 6차: P1 1건 (시작 직후 liveness 체크), P2 1건 (stopAll synchronized) → 해결
+    - 7차: 이슈 없음
+
 ### 주요 결정사항
 - Container 생성은 `@Transactional` 내부에서 수행하되, flush 시점을 명시적으로 관리하여 DB 실패 시 Container 정리 가능하도록 설계
 - Orchestrator Container를 먼저 시작한 후 Agent Container를 순차적으로 시작

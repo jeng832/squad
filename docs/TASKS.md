@@ -99,15 +99,19 @@
 
 ---
 
-### 9. MCP 연동 ([#11](https://github.com/jeng832/squad/issues/11))
+### 9. MCP 연동 및 도구 아키텍처 ([#11](https://github.com/jeng832/squad/issues/11))
+
+> **설계 결정**: 에이전트 도구를 Built-in Tools(내장)과 MCP Tools(외부 서비스)로 분리. MCP 서버는 에이전트 컨테이너 밖에서 MCP Gateway가 중앙 관리하며, 에이전트는 SSE/HTTP로 접근. 자세한 내용은 SPEC.md 섹션 4.7 참고.
 
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
-| 9-1 | MCP 프로세스 관리자 | MCP 서버 프로세스 시작/종료, stdin/stdout 통신 설정 | 3~4개 파일 | |
-| 9-2 | MCP 클라이언트 구현 | JSON-RPC 요청/응답 처리, tools/list, tools/call 메서드 구현 | 4~5개 파일 | |
-| 9-3 | MCP Tool 등록 | Agent 시작 시 MCP에서 사용 가능한 Tool 목록 조회, LLM에 Tool 정의 전달 | 3~4개 파일 | |
-| 9-4 | MCP Tool 실행 통합 | LLM tool_use 응답 → MCP Tool 실행 → 결과를 LLM에 반환하는 전체 흐름 | 3~4개 파일 | |
+| 9-1 | MCP 프로세스 관리자 | MCP 서버 프로세스 시작/종료, stdin/stdout 통신 설정 (MCP Gateway 내부에서 사용) | 3~4개 파일 | [#51](https://github.com/jeng832/squad/pull/51) |
+| 9-2 | MCP JSON-RPC 클라이언트 | JSON-RPC 요청/응답 처리, tools/list, tools/call 메서드 구현 (MCP Gateway 내부에서 stdio 통신) | 4~5개 파일 | |
+| 9-3 | MCP Tool 등록 | MCP Gateway에서 사용 가능한 Tool 목록 조회, LLM에 Tool 정의 전달 | 3~4개 파일 | |
+| 9-4 | MCP Tool 실행 통합 | LLM tool_use 응답 → MCP Gateway 경유 Tool 실행 → 결과를 LLM에 반환하는 전체 흐름 | 3~4개 파일 | |
 | 9-5 | MCP 환경변수 및 Secret 주입 | MCP config의 환경변수 처리, `ref:secret/...` 참조 해결 후 프로세스에 주입 | 2~3개 파일 | |
+| 9-6 | MCP Gateway 서비스 | MCP 서버를 중앙에서 관리하고 에이전트에게 SSE/HTTP 엔드포인트 제공 | 4~5개 파일 | |
+| 9-7 | Built-in Tools 구현 | Agent Runtime 내장 도구 구현 (file_read, file_write, file_search, bash_exec), 보안 경로 검증 | 4~5개 파일 | |
 
 ---
 
@@ -133,9 +137,9 @@
 | 메시징 | 4개 |
 | 세션 실행 | 4개 |
 | 실시간 모니터링 | 3개 |
-| MCP 연동 | 5개 |
+| MCP 연동 및 도구 아키텍처 | 7개 |
 | 테스트 | 3개 |
-| **Phase 1 총계** | **45개** |
+| **Phase 1 총계** | **47개** |
 
 ---
 
@@ -295,10 +299,10 @@
 
 | Phase | 작업 수 | 목표 |
 |-------|---------|------|
-| Phase 1: Core (MVP) | 45개 | 핵심 기능 동작 |
+| Phase 1: Core (MVP) | 47개 | 핵심 기능 동작 |
 | Phase 2: Enhancement | 20개 | 기능 확장 및 UX 개선 |
 | Phase 3: Advanced | 24개 | 고급 기능 및 엔터프라이즈 대응 |
-| **총계** | **89개** | |
+| **총계** | **91개** | |
 
 ---
 
@@ -322,7 +326,7 @@
         ↓
 8-1 → 8-2 → 8-3
         ↓
-9-1 → 9-2 → 9-3 → 9-4 → 9-5
+9-1 → 9-2 → 9-3 → 9-4 → 9-5 → 9-6 → 9-7
         ↓
 10-1 → 10-2 → 10-3
 ```

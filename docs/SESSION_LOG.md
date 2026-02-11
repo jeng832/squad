@@ -493,3 +493,44 @@
 - Orchestrator Container를 먼저 시작한 후 Agent Container를 순차적으로 시작
 - 구독 설정 → 프롬프트 발행 순서 보장: Redis Pub/Sub 메시지 유실 방지
 - 대기 작업 카운터(`AtomicInteger`) 기반 LLM 재호출 타이밍 결정
+
+---
+
+## 2026-02-11
+
+### 작업 내용
+- **에이전트 도구 아키텍처 설계 결정**
+  - Docker 환경에서 MCP 제공 문제 분석 및 해결 방안 도출
+  - **Built-in Tools vs MCP Gateway** 2계층 도구 아키텍처 확정
+  - codex-cli 피드백 수렴 (동의, SPOF/지연 우려 제기, 도구 스키마 버전 관리 등 추가 제안)
+  - 관련 문서 일괄 업데이트: SPEC.md, ARCHITECTURE.md, USE_CASES.md, TASKS.md
+
+### 주요 결정사항
+
+#### Built-in Tools (내장 도구)
+- `file_read`, `file_write`, `file_search`, `bash_exec` 등 필수 도구는 Agent Runtime에 직접 구현
+- 모든 에이전트에 자동 제공, 사용자가 선택하지 않아도 포함
+- MCP 프로토콜을 거치지 않고 컨테이너 내부에서 직접 실행
+- Squad가 보안/권한 직접 제어 (예: `/workspace` 밖 접근 차단)
+
+#### MCP Gateway (외부 서비스 도구)
+- MCP 서버는 에이전트 컨테이너 밖에서 MCP Gateway가 중앙 관리
+- 에이전트는 SSE/HTTP로 MCP Gateway에 접근
+- 에이전트 컨테이너에 MCP 설치 불필요
+- 기존 `McpProcessManager`(9-1)는 MCP Gateway 내부에서 활용
+
+#### 설계 배경
+- MCP 조합별 Docker 이미지 빌드 시 경우의 수 폭발
+- MCP 설치 방법이 비표준 (npx, uvx, 바이너리 등)
+- 파일/셸 같은 필수 도구를 MCP에 의존하는 것은 과도함
+
+#### codex-cli 피드백 요약
+- 구조에 대체로 동의
+- 우려: MCP Gateway SPOF, 네트워크 홉 지연, 멀티테넌시 격리 복잡성
+- 추가 제안: 도구 스키마 버전 관리, 동기/비동기 분리, 장애 내성, 권한 모델 설계
+
+### 문서 변경 내역
+- **SPEC.md**: 용어 정의에 `Built-in Tool`, `MCP Gateway` 추가, 에이전트 설정 JSON에서 `file` MCP 제거, 신규 섹션 4.7 "에이전트 도구 아키텍처" 추가
+- **ARCHITECTURE.md**: High-Level 아키텍처에 MCP Gateway 추가, Agent Container 구조에서 `MCP Client` → `Built-in Tools` + `MCP GW Client`로 변경, 도구 실행 흐름을 Built-in/Gateway 분기로 변경
+- **USE_CASES.md**: UC-001 에이전트 생성에 Built-in Tools 자동 제공 안내 추가, MCP 선택을 외부 서비스로 명확화
+- **TASKS.md**: 9-2~9-5 설명을 Gateway 방식으로 업데이트, 9-6 (MCP Gateway 서비스), 9-7 (Built-in Tools 구현) 신규 추가, Phase 1 총계 45→47개

@@ -27,9 +27,18 @@
 | Actor | 사용자 |
 | 목적 | 새로운 AI 에이전트를 생성한다 |
 | 사전조건 | 사용자가 로그인된 상태 |
-| 기본흐름 | 1. 사용자가 에이전트 관리 화면에 접근<br>2. "새 에이전트 생성" 버튼 클릭<br>3. 에이전트 기본 정보 입력 (이름, roleType)<br>4. **System Prompt 입력** (에이전트의 역할과 행동 지침을 자연어로 작성)<br>5. LLM 설정 (Provider, Model 선택)<br>6. 사용할 MCP 선택<br>7. 사용할 Skill 선택<br>8. 저장 버튼 클릭<br>9. 시스템이 에이전트 생성 완료 |
+| 기본흐름 | 1. 사용자가 에이전트 관리 화면에 접근<br>2. "새 에이전트 생성" 버튼 클릭<br>3. 에이전트 기본 정보 입력 (이름, roleType)<br>4. **System Prompt 입력** (에이전트의 역할과 행동 지침을 자연어로 작성)<br>5. LLM 설정 (Provider, Model 선택)<br>6. 사용할 MCP 선택 (외부 서비스: GitHub, Slack 등)<br>7. 사용할 Skill 선택<br>8. 저장 버튼 클릭<br>9. 시스템이 에이전트 생성 완료 |
 | 대안흐름 | 3a. 필수 정보 미입력 시 오류 메시지 표시<br>4a. System Prompt 템플릿 제공 (roleType별 기본 템플릿) |
 | 사후조건 | 에이전트가 시스템에 등록됨 |
+
+**Built-in Tools (자동 제공):**
+- 모든 에이전트에는 파일 읽기/쓰기(`file_read`, `file_write`), 파일 검색(`file_search`), 셸 실행(`bash_exec`) 도구가 **자동으로 포함**됨
+- 사용자가 별도로 선택하지 않아도 에이전트 생성 시 자동 부여
+- MCP 선택 화면에서 "Built-in Tools" 영역에 자동 포함 상태로 표시 (비활성 체크박스)
+
+**MCP 선택 (외부 서비스):**
+- MCP 선택 화면에서는 **외부 서비스 연동용 MCP**만 선택 가능 (GitHub, Slack, DB 등)
+- MCP 서버는 MCP Gateway에서 중앙 관리되므로 에이전트별 설치가 불필요
 
 **System Prompt 필수 입력:**
 - 모든 에이전트는 반드시 System Prompt를 가져야 함

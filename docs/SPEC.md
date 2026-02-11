@@ -38,8 +38,10 @@
 | Workspace | Sandbox 내 Agent의 작업 디렉토리. Git Repository 등이 독립적으로 clone됨 |
 | Message | 에이전트 간 주고받는 메시지 |
 | Conversation | 세션 내 메시지들의 흐름 |
-| MCP | Model Context Protocol. 외부 도구 연동 규격 |
+| MCP | Model Context Protocol. **외부 서비스** 연동 규격 (GitHub, Slack, DB 등) |
 | MCP Registry | 시스템에서 사용 가능한 MCP 목록 관리 |
+| MCP Gateway | MCP 서버를 중앙에서 관리하고 에이전트에게 SSE/HTTP로 도구를 제공하는 서비스 |
+| Built-in Tool | Agent Runtime에 내장된 필수 도구 (파일 읽기/쓰기, 검색, 셸 실행 등). 모든 에이전트에 자동 제공 |
 | Skill | 특정 작업을 수행하는 재사용 가능한 기능 단위 |
 | Skills Registry | 시스템에서 사용 가능한 Skill 목록 관리 |
 
@@ -80,9 +82,12 @@
     "model": "claude-sonnet-4-20250514",
     "apiKey": "ref:secret/claude-api-key"
   },
-  "mcps": ["github", "file"],
+  "mcps": ["github"],
   "skills": ["analyze-code", "summarize"]
 }
+```
+
+> **참고**: 파일 읽기/쓰기, 검색, 셸 실행 등 필수 도구는 **Built-in Tool**로 모든 에이전트에 자동 제공됩니다. `mcps`에는 외부 서비스 연동용 MCP만 선택합니다. 자세한 내용은 [4.7 에이전트 도구 아키텍처](#47-에이전트-도구-아키텍처)를 참고하세요.
 ```
 
 ### 4.2 MCP 관리
@@ -90,6 +95,8 @@
 - MCP 등록/수정/삭제 (MCP Registry)
 - Web UI를 통한 관리
 - 에이전트 설정 시 등록된 MCP 목록에서 선택
+- MCP는 **외부 서비스 연동 전용** (파일/셸 등 기본 기능은 Built-in Tool로 제공)
+- MCP 서버는 **MCP Gateway**에서 중앙 관리되며, 에이전트는 SSE/HTTP로 접근
 
 **MCP 설정 (JSON):**
 
@@ -155,6 +162,76 @@
 **Validation 규칙:**
 - orchestrator로 지정된 에이전트는 roleType이 "orchestrator"여야 함
 - Squad에는 최소 1개의 orchestrator가 필수
+
+### 4.7 에이전트 도구 아키텍처
+
+에이전트가 사용하는 도구는 **두 가지 계층**으로 분리한다.
+
+#### 4.7.1 Built-in Tools (내장 도구)
+
+Agent Runtime에 직접 구현되어 모든 에이전트에 **자동으로 제공**되는 필수 도구.
+
+| 도구 | 설명 |
+|------|------|
+| `file_read` | 파일 내용 읽기 |
+| `file_write` | 파일 내용 쓰기 |
+| `file_search` | 파일 검색 (glob, grep) |
+| `bash_exec` | 셸 명령 실행 |
+
+**특징:**
+- 에이전트 컨테이너 안에서 직접 실행 (MCP 프로토콜 불필요)
+- Squad가 보안/권한을 직접 제어 (예: `/workspace` 밖 접근 차단)
+- 사용자가 선택하지 않아도 자동 포함
+- 설치 의존성 없음 (Runtime 자체에 포함)
+
+#### 4.7.2 MCP Tools (외부 서비스 도구)
+
+MCP Gateway를 통해 제공되는 외부 서비스 연동 도구.
+
+**특징:**
+- MCP 서버는 에이전트 컨테이너 **밖**에서 MCP Gateway가 중앙 관리
+- 에이전트는 SSE/HTTP로 MCP Gateway에 접근
+- 에이전트 컨테이너에 MCP 설치 불필요
+- 사용자가 Web UI에서 에이전트별로 선택
+
+#### 4.7.3 아키텍처
+
+```
+┌─── Agent 컨테이너 ──────────────────┐
+│                                     │
+│  ┌───────────────────────────────┐  │
+│  │     Squad Agent Runtime       │  │
+│  │                               │  │
+│  │  Built-in Tools (자동 제공)    │  │
+│  │  ├─ file_read                 │  │
+│  │  ├─ file_write                │  │
+│  │  ├─ file_search               │  │
+│  │  ├─ bash_exec                 │  │
+│  │                               │  │
+│  │  /workspace (격리된 작업 공간)  │  │
+│  └───────────┬───────────────────┘  │
+│              │ SSE/HTTP              │
+└──────────────┼──────────────────────┘
+               │
+               ▼
+       ┌───────────────────┐
+       │   MCP Gateway     │  ← Squad 플랫폼이 중앙 관리
+       │  ├─ GitHub MCP    │
+       │  ├─ Slack MCP     │
+       │  └─ DB MCP  ...   │
+       └───────────────────┘
+```
+
+#### 4.7.4 설계 배경
+
+| 문제 | 해결 |
+|------|------|
+| MCP 조합별 Docker 이미지 빌드 시 경우의 수 폭발 | MCP를 에이전트 컨테이너 밖(Gateway)에서 실행 |
+| MCP 설치 방법이 비표준 (npx, uvx, 바이너리 등) | 에이전트 컨테이너에 MCP 설치 자체를 하지 않음 |
+| 파일/셸 같은 필수 도구의 안정적 제공 | Built-in Tool로 직접 구현, MCP 의존성 제거 |
+| 에이전트별 보안 격리 | Built-in Tool에서 Squad가 직접 경로/권한 제어 |
+
+---
 
 ### 4.5 세션 실행
 

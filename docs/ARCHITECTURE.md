@@ -50,6 +50,10 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 │  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────────────┐         │
 │  │  MCP Mgmt   │  │ Skill Mgmt  │  │     Agent Container Mgmt    │         │
 │  └─────────────┘  └─────────────┘  └─────────────────────────────┘         │
+│  ┌─────────────────────────────────────────────────────────────┐           │
+│  │                       MCP Gateway                            │           │
+│  │  MCP 서버 중앙 관리, 에이전트에게 SSE/HTTP로 도구 제공        │           │
+│  └─────────────────────────────────────────────────────────────┘           │
 └─────────────────────────────────┬───────────────────────────────────────────┘
                                   │
               ┌───────────────────┼───────────────────┐
@@ -65,12 +69,13 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 │  │ ┌─────────────┐ │  │ ┌─────────────┐ │  │ ┌─────────────┐ │              │
 │  │ │ Agent Runner│ │  │ │ Agent Runner│ │  │ │ Agent Runner│ │              │
 │  │ │ LLM Client  │ │  │ │ LLM Client  │ │  │ │ LLM Client  │ │              │
-│  │ │ MCP Client  │ │  │ │ MCP Client  │ │  │ │ MCP Client  │ │              │
+│  │ │ Built-in    │ │  │ │ Built-in    │ │  │ │ Built-in    │ │              │
+│  │ │ Tools       │ │  │ │ Tools       │ │  │ │ Tools       │ │              │
 │  │ └─────────────┘ │  │ └─────────────┘ │  │ └─────────────┘ │              │
 │  └────────┬────────┘  └────────┬────────┘  └────────┬────────┘              │
 │           │                    │                    │                        │
 │           └────────────────────┼────────────────────┘                        │
-│                                │                                             │
+│                                │ SSE/HTTP (MCP Gateway 연결)                 │
 │                    Docker Network (squad-network)                            │
 └─────────────────────────────────────────────────────────────────────────────┘
                                   │
@@ -87,7 +92,8 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 | 컴포넌트 | 역할 |
 |----------|------|
 | **Squad Platform Server** | 에이전트/Squad/세션 관리, API 제공, 모니터링 |
-| **Agent Container** | 개별 에이전트 실행 환경, LLM/MCP 연동 |
+| **MCP Gateway** | MCP 서버 프로세스를 중앙에서 관리하고, 에이전트에게 SSE/HTTP 엔드포인트로 외부 도구 제공 |
+| **Agent Container** | 개별 에이전트 실행 환경, LLM 연동, Built-in Tools 실행 |
 | **MySQL** | 에이전트, Squad, 세션, 메시지 등 영속 데이터 저장 |
 | **Redis** | 에이전트 간 메시지 전달 (Pub/Sub), 실시간 상태 공유. 메시징은 인터페이스 기반으로 추상화되어 있으며, `squad.messaging.provider` 설정으로 구현체 전환 가능 |
 | **LLM APIs** | Claude, OpenAI 등 외부 LLM 서비스 |
@@ -111,15 +117,19 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 │  │  - 작업 실행 관리                                │ │
 │  └─────────────────────────────────────────────────┘ │
 │                         │                             │
-│         ┌───────────────┼───────────────┐            │
-│         ▼               ▼               ▼            │
-│  ┌───────────┐   ┌───────────┐   ┌───────────┐      │
-│  │LLM Client │   │MCP Client │   │ Message   │      │
-│  │           │   │           │   │ Handler   │      │
-│  │- Claude   │   │- GitHub   │   │           │      │
-│  │- OpenAI   │   │- File     │   │- Redis    │      │
-│  │- Gemini   │   │- Custom   │   │  Pub/Sub  │      │
-│  └───────────┘   └───────────┘   └───────────┘      │
+│         ┌──────────┼──────────┼──────────┐           │
+│         ▼          ▼          ▼          ▼           │
+│  ┌──────────┐ ┌──────────┐ ┌──────────┐ ┌────────┐ │
+│  │LLM Client│ │Built-in  │ │MCP GW    │ │Message │ │
+│  │          │ │Tools     │ │Client    │ │Handler │ │
+│  │- Claude  │ │- file_   │ │          │ │        │ │
+│  │- OpenAI  │ │  read/   │ │- SSE/    │ │- Redis │ │
+│  │- Gemini  │ │  write   │ │  HTTP    │ │  Pub/  │ │
+│  │          │ │- file_   │ │  연결    │ │  Sub   │ │
+│  │          │ │  search  │ │          │ │        │ │
+│  │          │ │- bash_   │ │          │ │        │ │
+│  │          │ │  exec    │ │          │ │        │ │
+│  └──────────┘ └──────────┘ └──────────┘ └────────┘ │
 │                                                       │
 │  Environment Variables:                               │
 │  - AGENT_ID                                          │
@@ -339,8 +349,13 @@ messaging/
 │  └────────────────────────────────────────────────────────────┘ │
 │                              │                                   │
 │  ┌────────────────────────────────────────────────────────────┐ │
-│  │                    MCP Integration                          │ │
-│  │  McpConnector │ ToolExecutor │ ProcessManager              │ │
+│  │                    Built-in Tools                           │ │
+│  │  FileReadTool │ FileWriteTool │ FileSearchTool │ BashTool  │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                              │                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                  MCP Gateway Client                         │ │
+│  │  McpGatewayConnector │ ToolExecutor │ SSE/HTTP Client      │ │
 │  └────────────────────────────────────────────────────────────┘ │
 │                              │                                   │
 │  ┌────────────────────────────────────────────────────────────┐ │
@@ -527,45 +542,69 @@ Provider Selection:
         default   → throw UnsupportedProviderException
 ```
 
-### 5.5 MCP Tool 실행 흐름
+### 5.5 도구 실행 흐름
+
+에이전트의 도구 호출은 **Built-in Tool**과 **MCP Tool** 두 경로로 분기된다.
 
 ```
 RECEIVE tool_call from LLM response
 
-FUNCTION execute_mcp_tool(tool_call):
+FUNCTION execute_tool(tool_call):
 
-    # 1. MCP 연결 확인
-    mcp_id = find_mcp_for_tool(tool_call.name)
+    # 1. Built-in Tool 여부 확인
+    IF tool_call.name in BUILT_IN_TOOLS:
+        # Agent Runtime 내부에서 직접 실행
+        MATCH tool_call.name:
+            "file_read"   → read file from /workspace
+            "file_write"  → write file to /workspace
+            "file_search" → search files in /workspace
+            "bash_exec"   → execute shell command
 
-    IF mcp_id NOT in active_connections:
-        # MCP 프로세스 시작
-        connection = START_PROCESS:
-            command: mcp_config.command
-            args: mcp_config.args
-            env: resolve_secrets(mcp_config.env)
+        # 보안 검증: /workspace 밖 접근 차단
+        validate_path(tool_call.arguments.path, "/workspace")
 
-        active_connections[mcp_id] = connection
+        RETURN execute_locally(tool_call)
 
-    # 2. Tool 실행
-    connection = active_connections[mcp_id]
+    # 2. MCP Tool → MCP Gateway 경유
+    ELSE:
+        mcp_id = find_mcp_for_tool(tool_call.name)
 
-    request = {
-        jsonrpc: "2.0",
-        method: "tools/call",
-        params: {
-            name: tool_call.name,
-            arguments: tool_call.arguments
+        # MCP Gateway에 SSE/HTTP 요청
+        request = {
+            jsonrpc: "2.0",
+            method: "tools/call",
+            params: {
+                name: tool_call.name,
+                arguments: tool_call.arguments
+            }
         }
-    }
 
+        response = HTTP_POST to MCP_GATEWAY_URL/mcp/{mcp_id}/call
+            with body: request
+
+        IF response.error:
+            RETURN { error: response.error.message }
+        ELSE:
+            RETURN { result: response.result }
+```
+
+**MCP Gateway 내부 흐름 (Platform Server 측):**
+
+```
+RECEIVE tool_call request from Agent (SSE/HTTP)
+
+FUNCTION gateway_execute(mcp_id, tool_call):
+
+    # 1. MCP 프로세스 확인 (McpProcessManager 활용)
+    IF mcp_id NOT in active_connections:
+        connection = McpProcessManager.start(mcp_config)
+
+    # 2. stdin/stdout으로 JSON-RPC 통신
+    connection = McpProcessManager.getConnection(mcp_id)
     SEND request to connection.stdin
     response = READ from connection.stdout
 
-    # 3. 결과 반환
-    IF response.error:
-        RETURN { error: response.error.message }
-    ELSE:
-        RETURN { result: response.result }
+    RETURN response to Agent
 ```
 
 ### 5.6 Container 생명주기 관리

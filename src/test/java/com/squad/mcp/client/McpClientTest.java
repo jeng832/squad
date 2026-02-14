@@ -415,10 +415,9 @@ class McpClientTest {
         @Test
         @DisplayName("프로세스 종료 시 McpClientException이 발생한다")
         void throwsOnProcessDeath() throws Exception {
-            when(connection.isAlive()).thenReturn(true, false);
-
             McpClient client = createInitializedClient();
 
+            when(connection.isAlive()).thenReturn(false);
             serverOutput.close();
 
             assertThatThrownBy(client::listTools)

@@ -549,3 +549,23 @@
 - **ARCHITECTURE.md**: High-Level 아키텍처에 MCP Gateway 추가, Agent Container 구조에서 `MCP Client` → `Built-in Tools` + `MCP GW Client`로 변경, 도구 실행 흐름을 Built-in/Gateway 분기로 변경
 - **USE_CASES.md**: UC-001 에이전트 생성에 Built-in Tools 자동 제공 안내 추가, MCP 선택을 외부 서비스로 명확화
 - **TASKS.md**: 9-2~9-5 설명을 Gateway 방식으로 업데이트, 9-6 (MCP Gateway 서비스), 9-7 (Built-in Tools 구현) 신규 추가, Phase 1 총계 45→47개
+
+---
+
+### 작업 9-2: MCP JSON-RPC 클라이언트 구현
+- **PR**: [#52](https://github.com/jeng832/squad/pull/52)
+- **구현 내용**:
+  - JSON-RPC 2.0 메시지 모델 (record): `JsonRpcRequest`, `JsonRpcResponse`, `JsonRpcNotification`, `JsonRpcError`
+  - `McpClient`: `initialize()`, `listTools()`, `callTool()` — 동기식 단일 in-flight, synchronized
+  - `McpClientException`, `McpToolInfo`, `McpToolCallResult` 도메인 모델
+  - 24개 단위 테스트
+- **설계 결정**:
+  - Phase 1: 동기식 + `synchronized`, Phase 2: 비동기 리더 + CompletableFuture
+  - `volatile boolean initialized` — thread-safety
+  - `timeoutMillis` 양수 검증 필수
+  - 서버 요청 시 원본 id 타입 보존 (ObjectNode으로 직접 구성)
+  - initialize 재시도는 상위 오케스트레이션 책임 (SRP)
+- **codex-cli 코드리뷰**: 3회 반복 리뷰 후 합의 완료
+  - 1차: synchronized, volatile, timeout 검증, JSON 파싱 강화
+  - 2차: id 타입 보존, result null/NullNode 검증
+  - 3차: 숫자 id 보존 테스트 추가 → 최종 합의

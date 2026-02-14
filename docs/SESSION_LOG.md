@@ -569,3 +569,29 @@
   - 1차: synchronized, volatile, timeout 검증, JSON 파싱 강화
   - 2차: id 타입 보존, result null/NullNode 검증
   - 3차: 숫자 id 보존 테스트 추가 → 최종 합의
+
+### 작업 9-3: MCP Tool Registration (도구 등록 레지스트리)
+- **PR**: [#53](https://github.com/jeng832/squad/pull/53)
+- **구현 내용**:
+  - `ToolRoute` record: alias(`mcpName__toolName`) ↔ (mcpName, originalToolName) 라우팅 매핑
+    - `of()` 팩토리 메서드: null/blank 검증 포함
+    - `aliasOf()` 정적 메서드: alias 문자열만 생성 (ToolRoute 객체 생성 없이)
+  - `McpToolRegistry`: MCP 서버 도구 등록/조회/해제 중앙 레지스트리
+    - `registerMcp(McpConfig)`: 프로세스 시작 → initialize → tools/list → 캐시 저장, 실패 시 rollback
+    - `getTools(String)`, `getAllTools()`, `getToolsForMcps(List<String>)`: LlmTool 형식 조회
+    - `findRoute(String alias)`: alias → ToolRoute 라우팅 조회 (9-4에서 활용)
+    - `getClient(String)`: McpClient 반환 (9-4에서 활용)
+    - `unregisterMcp(String)`, `unregisterAll()`: 등록 해제 + 프로세스 종료
+    - McpToolInfo → LlmTool 변환 (JsonNode inputSchema → Map<String, Object>)
+  - 단위 테스트 17개 (ToolRouteTest 4개, McpToolRegistryTest 13개)
+    - MockedConstruction<McpClient>로 내부 생성 객체 모킹
+- **설계 결정**:
+  - 단일 `synchronized` 락 기반 동시성 모델 (여러 Map 복합 연산 원자성 보장)
+  - HashMap 사용 (ConcurrentHashMap 불필요 — 모든 접근이 synchronized)
+  - 실패 시 `processManager.stop()` rollback + `addSuppressed` 예외 체이닝
+  - 재등록 시 `clearMcpState()`로 기존 캐시 무효화 후 재등록
+  - alias 충돌(`__` 포함 이름) 문제는 후속 Phase에서 대응 (현재 Phase 1 MVP)
+- **codex-cli 코드리뷰**: 3회 반복 리뷰 후 합의 완료
+  - 1차: 리소스 누수, rollback 부재, 혼합 동시성 모델 등 8건 → 전면 수정
+  - 2차: 재등록 프로세스 정지, 예외 마스킹, raw type 등 6건 → 수정/보류 합의
+  - 3차: 이슈 없음 → 승인

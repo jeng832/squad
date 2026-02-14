@@ -12,7 +12,16 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  */
 public class DockerAvailableCondition implements ExecutionCondition {
 
-    private static final boolean DOCKER_AVAILABLE = checkDockerAvailable();
+    static final boolean DOCKER_AVAILABLE = checkDockerAvailable();
+
+    /**
+     * Docker 데몬이 사용 가능한지 반환한다.
+     *
+     * @return Docker 사용 가능 시 {@code true}
+     */
+    public static boolean isDockerAvailable() {
+        return DOCKER_AVAILABLE;
+    }
 
     @Override
     public ConditionEvaluationResult evaluateExecutionCondition(ExtensionContext context) {

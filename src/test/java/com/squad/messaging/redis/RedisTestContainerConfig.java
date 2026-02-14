@@ -21,15 +21,19 @@ public abstract class RedisTestContainerConfig {
     private static final int REDIS_PORT = 6379;
 
     private static volatile GenericContainer<?> redisContainer;
+    private static volatile boolean initialized = false;
 
     @SuppressWarnings("resource")
     static GenericContainer<?> getRedisContainer() {
-        if (redisContainer == null) {
+        if (!initialized) {
             synchronized (RedisTestContainerConfig.class) {
-                if (redisContainer == null) {
-                    redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                            .withExposedPorts(REDIS_PORT);
-                    redisContainer.start();
+                if (!initialized) {
+                    if (DockerAvailableCondition.isDockerAvailable()) {
+                        redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+                                .withExposedPorts(REDIS_PORT);
+                        redisContainer.start();
+                    }
+                    initialized = true;
                 }
             }
         }
@@ -39,7 +43,12 @@ public abstract class RedisTestContainerConfig {
     @DynamicPropertySource
     static void redisProperties(DynamicPropertyRegistry registry) {
         GenericContainer<?> container = getRedisContainer();
-        registry.add("spring.data.redis.host", container::getHost);
-        registry.add("spring.data.redis.port", () -> container.getMappedPort(REDIS_PORT));
+        if (container != null && container.isRunning()) {
+            registry.add("spring.data.redis.host", container::getHost);
+            registry.add("spring.data.redis.port", () -> container.getMappedPort(REDIS_PORT));
+        } else {
+            registry.add("spring.data.redis.host", () -> "localhost");
+            registry.add("spring.data.redis.port", () -> 6379);
+        }
     }
 }

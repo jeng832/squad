@@ -1,6 +1,5 @@
 package com.squad.messaging.redis;
 
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.GenericContainer;
@@ -11,44 +10,23 @@ import org.testcontainers.utility.DockerImageName;
  *
  * <p>Redis 컨테이너를 기동하고, Spring의 Redis 연결 설정을 동적으로 주입한다.
  * 이 클래스를 상속하면 실제 Redis 인스턴스에서 통합 테스트를 수행할 수 있다.</p>
- *
- * <p>Docker가 설치되지 않은 환경에서는 {@link DockerAvailableCondition}에 의해
- * 테스트가 자동으로 스킵된다.</p>
  */
-@ExtendWith(DockerAvailableCondition.class)
 public abstract class RedisTestContainerConfig {
 
     private static final int REDIS_PORT = 6379;
 
-    private static volatile GenericContainer<?> redisContainer;
-    private static volatile boolean initialized = false;
-
     @SuppressWarnings("resource")
-    static GenericContainer<?> getRedisContainer() {
-        if (!initialized) {
-            synchronized (RedisTestContainerConfig.class) {
-                if (!initialized) {
-                    if (DockerAvailableCondition.isDockerAvailable()) {
-                        redisContainer = new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
-                                .withExposedPorts(REDIS_PORT);
-                        redisContainer.start();
-                    }
-                    initialized = true;
-                }
-            }
-        }
-        return redisContainer;
+    static final GenericContainer<?> REDIS_CONTAINER =
+            new GenericContainer<>(DockerImageName.parse("redis:7-alpine"))
+                    .withExposedPorts(REDIS_PORT);
+
+    static {
+        REDIS_CONTAINER.start();
     }
 
     @DynamicPropertySource
     static void redisProperties(DynamicPropertyRegistry registry) {
-        GenericContainer<?> container = getRedisContainer();
-        if (container != null && container.isRunning()) {
-            registry.add("spring.data.redis.host", container::getHost);
-            registry.add("spring.data.redis.port", () -> container.getMappedPort(REDIS_PORT));
-        } else {
-            registry.add("spring.data.redis.host", () -> "localhost");
-            registry.add("spring.data.redis.port", () -> 6379);
-        }
+        registry.add("spring.data.redis.host", REDIS_CONTAINER::getHost);
+        registry.add("spring.data.redis.port", () -> REDIS_CONTAINER.getMappedPort(REDIS_PORT));
     }
 }

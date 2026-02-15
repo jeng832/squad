@@ -7,7 +7,14 @@ import java.nio.file.Path;
 import java.util.Map;
 
 /**
- * Built-in Tool 실행 시 공통으로 사용하는 workspace/인자 유틸.
+ * Built-in Tool 실행 시 공통으로 사용하는 workspace 경로 검증 및 인자 추출 유틸.
+ *
+ * <p>workspace root를 기준으로 경로를 해석하며, {@code normalize()} + {@code startsWith()} +
+ * symlink {@code toRealPath()} 3단계 검증을 통해 workspace 밖 접근을 차단한다.</p>
+ *
+ * <p>이 클래스는 stateless이므로 여러 스레드에서 동시에 사용해도 안전하다.</p>
+ *
+ * @see BuiltInToolExecutor
  */
 public class BuiltInToolContext {
 

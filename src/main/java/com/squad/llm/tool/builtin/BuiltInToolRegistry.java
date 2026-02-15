@@ -27,7 +27,7 @@ public class BuiltInToolRegistry {
     public BuiltInToolRegistry(List<BuiltInToolCommand> commands) {
         this.tools = commands.stream()
                 .map(BuiltInToolCommand::definition)
-                .sorted((a, b) -> a.name().compareTo(b.name()))
+                .sorted(java.util.Comparator.comparing(LlmTool::name))
                 .toList();
 
         this.toolNames = tools.stream()

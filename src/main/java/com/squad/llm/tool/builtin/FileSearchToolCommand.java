@@ -8,7 +8,6 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -51,33 +50,15 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
         }
 
         PathMatcher matcher = base.getFileSystem().getPathMatcher("glob:" + glob);
-        List<String> matches = new ArrayList<>();
 
+        List<String> matches;
         try (Stream<Path> stream = Files.walk(base)) {
-            stream.filter(Files::isRegularFile)
-                    .forEach(file -> {
-                        if (matches.size() >= resultLimit) {
-                            return;
-                        }
-
-                        Path relativeToBase = base.relativize(file);
-                        if (!matcher.matches(relativeToBase)) {
-                            return;
-                        }
-
-                        if (pattern != null && !pattern.isBlank()) {
-                            try {
-                                String content = Files.readString(file);
-                                if (!content.contains(pattern)) {
-                                    return;
-                                }
-                            } catch (IOException ignored) {
-                                return;
-                            }
-                        }
-
-                        matches.add(context.workspaceRoot().relativize(file).toString());
-                    });
+            matches = stream.filter(Files::isRegularFile)
+                    .filter(file -> matcher.matches(base.relativize(file)))
+                    .filter(file -> matchesPattern(file, pattern))
+                    .limit(resultLimit)
+                    .map(file -> context.workspaceRoot().relativize(file).toString())
+                    .toList();
         }
 
         if (matches.isEmpty()) {
@@ -85,5 +66,16 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
         }
 
         return String.join("\n", matches);
+    }
+
+    private boolean matchesPattern(Path file, String pattern) {
+        if (pattern == null || pattern.isBlank()) {
+            return true;
+        }
+        try {
+            return Files.readString(file).contains(pattern);
+        } catch (IOException ignored) {
+            return false;
+        }
     }
 }

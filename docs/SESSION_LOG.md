@@ -595,3 +595,35 @@
   - 1차: 리소스 누수, rollback 부재, 혼합 동시성 모델 등 8건 → 전면 수정
   - 2차: 재등록 프로세스 정지, 예외 마스킹, raw type 등 6건 → 수정/보류 합의
   - 3차: 이슈 없음 → 승인
+
+---
+
+## 2026-02-15
+
+### 작업 내용
+
+- **TASKS.md 구조 개선**: Phase 1에 CLI 인터페이스 추가, Phase 2에 React Web UI 확장
+  - Phase 1: 11. CLI 인터페이스 (11-1 ~ 11-7, 7개 작업) 추가
+  - Phase 2: 모니터링 대시보드 → React 관리 대시보드로 확장 (14-1 ~ 14-8)
+  - 전체 번호 재정렬, 총계 91개 → 101개
+
+### 작업 9-4: MCP Tool 실행 통합
+- **PR**: [#54](https://github.com/jeng832/squad/pull/54)
+- **구현 내용**:
+  - `McpToolExecutor`: `LlmToolExecutor` 구현체 (MCP Gateway 경유 도구 실행)
+    - alias → ToolRoute 라우팅 → McpClient 호출 → 결과 변환
+    - 에러 시 예외 대신 에러 텍스트 반환 (LLM 재시도 가능)
+  - `LlmToolUseService`: 단일 호출 → while 루프 개선
+    - 연쇄 tool_use 지원 (최대 10회 반복)
+    - 메시지 누적 방식으로 대화 히스토리 유지
+  - `WorkerService`: MCP 도구 통합
+    - `LlmToolUseService` + `McpToolRegistry` 주입
+    - MCP 도구 목록을 LLM 요청에 포함
+    - 미사용 `LlmProviderFactory` 직접 의존 제거
+  - 단위 테스트 21개 (McpToolExecutorTest 8개, LlmToolUseServiceTest 5개, WorkerServiceTest 8개)
+- **설계 결정**:
+  - `McpToolExecutor`는 `mcp.gateway` 패키지 배치 (포트/어댑터 경계 분리)
+  - 도구 실패는 예외 throw 대신 에러 텍스트 반환 (LLM이 오류 인식 후 재시도 가능)
+  - Worker의 MCP 도구 범위: `getAllTools()` (Agent별 필터링은 후속 작업)
+  - OrchestratorService는 수정하지 않음 (내부 도구만 사용)
+- **codex-cli 코드리뷰**: 1회 리뷰, 이슈 없음 → 승인

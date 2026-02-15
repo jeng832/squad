@@ -6,6 +6,10 @@ import com.squad.llm.LlmProvider;
 import com.squad.llm.LlmProviderFactory;
 import com.squad.llm.model.LlmRequest;
 import com.squad.llm.model.LlmResponse;
+import com.squad.llm.service.LlmToolUseService;
+import com.squad.llm.tool.LlmToolExecutor;
+import com.squad.llm.tool.LlmToolResult;
+import com.squad.mcp.gateway.McpToolRegistry;
 import com.squad.messaging.MessageHandler;
 import com.squad.messaging.MessageRouter;
 import com.squad.messaging.MessageSubscriber;
@@ -23,7 +27,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.*;
@@ -35,7 +38,7 @@ import static org.mockito.Mockito.*;
 class WorkerServiceTest {
 
     @Mock
-    private LlmProviderFactory llmProviderFactory;
+    private McpToolRegistry mcpToolRegistry;
 
     @Mock
     private MessageRouter messageRouter;
@@ -44,21 +47,31 @@ class WorkerServiceTest {
     private MessageSubscriber messageSubscriber;
 
     @Mock
-    private LlmProvider llmProvider;
-
-    @Mock
     private SessionEventPublisher sessionEventPublisher;
 
     @Mock
     private Subscription subscription;
 
+    private LlmToolUseService llmToolUseService;
+    private LlmProvider llmProvider;
     private WorkerService workerService;
-
     private Agent worker;
 
     @BeforeEach
     void setUp() {
-        workerService = new WorkerService(llmProviderFactory, messageRouter, messageSubscriber, sessionEventPublisher);
+        llmProvider = mock(LlmProvider.class);
+        given(llmProvider.getProviderName()).willReturn("claude");
+
+        LlmToolExecutor toolExecutor = toolCall ->
+                new LlmToolResult(toolCall.id(), toolCall.name(), "result");
+        LlmProviderFactory providerFactory = new LlmProviderFactory(List.of(llmProvider));
+        llmToolUseService = new LlmToolUseService(providerFactory, toolExecutor);
+
+        lenient().when(mcpToolRegistry.getAllTools()).thenReturn(List.of());
+
+        workerService = new WorkerService(
+                llmToolUseService, mcpToolRegistry,
+                messageRouter, messageSubscriber, sessionEventPublisher);
 
         worker = Agent.builder()
                 .id(2L)
@@ -123,8 +136,6 @@ class WorkerServiceTest {
 
         LlmResponse llmResponse = new LlmResponse("resp-1", "작업 결과입니다", "stop",
                 List.of(), null);
-
-        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
         given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
 
         workerService.startWorker(1L, worker);
@@ -148,7 +159,6 @@ class WorkerServiceTest {
         given(messageSubscriber.subscribeToAgent(eq(1L), eq(2L), handlerCaptor.capture()))
                 .willReturn(subscription);
 
-        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
         given(llmProvider.sendMessage(any(LlmRequest.class)))
                 .willThrow(new RuntimeException("LLM 호출 실패"));
 
@@ -166,26 +176,6 @@ class WorkerServiceTest {
     }
 
     @Test
-    @DisplayName("LLM Provider를 찾을 수 없으면 에러 결과를 반환한다")
-    void unknownProviderReturnsError() {
-        ArgumentCaptor<MessageHandler> handlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
-        given(messageSubscriber.subscribeToAgent(eq(1L), eq(2L), handlerCaptor.capture()))
-                .willReturn(subscription);
-
-        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.empty());
-
-        workerService.startWorker(1L, worker);
-        handlerCaptor.getValue().handle(
-                SessionMessage.of(1L, 1L, 2L, MessageType.TASK_REQUEST, "작업 요청"));
-
-        ArgumentCaptor<SessionMessage> resultCaptor = ArgumentCaptor.forClass(SessionMessage.class);
-        verify(messageRouter).route(resultCaptor.capture());
-
-        assertThat(resultCaptor.getValue().getType()).isEqualTo(MessageType.TASK_RESULT);
-        assertThat(resultCaptor.getValue().getContent()).contains("[오류]");
-    }
-
-    @Test
     @DisplayName("TASK_REQUEST 외의 메시지 타입은 무시한다")
     void nonTaskRequestIgnored() {
         ArgumentCaptor<MessageHandler> handlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
@@ -197,7 +187,6 @@ class WorkerServiceTest {
                 SessionMessage.of(1L, null, 2L, MessageType.SYSTEM, "시스템 메시지"));
 
         verifyNoInteractions(messageRouter);
-        verifyNoInteractions(llmProviderFactory);
     }
 
     @Test
@@ -217,8 +206,6 @@ class WorkerServiceTest {
                 .willReturn(subscription);
 
         LlmResponse llmResponse = new LlmResponse("resp-1", null, "stop", List.of(), null);
-
-        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
         given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
 
         workerService.startWorker(1L, worker);

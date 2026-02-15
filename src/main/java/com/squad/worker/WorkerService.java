@@ -1,9 +1,9 @@
 package com.squad.worker;
 
 import com.squad.agent.domain.Agent;
-import com.squad.llm.LlmProvider;
-import com.squad.llm.LlmProviderFactory;
 import com.squad.llm.model.*;
+import com.squad.llm.service.LlmToolUseService;
+import com.squad.mcp.gateway.McpToolRegistry;
 import com.squad.messaging.MessageRouter;
 import com.squad.messaging.MessageSubscriber;
 import com.squad.messaging.SessionMessage;
@@ -43,7 +43,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @RequiredArgsConstructor
 public class WorkerService {
 
-    private final LlmProviderFactory llmProviderFactory;
+    private final LlmToolUseService llmToolUseService;
+    private final McpToolRegistry mcpToolRegistry;
     private final MessageRouter messageRouter;
     private final MessageSubscriber messageSubscriber;
     private final SessionEventPublisher sessionEventPublisher;
@@ -144,17 +145,18 @@ public class WorkerService {
 
     private String callLlm(WorkerContext context) {
         Agent agent = context.getAgent();
-        LlmProvider provider = resolveProvider(agent);
+        String providerName = extractProviderName(agent);
+        List<LlmTool> tools = mcpToolRegistry.getAllTools();
 
         LlmRequest request = new LlmRequest(
                 extractModel(agent),
                 buildSystemPrompt(agent),
                 context.getMessages(),
                 null, null,
-                List.of()
+                tools
         );
 
-        LlmResponse response = provider.sendMessage(request);
+        LlmResponse response = llmToolUseService.sendWithToolUse(providerName, request);
 
         if (response.content() != null && !response.content().isBlank()) {
             context.addMessage(new LlmMessage("assistant", response.content()));
@@ -211,13 +213,6 @@ public class WorkerService {
                         + "작업 결과는 명확하고 구조적으로 정리하여 반환하세요.",
                 agent.getName(), agent.getRole()
         );
-    }
-
-    private LlmProvider resolveProvider(Agent agent) {
-        String providerName = extractProviderName(agent);
-        return llmProviderFactory.getProvider(providerName)
-                .orElseThrow(() -> new IllegalStateException(
-                        "LLM Provider를 찾을 수 없습니다: " + providerName));
     }
 
     private String extractProviderName(Agent agent) {

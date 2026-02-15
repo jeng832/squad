@@ -4,6 +4,7 @@ import com.squad.llm.model.LlmTool;
 import com.squad.llm.model.LlmToolCall;
 import org.springframework.stereotype.Component;
 
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
@@ -21,7 +22,7 @@ import java.util.Map;
 @Component
 public class FileWriteToolCommand implements BuiltInToolCommand {
 
-    private static final int MAX_WRITE_SIZE_CHARS = 5 * 1024 * 1024; // 5MB
+    private static final long MAX_WRITE_SIZE_BYTES = 5L * 1024 * 1024; // 5MB
 
     @Override
     public LlmTool definition() {
@@ -46,9 +47,10 @@ public class FileWriteToolCommand implements BuiltInToolCommand {
         String content = context.requiredString(call.arguments(), "content");
         boolean append = context.booleanValue(call.arguments(), "append", false);
 
-        if (content.length() > MAX_WRITE_SIZE_CHARS) {
+        byte[] contentBytes = content.getBytes(StandardCharsets.UTF_8);
+        if (contentBytes.length > MAX_WRITE_SIZE_BYTES) {
             throw new IllegalArgumentException(
-                    "쓰기 내용이 너무 큽니다 (최대 5MB): " + content.length() + " chars");
+                    "쓰기 내용이 너무 큽니다 (최대 5MB): " + contentBytes.length + " bytes");
         }
 
         Path path = context.resolveWithinWorkspace(rawPath);

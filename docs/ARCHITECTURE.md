@@ -28,6 +28,7 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 | API | REST API |
 | Real-time | WebSocket (STOMP) |
 | Agent Communication | HTTP (Docker Network) |
+| CLI | Picocli + JLine3 |
 
 ---
 
@@ -38,7 +39,7 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 ```
 ┌─────────────────────────────────────────────────────────────────────────────┐
 │                                 Client                                       │
-│                    Web UI (React) / REST API Clients                         │
+│         Web UI (React) / CLI Shell (Picocli+JLine3) / REST API Clients      │
 └─────────────────────────────────┬───────────────────────────────────────────┘
                                   │
                                   ▼
@@ -91,6 +92,7 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 
 | 컴포넌트 | 역할 |
 |----------|------|
+| **Squad CLI** | 인터랙티브 터미널 클라이언트. 슬래시 커맨드, 가이드 폼, 실시간 모니터링 제공. REST API + WebSocket으로 Platform Server와 통신 |
 | **Squad Platform Server** | 에이전트/Squad/세션 관리, API 제공, 모니터링 |
 | **MCP Gateway** | MCP 서버 프로세스를 중앙에서 관리하고, 에이전트에게 SSE/HTTP 엔드포인트로 외부 도구 제공 |
 | **Agent Container** | 개별 에이전트 실행 환경, LLM 연동, Built-in Tools 실행 |
@@ -332,7 +334,43 @@ messaging/
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### 4.2 Agent Container 모듈
+### 4.2 CLI 모듈 (`:squad-cli`)
+
+```
+┌─────────────────────────────────────────────────────────────────┐
+│                         Squad CLI                                │
+│                   (Picocli + JLine3)                             │
+│                                                                  │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                   Interactive Shell                         │ │
+│  │  CommandPalette │ FuzzySearch │ KeyBindingManager          │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                              │                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                    Slash Commands                           │ │
+│  │  /agent │ /squad │ /session │ /mcp │ /skill │ /secret     │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                              │                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                    UI Components                            │ │
+│  │  TableRenderer │ GuidedForm │ MultiSelect │ StatusDisplay  │ │
+│  └────────────────────────────────────────────────────────────┘ │
+│                              │                                   │
+│  ┌────────────────────────────────────────────────────────────┐ │
+│  │                    API Client Layer                         │ │
+│  │  RestClient (REST API) │ StompClient (WebSocket 모니터링)  │ │
+│  └────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+```
+
+**설계 원칙:**
+- CLI는 **순수 REST 클라이언트**로 동작 (백엔드 도메인/DB 모듈에 직접 의존하지 않음)
+- 실시간 모니터링은 **WebSocket (STOMP)** 으로 세션 이벤트 구독
+- **인터랙티브 모드** (기본): `squad` 실행 시 대화형 셸 진입
+- **One-shot 모드**: `squad agent list` 처럼 인자와 함께 실행 시 결과 출력 후 종료
+- Java 21 **Virtual Thread** 활용으로 REST 호출/WebSocket 이벤트 처리 병렬화
+
+### 4.3 Agent Container 모듈
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
@@ -884,20 +922,23 @@ WORKSPACE CLEANUP:
 ## 9. 개발 로드맵
 
 ### Phase 1: Core (MVP)
-- [ ] Platform Server 기본 구조
-- [ ] Agent/Squad/Session CRUD API
-- [ ] Agent Container 이미지 구축
-- [ ] Container 동적 생성/삭제
-- [ ] Claude LLM Provider
-- [ ] Redis Pub/Sub 메시징
-- [ ] 기본 WebSocket 모니터링
+- [x] Platform Server 기본 구조
+- [x] Agent/Squad/Session CRUD API
+- [x] Agent Container 이미지 구축
+- [x] Container 동적 생성/삭제
+- [x] Claude LLM Provider
+- [x] Redis Pub/Sub 메시징
+- [x] 기본 WebSocket 모니터링
+- [x] MCP Gateway 및 Built-in Tools
+- [x] 단위/통합/E2E 테스트
+- [ ] CLI 인터페이스 (Picocli + JLine3, `:squad-cli` 모듈)
 
 ### Phase 2: Enhancement
 - [ ] OpenAI Provider 추가
-- [ ] MCP 연동
-- [ ] Skill 관리
-- [ ] 상세 모니터링 대시보드
-- [ ] Container 헬스체크
+- [ ] Skill 관리 고도화
+- [ ] Web UI (React 관리 대시보드)
+- [ ] Container 고급 관리
+- [ ] API 고도화
 
 ### Phase 3: Advanced
 - [ ] Gemini Provider 추가

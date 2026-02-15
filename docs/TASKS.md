@@ -127,15 +127,21 @@
 
 ### 11. CLI 인터페이스
 
+> **기술 결정**: Picocli + JLine3 기반 인터랙티브 CLI. `:squad-cli` Gradle 서브모듈로 같은 프로젝트 내 구성.
+> CLI는 순수 REST 클라이언트로 동작하며, 백엔드 내부 도메인/DB에 직접 의존하지 않음.
+> 실시간 모니터링은 WebSocket(STOMP) 사용. Java 21 Virtual Thread 활용.
+> UX 패턴: 슬래시 커맨드 + 퍼지 검색, 화살표키 네비게이션, 스페이스바 멀티 선택, 가이드 폼.
+> 두 가지 모드: 인터랙티브 셸 (기본) + One-shot 모드 (스크립팅).
+
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
-| 11-1 | CLI 프로젝트 설정 | Spring Shell 또는 Picocli 기반 CLI 모듈 설정, REST API 클라이언트 구성 | 4~5개 파일 | |
-| 11-2 | Agent 관리 CLI | `squad agent list/create/update/delete`, MCP 할당 명령 | 3~4개 파일 | |
-| 11-3 | MCP 관리 CLI | `squad mcp list/create/update/delete` | 3~4개 파일 | |
-| 11-4 | Squad 관리 CLI | `squad squad list/create/update/delete`, 멤버 관리 | 3~4개 파일 | |
-| 11-5 | Skill/Secret 관리 CLI | `squad skill list/create/update/delete`, `squad secret list/create/update/delete` | 3~4개 파일 | |
-| 11-6 | 세션 실행 CLI | `squad session create/start/cancel/status`, 결과 출력 | 3~4개 파일 | |
-| 11-7 | 세션 실시간 모니터링 CLI | 세션 진행 중 메시지/Agent 상태를 터미널에 실시간 출력 (WebSocket 구독) | 3~4개 파일 | |
+| 11-1 | CLI 프로젝트 설정 | `:squad-cli` Gradle 서브모듈 생성, Picocli + JLine3 의존성, REST API 클라이언트 (RestClient), 인터랙티브 셸 기본 프레임워크, 슬래시 커맨드 팔레트, 퍼지 검색 엔진 | 8~10개 파일 | |
+| 11-2 | Agent 관리 CLI | `/agent list/create/update/delete`, 가이드 폼 (roleType 선택, LLM 설정, MCP 멀티 선택), 테이블 출력 | 5~6개 파일 | |
+| 11-3 | MCP 관리 CLI | `/mcp list/create/update/delete`, config JSON 입력/편집 지원 | 3~4개 파일 | |
+| 11-4 | Squad 관리 CLI | `/squad list/create/update/delete`, Orchestrator 선택, 멤버 멀티 선택, 직접 통신 규칙 설정 | 4~5개 파일 | |
+| 11-5 | Skill/Secret 관리 CLI | `/skill list/create/update/delete`, `/secret list/create/update/delete`, Secret 값 마스킹 출력 | 4~5개 파일 | |
+| 11-6 | 세션 실행 CLI | `/session list/start/cancel/status/result`, Squad 선택 + 프롬프트 입력 가이드 폼, 결과 마크다운 렌더링 | 4~5개 파일 | |
+| 11-7 | 세션 실시간 모니터링 CLI | `/session monitor {id}`, WebSocket(STOMP) 연결, 에이전트 상태 실시간 표시, 메시지 타임라인, Ctrl+C로 모니터링 중단 | 4~5개 파일 | |
 
 ---
 

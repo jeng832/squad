@@ -851,6 +851,375 @@ SELECT * FROM stock WHERE stock_quantity < 0;
 
 ---
 
+### 3.7 CLI 인터페이스
+
+> **기술 스택**: Picocli + JLine3 (`:squad-cli` Gradle 모듈)
+> **통신**: REST API 클라이언트 + WebSocket (실시간 모니터링)
+> **UX 패턴**: 인터랙티브 셸, 슬래시 커맨드, 화살표키 네비게이션, 가이드 폼
+
+#### UC-CLI-001: CLI 인터랙티브 셸 진입
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 |
+| 목적 | CLI를 실행하여 인터랙티브 셸에 진입한다 |
+| 기본흐름 | 1. `squad` 명령 실행<br>2. 연결 상태 확인 (Platform Server 헬스체크)<br>3. 프롬프트 표시 (`squad> `)<br>4. 슬래시 커맨드 또는 자연어 입력 대기 |
+| 대안흐름 | 2a. Platform Server 미연결 시 연결 정보 입력 프롬프트 표시<br>1a. One-shot 모드: `squad agent list` 처럼 인자와 함께 실행 시 결과 출력 후 종료 |
+| 사후조건 | 인터랙티브 셸이 활성화됨 |
+
+**셸 화면 예시:**
+```
+$ squad
+  Squad CLI v1.0.0
+  Connected to http://localhost:8080
+
+squad> /
+  ┌─────────────────────────────────────────┐
+  │  /agent      에이전트 관리               │
+  │  /squad      Squad 관리                  │
+  │  /session    세션 실행/관리               │
+  │  /mcp        MCP 관리                    │
+  │  /skill      Skill 관리                  │
+  │  /secret     Secret 관리                 │
+  │  /status     시스템 상태 확인             │
+  │  /help       도움말                      │
+  │  /quit       종료                        │
+  └─────────────────────────────────────────┘
+```
+
+---
+
+#### UC-CLI-002: 슬래시 커맨드로 리소스 관리
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 |
+| 목적 | 슬래시 커맨드를 사용하여 리소스를 관리한다 |
+| 기본흐름 | 1. `/` 입력 시 커맨드 팔레트 표시<br>2. 화살표키로 커맨드 탐색 또는 타이핑으로 퍼지 검색<br>3. Enter로 선택<br>4. 서브커맨드 선택 (list/create/update/delete) |
+| 사후조건 | 선택한 커맨드가 실행됨 |
+
+**퍼지 검색 예시:**
+```
+squad> /ag
+  ┌─────────────────────────────────────────┐
+  │  /agent      에이전트 관리        [매치] │
+  └─────────────────────────────────────────┘
+```
+
+---
+
+#### UC-CLI-003: 리소스 목록 조회
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 |
+| 목적 | 리소스 목록을 테이블 형태로 조회한다 |
+| 기본흐름 | 1. `/agent list` 입력<br>2. 에이전트 목록이 테이블 형식으로 표시<br>3. 화살표키로 행 선택 가능<br>4. Enter로 상세 보기, `d`로 삭제, `e`로 수정 |
+| 사후조건 | - |
+
+**목록 표시 예시:**
+```
+squad> /agent list
+
+  에이전트 목록 (3개)
+  ┌────┬───────────────────┬──────────────┬──────────────────┐
+  │ ID │ 이름              │ 역할         │ LLM              │
+  ├────┼───────────────────┼──────────────┼──────────────────┤
+  │  1 │ orchestrator-main │ ORCHESTRATOR │ claude-sonnet-4  │
+  │  2 │ code-worker       │ WORKER       │ claude-sonnet-4  │
+  │  3 │ doc-scribe        │ SCRIBE       │ claude-haiku-3   │
+  └────┴───────────────────┴──────────────┴──────────────────┘
+
+  [↑↓] 선택  [Enter] 상세  [e] 수정  [d] 삭제  [q] 뒤로
+```
+
+---
+
+#### UC-CLI-004: 가이드 폼으로 리소스 생성
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 |
+| 목적 | 단계별 가이드 폼을 통해 리소스를 생성한다 |
+| 기본흐름 | 1. `/agent create` 입력<br>2. 이름 입력 프롬프트 → 텍스트 입력<br>3. roleType 선택 → 화살표키 + Enter로 선택<br>4. System Prompt 입력 → 멀티라인 편집기 또는 템플릿 선택<br>5. LLM Provider 선택 → 화살표키 선택<br>6. LLM Model 선택 → 선택한 Provider의 모델 목록 표시<br>7. MCP 선택 → 스페이스바로 멀티 선택<br>8. 확인 → 생성 요약 표시 후 `y`/`n` |
+| 대안흐름 | Esc로 언제든 취소 가능<br>4a. roleType별 System Prompt 템플릿 자동 제안 |
+| 사후조건 | 에이전트가 생성됨 |
+
+**가이드 폼 예시:**
+```
+squad> /agent create
+
+  ── 에이전트 생성 ──────────────────────────────
+
+  이름: code-reviewer
+  ✓ 이름 입력 완료
+
+  역할 유형:
+  ○ ORCHESTRATOR  - 작업 분배 및 조율
+  ● WORKER        - 실제 작업 수행          ← 선택됨
+  ○ ANALYST       - 결과 분석 및 종합
+  ○ SCRIBE        - 과정 기록 및 문서화
+  ○ CUSTOM        - 사용자 정의 역할
+
+  [↑↓] 이동  [Enter] 선택  [Esc] 취소
+```
+
+**멀티 선택 예시 (MCP):**
+```
+  MCP 선택:
+  ☑ github       - GitHub 저장소 연동
+  ☐ slack        - Slack 메시지 연동
+  ☑ jira         - Jira 이슈 관리
+  ☐ confluence   - Confluence 문서 연동
+
+  [↑↓] 이동  [Space] 선택/해제  [Enter] 확인  [Esc] 취소
+```
+
+---
+
+#### UC-CLI-005: Squad 생성 (멤버 구성 포함)
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 |
+| 목적 | 가이드 폼으로 Squad를 생성하고 멤버를 구성한다 |
+| 기본흐름 | 1. `/squad create` 입력<br>2. Squad 이름/설명 입력<br>3. Orchestrator 선택 → ORCHESTRATOR 타입 에이전트 목록 표시<br>4. 멤버 에이전트 선택 → 스페이스바로 멀티 선택<br>5. 직접 통신 규칙 설정 (선택)<br>6. 생성 확인 |
+| 사후조건 | Squad가 생성됨 |
+
+**멤버 선택 예시:**
+```
+  멤버 에이전트 선택:
+  ☑ code-worker     (WORKER)    - 코드 작성
+  ☑ code-reviewer   (WORKER)    - 코드 리뷰
+  ☐ doc-scribe      (SCRIBE)    - 문서화
+  ☑ qa-analyst      (ANALYST)   - 품질 분석
+
+  [↑↓] 이동  [Space] 선택/해제  [Enter] 확인
+```
+
+---
+
+#### UC-CLI-006: 세션 실행 및 실시간 모니터링
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 |
+| 목적 | 세션을 생성/시작하고 실시간으로 진행 상황을 모니터링한다 |
+| 기본흐름 | 1. `/session start` 입력<br>2. Squad 선택 → 등록된 Squad 목록 표시<br>3. 프롬프트 입력 → 멀티라인 편집기<br>4. 세션 생성 및 시작<br>5. 실시간 모니터링 화면으로 전환 (WebSocket 연결)<br>6. 에이전트 상태, 메시지 흐름을 실시간 표시<br>7. 세션 완료 시 최종 결과 출력 |
+| 대안흐름 | 5a. `Ctrl+C`로 모니터링 중단 (세션은 백그라운드 계속)<br>7a. `/session monitor {id}`로 다시 모니터링 재개 |
+| 사후조건 | 세션 결과 확인 |
+
+**실시간 모니터링 화면 예시:**
+```
+  ── 세션 #42 모니터링 ──────────────────────────
+
+  상태: ● RUNNING    경과: 00:01:23
+
+  에이전트 상태:
+  ├── orchestrator-main  ● 작업 분배 중
+  ├── code-worker        ● LLM 호출 중...
+  └── qa-analyst         ○ 대기
+
+  ── 메시지 타임라인 ────────────────────────────
+  14:30:05  [→] orchestrator → code-worker
+            "사용자 인증 API를 구현해주세요"
+  14:30:08  [⚙] code-worker: LLM 호출 중...
+  14:30:45  [←] code-worker → orchestrator
+            "인증 API 구현 완료. JWT 기반..."
+  14:30:46  [→] orchestrator → qa-analyst
+            "code-worker의 결과를 검증해주세요"
+
+  [Ctrl+C] 모니터링 중단  [q] 종료
+```
+
+---
+
+#### UC-CLI-007: 세션 결과 확인
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 |
+| 목적 | 완료된 세션의 결과를 확인한다 |
+| 기본흐름 | 1. `/session list` 입력<br>2. 세션 목록 표시 (상태별 색상 구분)<br>3. 완료된 세션 선택<br>4. 최종 결과 표시<br>5. `m`으로 메시지 히스토리 조회 가능 |
+| 사후조건 | - |
+
+**세션 목록 예시:**
+```
+squad> /session list
+
+  세션 목록 (5개)
+  ┌────┬────────────────┬──────────┬──────────────────┐
+  │ ID │ Squad          │ 상태     │ 생성 시각        │
+  ├────┼────────────────┼──────────┼──────────────────┤
+  │ 42 │ 코드 리뷰 팀   │ ✓ 완료   │ 2026-02-15 14:30 │
+  │ 41 │ 개발 Squad     │ ● 실행중 │ 2026-02-15 13:00 │
+  │ 40 │ 코드 리뷰 팀   │ ✗ 취소   │ 2026-02-14 16:20 │
+  └────┴────────────────┴──────────┴──────────────────┘
+
+  [↑↓] 선택  [Enter] 상세  [m] 메시지  [q] 뒤로
+```
+
+---
+
+#### UC-CLI-008: One-shot 모드 실행
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 (스크립팅/자동화) |
+| 목적 | 인터랙티브 셸 없이 단일 명령을 실행한다 |
+| 기본흐름 | 1. `squad agent list` 처럼 인자와 함께 실행<br>2. 결과 출력 (JSON 또는 테이블)<br>3. 프로세스 종료 |
+| 대안흐름 | `--json` 플래그로 JSON 출력 (파이프라인 연동용) |
+| 사후조건 | 결과 출력 후 프로세스 종료 |
+
+**One-shot 예시:**
+```bash
+# 에이전트 목록 (테이블)
+$ squad agent list
+
+# 에이전트 목록 (JSON, 파이프라인용)
+$ squad agent list --json | jq '.[] | .name'
+
+# 세션 시작 (non-interactive)
+$ squad session start --squad 1 --prompt "코드 리뷰해줘"
+Session #43 created and started.
+
+# 세션 상태 확인
+$ squad session status 43
+```
+
+---
+
+#### UC-CLI-009: 시스템 상태 확인
+| 항목 | 내용 |
+|------|------|
+| Actor | 사용자 |
+| 목적 | Platform Server 연결 상태와 리소스 현황을 확인한다 |
+| 기본흐름 | 1. `/status` 입력<br>2. 시스템 상태 대시보드 표시 |
+| 사후조건 | - |
+
+**상태 대시보드 예시:**
+```
+squad> /status
+
+  ── 시스템 상태 ─────────────────────────────────
+
+  서버: http://localhost:8080  ● 연결됨
+
+  리소스 현황:
+  ├── 에이전트:  7개
+  ├── Squad:     3개
+  ├── MCP:       4개
+  ├── Skill:     5개
+  └── Secret:    3개
+
+  실행 중인 세션: 1개
+  └── #41 (개발 Squad) ● RUNNING  경과: 01:30:05
+```
+
+---
+
+## 4. CLI 사용 시나리오
+
+### 4.1 시나리오: CLI로 코드 리뷰 Squad 구성 및 실행
+
+**상황**: 개발자가 터미널에서 코드 리뷰 Squad를 구성하고 실행한다.
+
+**흐름:**
+```
+$ squad
+
+squad> /agent create
+  이름: review-orchestrator
+  역할: ● ORCHESTRATOR
+  System Prompt: [Orchestrator 템플릿 사용]
+  LLM: claude / claude-sonnet-4
+  MCP: ☑ github
+  ✓ 에이전트 생성 완료 (ID: 1)
+
+squad> /agent create
+  이름: code-analyzer
+  역할: ● ANALYST
+  System Prompt: "코드를 분석하여 버그, 성능 이슈, 보안 취약점을 찾습니다"
+  LLM: claude / claude-sonnet-4
+  MCP: ☑ github
+  ✓ 에이전트 생성 완료 (ID: 2)
+
+squad> /squad create
+  이름: 코드 리뷰 팀
+  설명: PR 코드 리뷰를 수행하는 Squad
+  Orchestrator: ● review-orchestrator (ID: 1)
+  멤버: ☑ code-analyzer (ID: 2)
+  ✓ Squad 생성 완료 (ID: 1)
+
+squad> /session start
+  Squad: ● 코드 리뷰 팀 (ID: 1)
+  프롬프트: PR #123의 변경사항을 리뷰해주세요
+  ✓ 세션 시작 (ID: 1)
+
+  ── 세션 #1 모니터링 ──────────────────────────
+  상태: ● RUNNING
+
+  14:30:05  [→] orchestrator → code-analyzer
+            "PR #123 변경사항 분석 요청"
+  14:30:30  [←] code-analyzer → orchestrator
+            "분석 완료: 3개 이슈 발견..."
+  14:31:00  [✓] 세션 완료
+
+  ── 최종 결과 ──────────────────────────────────
+  PR #123 코드 리뷰 결과:
+  1. [보안] SQL Injection 가능성 - UserRepository.java:45
+  2. [성능] N+1 쿼리 - OrderService.java:78
+  3. [스타일] 미사용 import - PaymentController.java:3
+```
+
+### 4.2 시나리오: 스크립트에서 자동화
+
+**상황**: CI/CD 파이프라인에서 Squad CLI를 사용하여 자동 코드 리뷰를 실행한다.
+
+```bash
+#!/bin/bash
+# CI/CD 파이프라인 스크립트
+
+# 세션 시작
+SESSION_ID=$(squad session start \
+  --squad 1 \
+  --prompt "PR #${PR_NUMBER}의 변경사항을 리뷰해주세요" \
+  --json | jq -r '.id')
+
+echo "세션 시작: $SESSION_ID"
+
+# 완료 대기
+squad session wait $SESSION_ID --timeout 300
+
+# 결과 조회
+RESULT=$(squad session result $SESSION_ID --json)
+echo "$RESULT" | jq '.result'
+```
+
+---
+
+## 5. Use Case 다이어그램
+
+```
+                           +------------------+
+                           |      User        |
+                           +--------+---------+
+                                    |
+              +---------------------+---------------------+
+              |                                           |
+         [Web UI]                                    [CLI Shell]
+              |                                           |
+              +---------------------+---------------------+
+                                    |
+         +----------+---------------+---------------+----------+
+         |          |               |               |          |
+         v          v               v               v          v
+   +---------+ +---------+    +---------+    +---------+ +---------+
+   | Agent   | | Squad   |    | Session |    | MCP     | | Skill   |
+   | 관리    | | 관리    |    | 실행    |    | 관리    | | 관리    |
+   +---------+ +---------+    +---------+    +---------+ +---------+
+   | 생성    | | 생성    |    | 시작    |    | 등록    | | 등록    |
+   | 수정    | | 수정    |    | 모니터링|    | 수정    | | 수정    |
+   | 삭제    | | 삭제    |    | 결과확인|    | 삭제    | | 삭제    |
+   | 조회    | | 조회    |    | 중단    |    | 조회    | | 조회    |
+   +---------+ +---------+    | 히스토리|    +---------+ +---------+
+                              +---------+
+```
+
+---
+
 ## 6. 우선순위
 
 ### MVP (Phase 1)
@@ -859,6 +1228,9 @@ SELECT * FROM stock WHERE stock_quantity < 0;
 - UC-014: 세션 시작
 - UC-015: 기본 모니터링
 - UC-016: 결과 확인
+
+### Phase 1 (CLI)
+- UC-CLI-001 ~ UC-CLI-009: CLI 인터페이스 전체
 
 ### Phase 2
 - UC-005 ~ UC-007: MCP 관리

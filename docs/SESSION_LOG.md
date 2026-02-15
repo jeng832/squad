@@ -639,3 +639,15 @@
   - 방안 B (별도 EnvResolver 컴포넌트) 채택: SRP 준수, 값 객체가 서비스에 의존하지 않음
   - McpConfig는 raw env 보관, 해결된 env는 withResolvedEnv()로 새 불변 객체 생성
 - **codex-cli 코드리뷰**: P1 이슈 1건 (Secret 해결 실패 시 기존 프로세스 orphan 방지) → 수정 완료
+
+### 작업 9-6: MCP Gateway 서비스
+- **PR**: [#56](https://github.com/jeng832/squad/pull/56)
+- **구현 내용**:
+  - `McpGatewayService` 추가: MCP 등록/해제, Tool 목록 조회, Tool 호출, SSE 이벤트 스트림 제공
+  - `McpGatewayController` 추가: Agent Runtime용 HTTP/SSE 엔드포인트(`/api/v1/mcp-gateway/**`)
+  - DTO 추가: `McpToolCallRequest`, `McpGatewayEvent`
+  - 단위 테스트 추가: `McpGatewayServiceTest`
+- **설계 결정**:
+  - 기존 `McpToolRegistry`, `McpToolExecutor`를 재사용해 Gateway 계층만 추가
+  - 이벤트 스트림은 Reactor `Sinks.Many` 기반 multicast로 구현
+  - Tool 호출은 alias 기반(`mcpName__toolName`) 라우팅 유지

@@ -653,7 +653,7 @@
   - Tool 호출은 alias 기반(`mcpName__toolName`) 라우팅 유지
 
 ### 작업 9-7: Built-in Tools 구현
-- **PR**: (진행 중)
+- **PR**: [#57](https://github.com/jeng832/squad/pull/57)
 - **구현 내용**:
   - `BuiltInToolRegistry` 추가: `file_read`, `file_write`, `file_search`, `bash_exec` 도구 정의(JSON Schema) 제공
   - `BuiltInToolExecutor` 추가: `/workspace` 기준 경로 검증 후 내장 도구 실행

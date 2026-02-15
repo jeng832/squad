@@ -111,7 +111,7 @@
 | 9-4 | MCP Tool 실행 통합 | LLM tool_use 응답 → MCP Gateway 경유 Tool 실행 → 결과를 LLM에 반환하는 전체 흐름 | 3~4개 파일 | [#54](https://github.com/jeng832/squad/pull/54) |
 | 9-5 | MCP 환경변수 및 Secret 주입 | MCP config의 환경변수 처리, `ref:secret/...` 참조 해결 후 프로세스에 주입 | 2~3개 파일 | [#55](https://github.com/jeng832/squad/pull/55) |
 | 9-6 | MCP Gateway 서비스 | MCP 서버를 중앙에서 관리하고 에이전트에게 SSE/HTTP 엔드포인트 제공 | 4~5개 파일 | [#56](https://github.com/jeng832/squad/pull/56) |
-| 9-7 | Built-in Tools 구현 | Agent Runtime 내장 도구 구현 (file_read, file_write, file_search, bash_exec), 보안 경로 검증 | 4~5개 파일 | |
+| 9-7 | Built-in Tools 구현 | Agent Runtime 내장 도구 구현 (file_read, file_write, file_search, bash_exec), 보안 경로 검증 | 4~5개 파일 | [#57](https://github.com/jeng832/squad/pull/57) |
 
 ---
 

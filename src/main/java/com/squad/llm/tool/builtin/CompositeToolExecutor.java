@@ -7,6 +7,8 @@ import com.squad.mcp.gateway.McpToolExecutor;
 import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Service;
 
+import java.util.Objects;
+
 /**
  * Built-in Tool과 MCP Tool 실행을 통합 라우팅하는 Executor.
  */
@@ -24,6 +26,7 @@ public class CompositeToolExecutor implements LlmToolExecutor {
 
     @Override
     public LlmToolResult execute(LlmToolCall toolCall) {
+        Objects.requireNonNull(toolCall, "toolCall은 null일 수 없습니다.");
         if (builtInToolExecutor.supports(toolCall.name())) {
             return builtInToolExecutor.execute(toolCall);
         }

@@ -186,6 +186,23 @@ class SessionExecutionE2ETest extends RedisTestContainerConfig {
     }
 
     @Test
+    @DisplayName("Container 생성 실패 후 세션 상태는 PENDING으로 유지된다")
+    void containerFailureKeepsPendingStatus() {
+        SessionResponse created = sessionService.create(
+                new SessionCreateRequest(squad.getId(), "상태 롤백 테스트"));
+
+        given(containerLifecycleManager.createAndStartContainer(
+                anyString(), eq(String.valueOf(worker.getId())), anyList()))
+                .willThrow(new RuntimeException("Docker 오류"));
+
+        assertThatThrownBy(() -> sessionExecutionService.start(created.id()))
+                .isInstanceOf(RuntimeException.class);
+
+        Session session = sessionRepository.findById(created.id()).orElseThrow();
+        assertThat(session.getStatus()).isEqualTo(SessionStatus.PENDING);
+    }
+
+    @Test
     @DisplayName("COMPLETED 세션은 취소할 수 없다")
     void cannotCancelCompletedSession() {
         SessionResponse created = sessionService.create(

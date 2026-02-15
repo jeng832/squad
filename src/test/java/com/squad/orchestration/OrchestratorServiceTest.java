@@ -373,6 +373,81 @@ class OrchestratorServiceTest {
     }
 
     @Test
+    @DisplayName("delegate_task에 agent_id가 없으면 예외를 잡고 계속한다")
+    void delegateTaskMissingAgentIdHandled() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
+                .willReturn(orchestratorSubscription);
+
+        // agent_id가 없는 malformed delegate_task
+        LlmToolCall malformedDelegate = new LlmToolCall("call-1", "delegate_task",
+                Map.of("task", "작업만 있음"));
+        LlmResponse llmResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(malformedDelegate), null);
+
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
+
+        // handleMessage 내부에서 NullPointerException이 catch됨 → 예외 전파 없음
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "테스트"));
+
+        verifyNoInteractions(messageRouter);
+    }
+
+    @Test
+    @DisplayName("complete_session에 result가 없으면 null로 완료 처리된다")
+    void completeSessionMissingResult() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
+                .willReturn(orchestratorSubscription);
+
+        // result가 없는 complete_session
+        LlmToolCall completeCall = new LlmToolCall("call-1", "complete_session", Map.of());
+        LlmResponse llmResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(completeCall), null);
+
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "테스트"));
+
+        verify(completeHandler).onSessionComplete(1L, null);
+    }
+
+    @Test
+    @DisplayName("알 수 없는 tool 이름은 무시된다")
+    void unknownToolNameIgnored() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
+                .willReturn(orchestratorSubscription);
+
+        LlmToolCall unknownCall = new LlmToolCall("call-1", "unknown_tool", Map.of());
+        LlmResponse llmResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(unknownCall), null);
+
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "테스트"));
+
+        verifyNoInteractions(messageRouter);
+        verifyNoInteractions(completeHandler);
+    }
+
+    @Test
     @DisplayName("중복 TASK_RESULT 수신 시 카운터 언더플로우를 방지한다")
     void duplicateTaskResultPreventsUnderflow() {
         ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);

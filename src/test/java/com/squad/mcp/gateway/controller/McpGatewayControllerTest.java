@@ -128,4 +128,32 @@ class McpGatewayControllerTest {
                 .andExpect(status().isBadRequest())
                 .andExpect(jsonPath("$.success").value(false));
     }
+
+    @Test
+    @DisplayName("존재하지 않는 MCP 해제 시 404 응답")
+    void unregisterNotFound() throws Exception {
+        willThrow(new NotFoundException(ErrorCode.MCP_NOT_FOUND))
+                .given(mcpGatewayService).unregister("unknown");
+
+        mockMvc.perform(delete("/api/v1/mcp-gateway/mcps/unknown"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.success").value(false))
+                .andExpect(jsonPath("$.errorCode").value("MCP_NOT_FOUND"));
+    }
+
+    @Test
+    @DisplayName("GET /events SSE 엔드포인트가 text/event-stream을 반환한다")
+    void eventsEndpoint() throws Exception {
+        McpGatewayEvent event = new McpGatewayEvent(
+                "MCP_REGISTERED", "test-mcp", null, "등록됨", java.time.LocalDateTime.now());
+        ServerSentEvent<McpGatewayEvent> sse = ServerSentEvent.<McpGatewayEvent>builder()
+                .event("MCP_REGISTERED")
+                .data(event)
+                .build();
+        given(mcpGatewayService.streamEvents()).willReturn(Flux.just(sse));
+
+        mockMvc.perform(get("/api/v1/mcp-gateway/events")
+                        .accept(MediaType.TEXT_EVENT_STREAM))
+                .andExpect(status().isOk());
+    }
 }

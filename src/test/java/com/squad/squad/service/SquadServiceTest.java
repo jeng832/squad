@@ -246,6 +246,22 @@ class SquadServiceTest {
     }
 
     @Test
+    @DisplayName("Squad 수정 시 agentIds가 null이면 기존 멤버를 유지한다")
+    void updateWithNullAgentIdsKeepsExistingMembers() {
+        Agent orchestrator = createAgent(1L, "orch", RoleType.ORCHESTRATOR);
+        Agent worker = createAgent(2L, "worker", RoleType.WORKER);
+        Squad squad = createSquad(1L, "squad-1", orchestrator);
+        squad.addAgent(worker);
+        given(squadRepository.findById(1L)).willReturn(Optional.of(squad));
+
+        SquadUpdateRequest request = new SquadUpdateRequest("updated-squad", "새 설명", null, null);
+        SquadResponse result = squadService.update(1L, request);
+
+        assertThat(result.name()).isEqualTo("updated-squad");
+        assertThat(result.agentIds()).contains(2L);
+    }
+
+    @Test
     @DisplayName("Squad 생성 시 directCommunication 설정이 저장된다")
     void createWithDirectCommunication() {
         Agent orchestrator = createAgent(1L, "orch", RoleType.ORCHESTRATOR);

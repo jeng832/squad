@@ -166,6 +166,15 @@ class McpServiceTest {
     }
 
     @Test
+    @DisplayName("config가 null이면 생성 시 NullPointerException 발생")
+    void createWithNullConfig() {
+        McpCreateRequest request = new McpCreateRequest("mcp", "설명", null);
+
+        assertThatThrownBy(() -> mcpService.create(request))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     @DisplayName("MCP 수정 시 엔티티의 update 메서드가 호출된다")
     void updateCallsMcpUpdate() {
         Mcp mcp = createMcp(1L, "mcp-1");

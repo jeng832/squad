@@ -101,6 +101,19 @@ public class McpConfig {
      *
      * @return command + args 리스트
      */
+    /**
+     * 해결된 환경변수를 가진 새로운 {@code McpConfig}를 반환한다.
+     *
+     * <p>{@link EnvResolver}가 {@code ref:secret/} 참조를 해결한 후
+     * 이 메서드로 해결된 env를 적용한 새 불변 객체를 생성한다.</p>
+     *
+     * @param resolvedEnv 참조가 해결된 환경변수 Map
+     * @return 해결된 환경변수를 가진 새로운 McpConfig
+     */
+    public McpConfig withResolvedEnv(Map<String, String> resolvedEnv) {
+        return new McpConfig(this.name, this.command, this.args, resolvedEnv);
+    }
+
     public List<String> buildCommandLine() {
         List<String> commandLine = new ArrayList<>();
         commandLine.add(command);

@@ -110,6 +110,29 @@ class McpConfigTest {
     }
 
     @Test
+    @DisplayName("withResolvedEnv()는 해결된 환경변수를 가진 새 객체를 반환한다")
+    void withResolvedEnvReturnsNewConfig() {
+        Mcp mcp = Mcp.builder()
+                .id(1L)
+                .name("github")
+                .config(Map.of(
+                        "command", "npx",
+                        "args", List.of("-y", "server-github"),
+                        "env", Map.of("TOKEN", "ref:secret/token")
+                ))
+                .build();
+
+        McpConfig original = McpConfig.from(mcp);
+        McpConfig resolved = original.withResolvedEnv(Map.of("TOKEN", "actual-value"));
+
+        assertThat(original.getEnv()).containsEntry("TOKEN", "ref:secret/token");
+        assertThat(resolved.getEnv()).containsEntry("TOKEN", "actual-value");
+        assertThat(resolved.getName()).isEqualTo("github");
+        assertThat(resolved.getCommand()).isEqualTo("npx");
+        assertThat(resolved.getArgs()).containsExactly("-y", "server-github");
+    }
+
+    @Test
     @DisplayName("env가 Map이 아니면 IllegalArgumentException 발생")
     void fromMcpWithNonMapEnv() {
         Mcp mcp = Mcp.builder()

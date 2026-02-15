@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.squad.llm.model.LlmTool;
 import com.squad.mcp.client.McpClient;
 import com.squad.mcp.client.McpToolInfo;
+import com.squad.mcp.process.EnvResolver;
 import com.squad.mcp.process.McpConfig;
 import com.squad.mcp.process.McpConnection;
 import com.squad.mcp.process.McpProcessManager;
@@ -35,6 +36,7 @@ import java.util.Objects;
 public class McpToolRegistry {
 
     private final McpProcessManager processManager;
+    private final EnvResolver envResolver;
     private final ObjectMapper objectMapper;
 
     private final Map<String, McpClient> clients = new HashMap<>();
@@ -45,10 +47,12 @@ public class McpToolRegistry {
      * {@code McpToolRegistry}를 생성한다.
      *
      * @param processManager MCP 프로세스 관리자
+     * @param envResolver    환경변수 Secret 참조 해결기
      * @param objectMapper   JSON 직렬화/역직렬화 매퍼
      */
-    public McpToolRegistry(McpProcessManager processManager, ObjectMapper objectMapper) {
+    public McpToolRegistry(McpProcessManager processManager, EnvResolver envResolver, ObjectMapper objectMapper) {
         this.processManager = processManager;
+        this.envResolver = envResolver;
         this.objectMapper = objectMapper;
     }
 
@@ -67,9 +71,12 @@ public class McpToolRegistry {
     public synchronized List<LlmTool> registerMcp(McpConfig config) {
         Objects.requireNonNull(config, "config는 null일 수 없습니다");
         String mcpName = config.getName();
-        clearMcpState(mcpName);
 
-        McpConnection connection = processManager.start(config);
+        Map<String, String> resolvedEnv = envResolver.resolve(config.getEnv());
+        McpConfig resolvedConfig = config.withResolvedEnv(resolvedEnv);
+
+        clearMcpState(mcpName);
+        McpConnection connection = processManager.start(resolvedConfig);
         try {
             McpClient client = new McpClient(connection, objectMapper);
             client.initialize();

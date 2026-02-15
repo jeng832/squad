@@ -3,6 +3,7 @@ package com.squad.llm.tool.builtin;
 import com.squad.llm.model.LlmTool;
 import org.springframework.stereotype.Service;
 
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -12,6 +13,13 @@ import java.util.stream.Collectors;
  */
 @Service
 public class BuiltInToolRegistry {
+
+    private static final Set<String> REQUIRED_TOOL_NAMES = Set.of(
+            "file_read",
+            "file_write",
+            "file_search",
+            "bash_exec"
+    );
 
     private final List<LlmTool> tools;
     private final Set<String> toolNames;
@@ -28,6 +36,12 @@ public class BuiltInToolRegistry {
 
         if (toolNames.size() != tools.size()) {
             throw new IllegalStateException("Built-in Tool name이 중복되었습니다.");
+        }
+
+        Set<String> missingToolNames = new HashSet<>(REQUIRED_TOOL_NAMES);
+        missingToolNames.removeAll(toolNames);
+        if (!missingToolNames.isEmpty()) {
+            throw new IllegalStateException("필수 Built-in Tool이 누락되었습니다: " + missingToolNames);
         }
     }
 

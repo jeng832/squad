@@ -663,6 +663,7 @@
     - `bash_exec`: allowlist 기반 제한 명령 실행(메타문자 차단, workspace 경계 검증, 타임아웃/출력 길이 제한)
   - `CompositeToolExecutor` 추가: Built-in 우선, 그 외는 `McpToolExecutor`로 라우팅
   - `WorkerService` 수정: LLM 요청 도구 목록에 Built-in + MCP 도구를 함께 전달
+  - `bash_exec` 도구 메타데이터 개선: 허용 명령 allowlist를 tool description/command schema에 명시하고 `find` 대신 `file_search` 사용 가이드 추가
   - 단위 테스트 추가/보강:
     - `BuiltInToolExecutorTest` (파일 I/O, 검색, 경로 이탈 차단, 제한 명령 실행 검증)
     - `WorkerServiceTest` (Built-in 도구 레지스트리 주입 반영)

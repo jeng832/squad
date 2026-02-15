@@ -39,7 +39,7 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
                         "type", "object",
                         "properties", Map.of(
                                 "path", Map.of("type", "string", "description", "Base path, default '.'"),
-                                "glob", Map.of("type", "string", "description", "Glob filter, default '**/*'"),
+                                "glob", Map.of("type", "string", "description", "Glob filter, default '**'"),
                                 "pattern", Map.of("type", "string", "description", "Text pattern to match"),
                                 "maxResults", Map.of("type", "integer", "description", "Max matched files, default 100")
                         ),
@@ -51,7 +51,7 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
     @Override
     public String execute(LlmToolCall call, BuiltInToolContext context) throws Exception {
         String basePath = context.stringValue(call.arguments(), "path", ".");
-        String glob = context.stringValue(call.arguments(), "glob", "**/*");
+        String glob = context.stringValue(call.arguments(), "glob", "**");
         String pattern = context.stringValue(call.arguments(), "pattern", null);
         int maxResults = context.intValue(call.arguments(), "maxResults", DEFAULT_SEARCH_LIMIT);
         final int resultLimit = Math.max(1, Math.min(maxResults, MAX_SEARCH_LIMIT));

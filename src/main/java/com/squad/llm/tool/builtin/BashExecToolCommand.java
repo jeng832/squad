@@ -26,11 +26,11 @@ public class BashExecToolCommand implements BuiltInToolCommand {
     public LlmTool definition() {
         return new LlmTool(
                 "bash_exec",
-                "Execute shell command in workspace",
+                "Execute restricted command in workspace (no shell operators)",
                 Map.of(
                         "type", "object",
                         "properties", Map.of(
-                                "command", Map.of("type", "string", "description", "Shell command to execute"),
+                                "command", Map.of("type", "string", "description", "Command to execute without shell operators"),
                                 "timeoutSeconds", Map.of("type", "integer", "description", "Execution timeout in seconds, default 30")
                         ),
                         "required", List.of("command")

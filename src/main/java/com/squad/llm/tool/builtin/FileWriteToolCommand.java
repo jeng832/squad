@@ -10,19 +10,29 @@ import java.nio.file.StandardOpenOption;
 import java.util.List;
 import java.util.Map;
 
+/**
+ * workspace 내 파일 쓰기 Built-in Tool.
+ *
+ * <p>지정된 경로에 내용을 작성하거나 추가한다.
+ * 디스크 고갈 방지를 위해 최대 쓰기 크기가 제한된다.</p>
+ *
+ * @see BuiltInToolCommand
+ */
 @Component
 public class FileWriteToolCommand implements BuiltInToolCommand {
+
+    private static final int MAX_WRITE_SIZE_CHARS = 5 * 1024 * 1024; // 5MB
 
     @Override
     public LlmTool definition() {
         return new LlmTool(
                 "file_write",
-                "Write content to file in workspace",
+                "Write content to file in workspace (max 5MB per write)",
                 Map.of(
                         "type", "object",
                         "properties", Map.of(
                                 "path", Map.of("type", "string", "description", "Path relative to workspace"),
-                                "content", Map.of("type", "string", "description", "Content to write"),
+                                "content", Map.of("type", "string", "description", "Content to write (max 5MB)"),
                                 "append", Map.of("type", "boolean", "description", "Append instead of overwrite")
                         ),
                         "required", List.of("path", "content")
@@ -35,6 +45,11 @@ public class FileWriteToolCommand implements BuiltInToolCommand {
         String rawPath = context.requiredString(call.arguments(), "path");
         String content = context.requiredString(call.arguments(), "content");
         boolean append = context.booleanValue(call.arguments(), "append", false);
+
+        if (content.length() > MAX_WRITE_SIZE_CHARS) {
+            throw new IllegalArgumentException(
+                    "쓰기 내용이 너무 큽니다 (최대 5MB): " + content.length() + " chars");
+        }
 
         Path path = context.resolveWithinWorkspace(rawPath);
         Path parent = path.getParent();

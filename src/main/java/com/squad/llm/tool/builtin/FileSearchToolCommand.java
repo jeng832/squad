@@ -14,11 +14,20 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
 
+/**
+ * workspace 내 파일 검색 Built-in Tool.
+ *
+ * <p>glob 패턴과 텍스트 패턴을 조합하여 파일을 검색한다.
+ * symlink를 통한 workspace 탈출을 방지하며, 탐색 깊이와 결과 수가 제한된다.</p>
+ *
+ * @see BuiltInToolCommand
+ */
 @Component
 public class FileSearchToolCommand implements BuiltInToolCommand {
 
     private static final int DEFAULT_SEARCH_LIMIT = 100;
     private static final int MAX_SEARCH_LIMIT = 500;
+    private static final int MAX_WALK_DEPTH = 20;
     private static final long MAX_PATTERN_SCAN_FILE_SIZE_BYTES = 1_000_000L;
 
     @Override
@@ -55,7 +64,7 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
         PathMatcher matcher = base.getFileSystem().getPathMatcher("glob:" + glob);
 
         List<String> matches;
-        try (Stream<Path> stream = Files.walk(base)) {
+        try (Stream<Path> stream = Files.walk(base, MAX_WALK_DEPTH)) {
             matches = stream.filter(file -> Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
                     .filter(file -> isSafeWorkspaceFile(file, context))
                     .filter(file -> matcher.matches(base.relativize(file)))

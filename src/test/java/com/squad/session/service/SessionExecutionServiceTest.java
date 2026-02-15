@@ -345,6 +345,21 @@ class SessionExecutionServiceTest {
     }
 
     @Test
+    @DisplayName("세션 완료 시 result가 null이면 NullPointerException이 발생한다")
+    void completeWithNullResult() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Squad squad = createSquad(orchestrator, Set.of());
+        Session session = Session.builder()
+                .id(1L).squad(squad).userPrompt("프롬프트").status(SessionStatus.RUNNING).build();
+
+        given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(containerLifecycleManager.buildContainerName("1", "10")).willReturn("squad-1-10");
+
+        assertThatThrownBy(() -> sessionExecutionService.complete(1L, null))
+                .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
     @DisplayName("Agent가 없는 Squad도 Orchestrator만으로 시작할 수 있다")
     void startWithOrchestratorOnly() {
         Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);

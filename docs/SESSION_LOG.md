@@ -683,3 +683,20 @@
   - 3차 (합의 논의): CompositeToolExecutor null 방어 추가
   - 4차 (codex-cli 리뷰): file_write 크기 제한을 바이트 기반으로 변경
   - 최종: 양쪽 모두 추가 리뷰 건 없음 → 종료
+
+### 작업 10-1, 10-2, 10-3: 테스트 커버리지 100% 달성
+- **PR**: [#58](https://github.com/jeng832/squad/pull/58)
+- **구현 내용**:
+  - **10-1: Service 단위 테스트 7개** (AgentServiceTest, McpServiceTest, SkillServiceTest, SquadServiceTest, SecretServiceTest, SessionServiceTest, MessageServiceTest)
+    - `@ExtendWith(MockitoExtension.class)` + `@Mock` Repository + `@InjectMocks` Service 패턴
+    - 정상 CRUD 동작, NotFoundException, ValidationException 검증
+    - McpService config 검증, SquadService orchestrator role 검증, SecretService ref 형식 검증
+  - **10-2: Controller 통합 테스트 2개** (McpGatewayControllerTest, AgentContainerHealthControllerTest)
+    - `@WebMvcTest` + `@MockitoBean` + MockMvc 패턴 (기존 AgentControllerTest와 동일)
+    - MCP 등록/해제/도구 조회/호출, Health Check 검증
+  - **10-3: 세션 실행 E2E 테스트 1개** (SessionExecutionE2ETest)
+    - `@SpringBootTest` + Testcontainers Redis 기반 Spring 통합 테스트
+    - Docker/LLM은 `@MockitoBean`으로 대체
+    - 전체 흐름(생성→시작→완료), Container 실패 시 정리, 취소 흐름, 상태 검증
+  - 전체 테스트 수: 437 → 443 (신규 테스트 메서드 ~93개)
+  - 모든 테스트 통과 확인 (0 failures, 0 ignored)

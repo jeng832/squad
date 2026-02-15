@@ -119,9 +119,9 @@
 
 | # | 작업명 | 설명 | 예상 변경 범위 | PR |
 |---|--------|------|---------------|-----|
-| 10-1 | 단위 테스트 작성 | Service 계층 단위 테스트, Mock을 활용한 의존성 분리 | 테스트 파일 다수 | |
-| 10-2 | API 통합 테스트 | MockMvc를 활용한 REST API 테스트, 시나리오별 테스트 | 테스트 파일 다수 | |
-| 10-3 | 세션 실행 E2E 테스트 | Testcontainers로 Docker 환경 구성, 전체 플로우 테스트 | 2~3개 테스트 파일 | |
+| 10-1 | 단위 테스트 작성 | Service 계층 단위 테스트, Mock을 활용한 의존성 분리 | 테스트 파일 7개 | [#58](https://github.com/jeng832/squad/pull/58) |
+| 10-2 | API 통합 테스트 | MockMvc를 활용한 REST API 테스트, 시나리오별 테스트 | 테스트 파일 2개 | [#58](https://github.com/jeng832/squad/pull/58) |
+| 10-3 | 세션 실행 E2E 테스트 | Spring 통합 테스트, Docker/LLM Mock, 전체 플로우 테스트 | 테스트 파일 1개 | [#58](https://github.com/jeng832/squad/pull/58) |
 
 ---
 

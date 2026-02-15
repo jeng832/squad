@@ -11,6 +11,8 @@ import com.squad.llm.tool.LlmToolResult;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import com.squad.common.exception.ValidationException;
+
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -18,6 +20,7 @@ import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 @DisplayName("LlmToolUseService")
 class LlmToolUseServiceTest {
@@ -160,6 +163,27 @@ class LlmToolUseServiceTest {
         assertThat(thirdRequest.messages().get(0).content()).isEqualTo("시작");
         assertThat(thirdRequest.messages().get(1).content()).contains("tool1-out");
         assertThat(thirdRequest.messages().get(2).content()).contains("tool2-out");
+    }
+
+    @Test
+    @DisplayName("지원하지 않는 provider이면 ValidationException 발생")
+    void unsupportedProviderThrows() {
+        StubProvider provider = new StubProvider("claude", List.of());
+
+        LlmToolUseService service = new LlmToolUseService(
+                new LlmProviderFactory(List.of(provider)),
+                toolCall -> new LlmToolResult(toolCall.id(), toolCall.name(), "out")
+        );
+
+        LlmRequest request = new LlmRequest(
+                null, "sys",
+                List.of(new LlmMessage("user", "hi")),
+                null, null, null
+        );
+
+        assertThatThrownBy(() -> service.sendWithToolUse("unknown-provider", request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("지원하지 않는 provider");
     }
 
     private static final class StubProvider implements LlmProvider {

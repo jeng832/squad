@@ -206,6 +206,43 @@ class WorkerServiceTest {
     }
 
     @Test
+    @DisplayName("stopWorker 호출 시 시작하지 않은 Worker는 아무 동작도 하지 않는다")
+    void stopWorkerNoOp() {
+        workerService.stopWorker(1L, 999L);
+
+        verifyNoInteractions(subscription);
+    }
+
+    @Test
+    @DisplayName("Agent의 llmConfig에 provider가 없으면 예외가 발생한다")
+    void missingProviderThrows() {
+        Agent agentNoProvider = Agent.builder()
+                .id(5L)
+                .name("NoProvider")
+                .roleType(RoleType.WORKER)
+                .role("역할")
+                .llmConfig(Map.of("model", "gpt-4"))
+                .build();
+
+        ArgumentCaptor<MessageHandler> handlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(5L), handlerCaptor.capture()))
+                .willReturn(subscription);
+
+        workerService.startWorker(1L, agentNoProvider);
+
+        // provider 없으면 extractProviderName에서 IllegalStateException →
+        // handleMessage에서 catch하여 에러 결과 전송
+        handlerCaptor.getValue().handle(
+                SessionMessage.of(1L, 1L, 5L, MessageType.TASK_REQUEST, "작업 요청"));
+
+        ArgumentCaptor<SessionMessage> resultCaptor = ArgumentCaptor.forClass(SessionMessage.class);
+        verify(messageRouter).route(resultCaptor.capture());
+
+        assertThat(resultCaptor.getValue().getType()).isEqualTo(MessageType.TASK_RESULT);
+        assertThat(resultCaptor.getValue().getContent()).contains("[오류]");
+    }
+
+    @Test
     @DisplayName("LLM 응답이 빈 content일 때 기본 메시지를 반환한다")
     void emptyLlmResponseReturnsDefault() {
         ArgumentCaptor<MessageHandler> handlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);

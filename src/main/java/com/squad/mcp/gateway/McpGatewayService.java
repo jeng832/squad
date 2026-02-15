@@ -9,6 +9,7 @@ import com.squad.mcp.domain.Mcp;
 import com.squad.mcp.gateway.dto.McpGatewayEvent;
 import com.squad.mcp.process.McpConfig;
 import com.squad.mcp.repository.McpRepository;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.codec.ServerSentEvent;
 import org.springframework.stereotype.Service;
 import reactor.core.publisher.Flux;
@@ -22,6 +23,7 @@ import java.util.UUID;
 /**
  * MCP 서버를 중앙 관리하고 Agent에 HTTP/SSE 엔드포인트를 제공하는 서비스.
  */
+@Slf4j
 @Service
 public class McpGatewayService {
 
@@ -81,6 +83,11 @@ public class McpGatewayService {
     }
 
     private void publish(String type, String mcpName, String toolAlias, String message) {
-        eventSink.tryEmitNext(new McpGatewayEvent(type, mcpName, toolAlias, message, LocalDateTime.now()));
+        McpGatewayEvent event = new McpGatewayEvent(type, mcpName, toolAlias, message, LocalDateTime.now());
+        Sinks.EmitResult result = eventSink.tryEmitNext(event);
+        if (result.isFailure()) {
+            log.warn("MCP Gateway 이벤트 전송 실패: result={}, type={}, mcpName={}, toolAlias={}",
+                    result, type, mcpName, toolAlias);
+        }
     }
 }

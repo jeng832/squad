@@ -660,11 +660,11 @@
     - `file_read`: 파일 읽기
     - `file_write`: 파일 쓰기/append
     - `file_search`: glob + optional pattern 기반 파일 검색
-    - `bash_exec`: workspace 기준 셸 명령 실행(타임아웃/출력 길이 제한)
+    - `bash_exec`: allowlist 기반 제한 명령 실행(메타문자 차단, workspace 경계 검증, 타임아웃/출력 길이 제한)
   - `CompositeToolExecutor` 추가: Built-in 우선, 그 외는 `McpToolExecutor`로 라우팅
   - `WorkerService` 수정: LLM 요청 도구 목록에 Built-in + MCP 도구를 함께 전달
   - 단위 테스트 추가/보강:
-    - `BuiltInToolExecutorTest` (파일 I/O, 검색, 경로 이탈 차단, bash 실행)
+    - `BuiltInToolExecutorTest` (파일 I/O, 검색, 경로 이탈 차단, 제한 명령 실행 검증)
     - `WorkerServiceTest` (Built-in 도구 레지스트리 주입 반영)
 - **설계 결정**:
   - 도구 실행 인터페이스(`LlmToolExecutor`)는 유지하고 `@Primary` 합성 실행기로 라우팅

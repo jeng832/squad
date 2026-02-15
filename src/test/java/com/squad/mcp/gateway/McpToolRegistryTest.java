@@ -5,6 +5,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.squad.llm.model.LlmTool;
 import com.squad.mcp.client.McpClient;
 import com.squad.mcp.client.McpToolInfo;
+import com.squad.mcp.process.EnvResolver;
 import com.squad.mcp.process.McpConfig;
 import com.squad.mcp.process.McpConnection;
 import com.squad.mcp.process.McpProcessManager;
@@ -33,6 +34,9 @@ class McpToolRegistryTest {
     private McpProcessManager processManager;
 
     @Mock
+    private EnvResolver envResolver;
+
+    @Mock
     private McpConnection connection;
 
     private final ObjectMapper objectMapper = new ObjectMapper();
@@ -40,16 +44,16 @@ class McpToolRegistryTest {
 
     @BeforeEach
     void setUp() {
-        registry = new McpToolRegistry(processManager, objectMapper);
+        registry = new McpToolRegistry(processManager, envResolver, objectMapper);
     }
 
     private McpConfig createMcpConfig(String name) {
-        return mock(McpConfig.class, invocation -> {
-            if (invocation.getMethod().getName().equals("getName")) {
-                return name;
-            }
-            return invocation.callRealMethod();
-        });
+        McpConfig config = mock(McpConfig.class);
+        when(config.getName()).thenReturn(name);
+        when(config.getEnv()).thenReturn(java.util.Map.of());
+        when(envResolver.resolve(java.util.Map.of())).thenReturn(java.util.Map.of());
+        when(config.withResolvedEnv(java.util.Map.of())).thenReturn(config);
+        return config;
     }
 
     private JsonNode createSchema(String property) throws Exception {

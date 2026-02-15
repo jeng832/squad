@@ -671,3 +671,15 @@
   - 도구 실행 인터페이스(`LlmToolExecutor`)는 유지하고 `@Primary` 합성 실행기로 라우팅
   - 경로 보안은 `squad.builtin-tools.workspace-root`(기본 `/workspace`) 기준 정규화 + startsWith 검증
   - 오류는 예외 throw 대신 `[오류]` 텍스트로 반환해 LLM tool_use 루프와 일관성 유지
+- **Claude + codex-cli 교차 코드리뷰** (4회 반복, 양쪽 이슈 없을 때까지):
+  - 1차 (Claude 리뷰): P1 3건, P2 6건, P3 3건 → 전체 수정
+    - P1: bash_exec symlink 탈출 방지 (`validatePlainFilenameSymlink`)
+    - P1: exitCode != 0 시 throw 제거 (exitCode + output 반환)
+    - P1: file_search에서 `Files.walk()` 시 symlink 탐색 방지
+    - P2: bash_exec pipe deadlock 방지 (`drainOutputWithTimeout`)
+    - P2: file_read 10MB, file_write 5MB, file_search depth 20 제한
+    - P3: javadoc, Comparator 개선, @DisplayName 추가
+  - 2차 (codex-cli 리뷰): P1 1건 (output drain OOM), P2 1건 (기본 glob `**/*` 매치 누락) → 수정
+  - 3차 (합의 논의): CompositeToolExecutor null 방어 추가
+  - 4차 (codex-cli 리뷰): file_write 크기 제한을 바이트 기반으로 변경
+  - 최종: 양쪽 모두 추가 리뷰 건 없음 → 종료

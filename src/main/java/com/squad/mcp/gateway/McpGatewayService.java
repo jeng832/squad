@@ -52,6 +52,9 @@ public class McpGatewayService {
     }
 
     public void unregister(String mcpName) {
+        mcpRepository.findByName(mcpName)
+                .orElseThrow(() -> new NotFoundException(ErrorCode.MCP_NOT_FOUND));
+
         mcpToolRegistry.unregisterMcp(mcpName);
         publish("MCP_UNREGISTERED", mcpName, null, "MCP가 해제되었습니다.");
     }

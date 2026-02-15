@@ -59,6 +59,40 @@ class McpGatewayServiceTest {
     }
 
     @Test
+    void 이름으로_MCP를_해제한다() {
+        McpRepository repository = Mockito.mock(McpRepository.class);
+        McpToolRegistry registry = Mockito.mock(McpToolRegistry.class);
+        McpToolExecutor executor = Mockito.mock(McpToolExecutor.class);
+
+        Mcp mcp = Mcp.builder()
+                .id(1L)
+                .name("github")
+                .description("GitHub MCP")
+                .config(Map.of("command", "npx"))
+                .build();
+        when(repository.findByName("github")).thenReturn(Optional.of(mcp));
+
+        McpGatewayService service = new McpGatewayService(repository, registry, executor);
+        service.unregister("github");
+
+        verify(registry).unregisterMcp("github");
+    }
+
+    @Test
+    void 존재하지_않는_MCP_해제시_예외() {
+        McpRepository repository = Mockito.mock(McpRepository.class);
+        McpToolRegistry registry = Mockito.mock(McpToolRegistry.class);
+        McpToolExecutor executor = Mockito.mock(McpToolExecutor.class);
+
+        when(repository.findByName("missing")).thenReturn(Optional.empty());
+
+        McpGatewayService service = new McpGatewayService(repository, registry, executor);
+
+        assertThatThrownBy(() -> service.unregister("missing"))
+                .isInstanceOf(NotFoundException.class);
+    }
+
+    @Test
     void Tool을_호출한다() {
         McpRepository repository = Mockito.mock(McpRepository.class);
         McpToolRegistry registry = Mockito.mock(McpToolRegistry.class);

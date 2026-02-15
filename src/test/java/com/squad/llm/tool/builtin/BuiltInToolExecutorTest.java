@@ -83,14 +83,15 @@ class BuiltInToolExecutorTest {
     }
 
     private BuiltInToolExecutor createExecutor() {
+        var commands = List.of(
+                new FileReadToolCommand(),
+                new FileWriteToolCommand(),
+                new FileSearchToolCommand(),
+                new BashExecToolCommand()
+        );
         return new BuiltInToolExecutor(
-                new BuiltInToolRegistry(),
-                List.of(
-                        new FileReadToolCommand(),
-                        new FileWriteToolCommand(),
-                        new FileSearchToolCommand(),
-                        new BashExecToolCommand()
-                ),
+                new BuiltInToolRegistry(commands),
+                commands,
                 workspace.toString()
         );
     }

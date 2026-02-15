@@ -1,9 +1,12 @@
 package com.squad.llm.tool.builtin;
 
+import com.squad.llm.model.LlmTool;
 import com.squad.llm.model.LlmToolCall;
 import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
+import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 @Component
@@ -14,8 +17,19 @@ public class BashExecToolCommand implements BuiltInToolCommand {
     private static final int MAX_OUTPUT_CHARS = 12000;
 
     @Override
-    public String toolName() {
-        return "bash_exec";
+    public LlmTool definition() {
+        return new LlmTool(
+                "bash_exec",
+                "Execute shell command in workspace",
+                Map.of(
+                        "type", "object",
+                        "properties", Map.of(
+                                "command", Map.of("type", "string", "description", "Shell command to execute"),
+                                "timeoutSeconds", Map.of("type", "integer", "description", "Execution timeout in seconds, default 30")
+                        ),
+                        "required", List.of("command")
+                )
+        );
     }
 
     @Override

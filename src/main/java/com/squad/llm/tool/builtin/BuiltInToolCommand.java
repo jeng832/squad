@@ -1,5 +1,6 @@
 package com.squad.llm.tool.builtin;
 
+import com.squad.llm.model.LlmTool;
 import com.squad.llm.model.LlmToolCall;
 
 /**
@@ -7,7 +8,11 @@ import com.squad.llm.model.LlmToolCall;
  */
 public interface BuiltInToolCommand {
 
-    String toolName();
+    LlmTool definition();
+
+    default String toolName() {
+        return definition().name();
+    }
 
     String execute(LlmToolCall call, BuiltInToolContext context) throws Exception;
 }

@@ -4,8 +4,8 @@ import com.squad.llm.model.LlmTool;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 /**
  * Agent Runtime에 기본 제공되는 Built-in Tool 정의 레지스트리.
@@ -13,75 +13,29 @@ import java.util.Set;
 @Service
 public class BuiltInToolRegistry {
 
-    private static final Set<String> TOOL_NAMES = Set.of(
-            "file_read",
-            "file_write",
-            "file_search",
-            "bash_exec"
-    );
+    private final List<LlmTool> tools;
+    private final Set<String> toolNames;
 
-    private static final List<LlmTool> TOOLS = List.of(
-            new LlmTool(
-                    "file_read",
-                    "Read file content from workspace",
-                    schema(
-                            Map.of(
-                                    "path", Map.of("type", "string", "description", "Path relative to workspace")
-                            ),
-                            List.of("path")
-                    )
-            ),
-            new LlmTool(
-                    "file_write",
-                    "Write content to file in workspace",
-                    schema(
-                            Map.of(
-                                    "path", Map.of("type", "string", "description", "Path relative to workspace"),
-                                    "content", Map.of("type", "string", "description", "Content to write"),
-                                    "append", Map.of("type", "boolean", "description", "Append instead of overwrite")
-                            ),
-                            List.of("path", "content")
-                    )
-            ),
-            new LlmTool(
-                    "file_search",
-                    "Search files under workspace by glob and optional text pattern",
-                    schema(
-                            Map.of(
-                                    "path", Map.of("type", "string", "description", "Base path, default '.'"),
-                                    "glob", Map.of("type", "string", "description", "Glob filter, default '**/*'"),
-                                    "pattern", Map.of("type", "string", "description", "Text pattern to match"),
-                                    "maxResults", Map.of("type", "integer", "description", "Max matched files, default 100")
-                            ),
-                            List.of()
-                    )
-            ),
-            new LlmTool(
-                    "bash_exec",
-                    "Execute shell command in workspace",
-                    schema(
-                            Map.of(
-                                    "command", Map.of("type", "string", "description", "Shell command to execute"),
-                                    "timeoutSeconds", Map.of("type", "integer", "description", "Execution timeout in seconds, default 30")
-                            ),
-                            List.of("command")
-                    )
-            )
-    );
+    public BuiltInToolRegistry(List<BuiltInToolCommand> commands) {
+        this.tools = commands.stream()
+                .map(BuiltInToolCommand::definition)
+                .sorted((a, b) -> a.name().compareTo(b.name()))
+                .toList();
+
+        this.toolNames = tools.stream()
+                .map(LlmTool::name)
+                .collect(Collectors.toUnmodifiableSet());
+
+        if (toolNames.size() != tools.size()) {
+            throw new IllegalStateException("Built-in Tool name이 중복되었습니다.");
+        }
+    }
 
     public List<LlmTool> getTools() {
-        return TOOLS;
+        return tools;
     }
 
     public boolean isBuiltInTool(String toolName) {
-        return TOOL_NAMES.contains(toolName);
-    }
-
-    private static Map<String, Object> schema(Map<String, Object> properties, List<String> required) {
-        return Map.of(
-                "type", "object",
-                "properties", properties,
-                "required", required
-        );
+        return toolNames.contains(toolName);
     }
 }

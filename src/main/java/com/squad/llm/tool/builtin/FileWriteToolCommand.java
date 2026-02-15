@@ -1,18 +1,33 @@
 package com.squad.llm.tool.builtin;
 
+import com.squad.llm.model.LlmTool;
 import com.squad.llm.model.LlmToolCall;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class FileWriteToolCommand implements BuiltInToolCommand {
 
     @Override
-    public String toolName() {
-        return "file_write";
+    public LlmTool definition() {
+        return new LlmTool(
+                "file_write",
+                "Write content to file in workspace",
+                Map.of(
+                        "type", "object",
+                        "properties", Map.of(
+                                "path", Map.of("type", "string", "description", "Path relative to workspace"),
+                                "content", Map.of("type", "string", "description", "Content to write"),
+                                "append", Map.of("type", "boolean", "description", "Append instead of overwrite")
+                        ),
+                        "required", List.of("path", "content")
+                )
+        );
     }
 
     @Override

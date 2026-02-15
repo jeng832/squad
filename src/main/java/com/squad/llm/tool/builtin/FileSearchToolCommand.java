@@ -1,5 +1,6 @@
 package com.squad.llm.tool.builtin;
 
+import com.squad.llm.model.LlmTool;
 import com.squad.llm.model.LlmToolCall;
 import org.springframework.stereotype.Component;
 
@@ -9,6 +10,7 @@ import java.nio.file.Path;
 import java.nio.file.PathMatcher;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 
 @Component
@@ -18,8 +20,21 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
     private static final int MAX_SEARCH_LIMIT = 500;
 
     @Override
-    public String toolName() {
-        return "file_search";
+    public LlmTool definition() {
+        return new LlmTool(
+                "file_search",
+                "Search files under workspace by glob and optional text pattern",
+                Map.of(
+                        "type", "object",
+                        "properties", Map.of(
+                                "path", Map.of("type", "string", "description", "Base path, default '.'"),
+                                "glob", Map.of("type", "string", "description", "Glob filter, default '**/*'"),
+                                "pattern", Map.of("type", "string", "description", "Text pattern to match"),
+                                "maxResults", Map.of("type", "integer", "description", "Max matched files, default 100")
+                        ),
+                        "required", List.of()
+                )
+        );
     }
 
     @Override

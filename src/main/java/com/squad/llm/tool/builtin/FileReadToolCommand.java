@@ -1,17 +1,30 @@
 package com.squad.llm.tool.builtin;
 
+import com.squad.llm.model.LlmTool;
 import com.squad.llm.model.LlmToolCall;
 import org.springframework.stereotype.Component;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
+import java.util.Map;
 
 @Component
 public class FileReadToolCommand implements BuiltInToolCommand {
 
     @Override
-    public String toolName() {
-        return "file_read";
+    public LlmTool definition() {
+        return new LlmTool(
+                "file_read",
+                "Read file content from workspace",
+                Map.of(
+                        "type", "object",
+                        "properties", Map.of(
+                                "path", Map.of("type", "string", "description", "Path relative to workspace")
+                        ),
+                        "required", List.of("path")
+                )
+        );
     }
 
     @Override

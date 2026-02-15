@@ -102,6 +102,34 @@ class BuiltInToolExecutorTest {
         assertThat(result.output()).contains(workspace.toAbsolutePath().normalize().toString());
     }
 
+    @Test
+    void bashExecBlocksAbsolutePathAccess() {
+        BuiltInToolExecutor executor = createExecutor();
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c6",
+                "bash_exec",
+                Map.of("command", "cat /etc/passwd")
+        ));
+
+        assertThat(result.output()).contains("[오류]");
+        assertThat(result.output()).contains("workspace 밖");
+    }
+
+    @Test
+    void bashExecBlocksShellMetaCharacters() {
+        BuiltInToolExecutor executor = createExecutor();
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c7",
+                "bash_exec",
+                Map.of("command", "pwd && ls")
+        ));
+
+        assertThat(result.output()).contains("[오류]");
+        assertThat(result.output()).contains("메타 문자");
+    }
+
     private BuiltInToolExecutor createExecutor() {
         var commands = List.of(
                 new FileReadToolCommand(),

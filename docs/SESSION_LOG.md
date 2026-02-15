@@ -651,3 +651,35 @@
   - 기존 `McpToolRegistry`, `McpToolExecutor`를 재사용해 Gateway 계층만 추가
   - 이벤트 스트림은 Reactor `Sinks.Many` 기반 multicast로 구현
   - Tool 호출은 alias 기반(`mcpName__toolName`) 라우팅 유지
+
+### 작업 9-7: Built-in Tools 구현
+- **PR**: [#57](https://github.com/jeng832/squad/pull/57)
+- **구현 내용**:
+  - `BuiltInToolRegistry` 추가: `file_read`, `file_write`, `file_search`, `bash_exec` 도구 정의(JSON Schema) 제공
+  - `BuiltInToolExecutor` 추가: `/workspace` 기준 경로 검증 후 내장 도구 실행
+    - `file_read`: 파일 읽기
+    - `file_write`: 파일 쓰기/append
+    - `file_search`: glob + optional pattern 기반 파일 검색
+    - `bash_exec`: allowlist 기반 제한 명령 실행(메타문자 차단, workspace 경계 검증, 타임아웃/출력 길이 제한)
+  - `CompositeToolExecutor` 추가: Built-in 우선, 그 외는 `McpToolExecutor`로 라우팅
+  - `WorkerService` 수정: LLM 요청 도구 목록에 Built-in + MCP 도구를 함께 전달
+  - `bash_exec` 도구 메타데이터 개선: 허용 명령 allowlist를 tool description/command schema에 명시하고 `find` 대신 `file_search` 사용 가이드 추가
+  - 단위 테스트 추가/보강:
+    - `BuiltInToolExecutorTest` (파일 I/O, 검색, 경로 이탈 차단, 제한 명령 실행 검증)
+    - `WorkerServiceTest` (Built-in 도구 레지스트리 주입 반영)
+- **설계 결정**:
+  - 도구 실행 인터페이스(`LlmToolExecutor`)는 유지하고 `@Primary` 합성 실행기로 라우팅
+  - 경로 보안은 `squad.builtin-tools.workspace-root`(기본 `/workspace`) 기준 정규화 + startsWith 검증
+  - 오류는 예외 throw 대신 `[오류]` 텍스트로 반환해 LLM tool_use 루프와 일관성 유지
+- **Claude + codex-cli 교차 코드리뷰** (4회 반복, 양쪽 이슈 없을 때까지):
+  - 1차 (Claude 리뷰): P1 3건, P2 6건, P3 3건 → 전체 수정
+    - P1: bash_exec symlink 탈출 방지 (`validatePlainFilenameSymlink`)
+    - P1: exitCode != 0 시 throw 제거 (exitCode + output 반환)
+    - P1: file_search에서 `Files.walk()` 시 symlink 탐색 방지
+    - P2: bash_exec pipe deadlock 방지 (`drainOutputWithTimeout`)
+    - P2: file_read 10MB, file_write 5MB, file_search depth 20 제한
+    - P3: javadoc, Comparator 개선, @DisplayName 추가
+  - 2차 (codex-cli 리뷰): P1 1건 (output drain OOM), P2 1건 (기본 glob `**/*` 매치 누락) → 수정
+  - 3차 (합의 논의): CompositeToolExecutor null 방어 추가
+  - 4차 (codex-cli 리뷰): file_write 크기 제한을 바이트 기반으로 변경
+  - 최종: 양쪽 모두 추가 리뷰 건 없음 → 종료

@@ -4,11 +4,13 @@ import com.squad.agent.domain.Agent;
 import com.squad.agent.domain.RoleType;
 import com.squad.llm.LlmProvider;
 import com.squad.llm.LlmProviderFactory;
+import com.squad.llm.model.LlmTool;
 import com.squad.llm.model.LlmRequest;
 import com.squad.llm.model.LlmResponse;
 import com.squad.llm.service.LlmToolUseService;
 import com.squad.llm.tool.LlmToolExecutor;
 import com.squad.llm.tool.LlmToolResult;
+import com.squad.llm.tool.builtin.BuiltInToolRegistry;
 import com.squad.mcp.gateway.McpToolRegistry;
 import com.squad.messaging.MessageHandler;
 import com.squad.messaging.MessageRouter;
@@ -39,6 +41,8 @@ class WorkerServiceTest {
 
     @Mock
     private McpToolRegistry mcpToolRegistry;
+    @Mock
+    private BuiltInToolRegistry builtInToolRegistry;
 
     @Mock
     private MessageRouter messageRouter;
@@ -68,9 +72,12 @@ class WorkerServiceTest {
         llmToolUseService = new LlmToolUseService(providerFactory, toolExecutor);
 
         lenient().when(mcpToolRegistry.getAllTools()).thenReturn(List.of());
+        lenient().when(builtInToolRegistry.getTools()).thenReturn(List.of(
+                new LlmTool("file_read", "read", Map.of())
+        ));
 
         workerService = new WorkerService(
-                llmToolUseService, mcpToolRegistry,
+                llmToolUseService, builtInToolRegistry, mcpToolRegistry,
                 messageRouter, messageSubscriber, sessionEventPublisher);
 
         worker = Agent.builder()

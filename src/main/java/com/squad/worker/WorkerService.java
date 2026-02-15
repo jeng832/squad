@@ -3,6 +3,7 @@ package com.squad.worker;
 import com.squad.agent.domain.Agent;
 import com.squad.llm.model.*;
 import com.squad.llm.service.LlmToolUseService;
+import com.squad.llm.tool.builtin.BuiltInToolRegistry;
 import com.squad.mcp.gateway.McpToolRegistry;
 import com.squad.messaging.MessageRouter;
 import com.squad.messaging.MessageSubscriber;
@@ -14,6 +15,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -44,6 +46,7 @@ import java.util.concurrent.ConcurrentHashMap;
 public class WorkerService {
 
     private final LlmToolUseService llmToolUseService;
+    private final BuiltInToolRegistry builtInToolRegistry;
     private final McpToolRegistry mcpToolRegistry;
     private final MessageRouter messageRouter;
     private final MessageSubscriber messageSubscriber;
@@ -146,7 +149,8 @@ public class WorkerService {
     private String callLlm(WorkerContext context) {
         Agent agent = context.getAgent();
         String providerName = extractProviderName(agent);
-        List<LlmTool> tools = mcpToolRegistry.getAllTools();
+        List<LlmTool> tools = new ArrayList<>(builtInToolRegistry.getTools());
+        tools.addAll(mcpToolRegistry.getAllTools());
 
         LlmRequest request = new LlmRequest(
                 extractModel(agent),

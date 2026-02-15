@@ -68,6 +68,11 @@ Claude의 Tool Use는 **요청 시 tools 목록을 선언**하고, 응답에서 
   2. 실제 도구(MCP 등)를 호출
   3. 실행 결과를 다시 Claude에 전달해 후속 응답을 받음
 
+Squad의 `bash_exec`는 보안상 제한된 내장 도구다. 에이전트가 사용할 수 있는 명령은 아래 allowlist로 제한된다.
+
+- `cat`, `cp`, `echo`, `grep`, `head`, `ls`, `mkdir`, `mv`, `pwd`, `tail`, `touch`, `wc`
+- `find`가 필요하면 `bash_exec`가 아니라 `file_search` 도구를 사용해야 한다.
+
 **Request 예시:**
 ```json
 {

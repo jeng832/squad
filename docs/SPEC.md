@@ -176,7 +176,7 @@ Agent Runtime에 직접 구현되어 모든 에이전트에 **자동으로 제�
 | `file_read` | 파일 내용 읽기 |
 | `file_write` | 파일 내용 쓰기 |
 | `file_search` | 파일 검색 (glob, grep) |
-| `bash_exec` | 셸 명령 실행 |
+| `bash_exec` | allowlist 기반 제한 명령 실행 (`cat`, `cp`, `echo`, `grep`, `head`, `ls`, `mkdir`, `mv`, `pwd`, `tail`, `touch`, `wc`) |
 
 **특징:**
 - 에이전트 컨테이너 안에서 직접 실행 (MCP 프로토콜 불필요)

@@ -6,6 +6,7 @@ import org.springframework.stereotype.Component;
 
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -28,13 +29,18 @@ public class BashExecToolCommand implements BuiltInToolCommand {
 
     @Override
     public LlmTool definition() {
+        String allowlistedCommands = allowedCommandsDescription();
         return new LlmTool(
                 "bash_exec",
-                "Execute allowlisted command in workspace (no shell operators)",
+                "Execute allowlisted command in workspace (no shell operators). Allowed commands: " + allowlistedCommands,
                 Map.of(
                         "type", "object",
                         "properties", Map.of(
-                                "command", Map.of("type", "string", "description", "Allowlisted command without shell operators"),
+                                "command", Map.of(
+                                        "type", "string",
+                                        "description", "Allowlisted command without shell operators. Allowed commands: "
+                                                + allowlistedCommands + ". Use file_search instead of find."
+                                ),
                                 "timeoutSeconds", Map.of("type", "integer", "description", "Execution timeout in seconds, default 30")
                         ),
                         "required", List.of("command")
@@ -166,5 +172,12 @@ public class BashExecToolCommand implements BuiltInToolCommand {
         if (!ALLOWED_COMMANDS.contains(commandName)) {
             throw new IllegalArgumentException("허용되지 않는 명령입니다: " + commandName);
         }
+    }
+
+    private String allowedCommandsDescription() {
+        return ALLOWED_COMMANDS.stream()
+                .sorted(Comparator.naturalOrder())
+                .reduce((left, right) -> left + ", " + right)
+                .orElse("");
     }
 }

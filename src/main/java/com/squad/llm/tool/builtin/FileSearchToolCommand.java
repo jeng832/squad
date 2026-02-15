@@ -5,6 +5,7 @@ import com.squad.llm.model.LlmToolCall;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.LinkOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -18,6 +19,7 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
 
     private static final int DEFAULT_SEARCH_LIMIT = 100;
     private static final int MAX_SEARCH_LIMIT = 500;
+    private static final long MAX_PATTERN_SCAN_FILE_SIZE_BYTES = 1_000_000L;
 
     @Override
     public LlmTool definition() {
@@ -74,8 +76,25 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
         if (pattern == null || pattern.isBlank()) {
             return true;
         }
+
         try {
-            return Files.readString(file).contains(pattern);
+            if (Files.size(file) > MAX_PATTERN_SCAN_FILE_SIZE_BYTES) {
+                return false;
+            }
+        } catch (IOException ignored) {
+            return false;
+        }
+
+        try {
+            try (var reader = Files.newBufferedReader(file, StandardCharsets.UTF_8)) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    if (line.contains(pattern)) {
+                        return true;
+                    }
+                }
+                return false;
+            }
         } catch (IOException ignored) {
             return false;
         }

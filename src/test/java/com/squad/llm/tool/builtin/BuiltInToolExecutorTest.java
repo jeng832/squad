@@ -57,6 +57,23 @@ class BuiltInToolExecutorTest {
     }
 
     @Test
+    void fileSearchSkipsOversizedFileForPatternScan() throws Exception {
+        BuiltInToolExecutor executor = createExecutor();
+
+        Files.createDirectories(workspace.resolve("src"));
+        String content = "a".repeat(1_100_000) + "keyword";
+        Files.writeString(workspace.resolve("src/large.txt"), content);
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c3-2",
+                "file_search",
+                Map.of("path", "src", "glob", "*.txt", "pattern", "keyword")
+        ));
+
+        assertThat(result.output()).contains("검색 결과가 없습니다");
+    }
+
+    @Test
     void blocksPathTraversalOutsideWorkspace() {
         BuiltInToolExecutor executor = createExecutor();
 

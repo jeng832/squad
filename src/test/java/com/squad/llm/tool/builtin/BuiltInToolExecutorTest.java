@@ -117,6 +117,20 @@ class BuiltInToolExecutorTest {
     }
 
     @Test
+    void bashExecBlocksPathInLongOptionValue() {
+        BuiltInToolExecutor executor = createExecutor();
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c6-2",
+                "bash_exec",
+                Map.of("command", "cp --target-directory=/tmp /etc/hosts")
+        ));
+
+        assertThat(result.output()).contains("[오류]");
+        assertThat(result.output()).contains("workspace 밖");
+    }
+
+    @Test
     void bashExecBlocksShellMetaCharacters() {
         BuiltInToolExecutor executor = createExecutor();
 

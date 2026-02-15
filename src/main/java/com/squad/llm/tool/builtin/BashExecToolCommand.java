@@ -121,12 +121,39 @@ public class BashExecToolCommand implements BuiltInToolCommand {
     }
 
     private void validateTokenPath(String token, BuiltInToolContext context) {
-        if (token.isBlank() || token.startsWith("-")) {
+        if (token.isBlank()) {
             return;
         }
 
-        if (token.contains("/") || token.equals("..") || token.startsWith("./") || token.startsWith("../")) {
+        if (looksLikePath(token)) {
             context.resolveWithinWorkspace(token);
+            return;
         }
+
+        if (token.startsWith("--") && token.contains("=")) {
+            String value = token.substring(token.indexOf('=') + 1);
+            if (looksLikePath(value)) {
+                context.resolveWithinWorkspace(value);
+            }
+            return;
+        }
+
+        if (token.startsWith("-") && token.length() > 2) {
+            String attachedValue = token.substring(2);
+            if (looksLikePath(attachedValue)) {
+                context.resolveWithinWorkspace(attachedValue);
+            }
+        }
+    }
+
+    private boolean looksLikePath(String token) {
+        if (token == null || token.isBlank()) {
+            return false;
+        }
+        return token.contains("/")
+                || token.equals(".")
+                || token.equals("..")
+                || token.startsWith("./")
+                || token.startsWith("../");
     }
 }

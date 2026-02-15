@@ -651,3 +651,22 @@
   - 기존 `McpToolRegistry`, `McpToolExecutor`를 재사용해 Gateway 계층만 추가
   - 이벤트 스트림은 Reactor `Sinks.Many` 기반 multicast로 구현
   - Tool 호출은 alias 기반(`mcpName__toolName`) 라우팅 유지
+
+### 작업 9-7: Built-in Tools 구현
+- **PR**: (진행 중)
+- **구현 내용**:
+  - `BuiltInToolRegistry` 추가: `file_read`, `file_write`, `file_search`, `bash_exec` 도구 정의(JSON Schema) 제공
+  - `BuiltInToolExecutor` 추가: `/workspace` 기준 경로 검증 후 내장 도구 실행
+    - `file_read`: 파일 읽기
+    - `file_write`: 파일 쓰기/append
+    - `file_search`: glob + optional pattern 기반 파일 검색
+    - `bash_exec`: workspace 기준 셸 명령 실행(타임아웃/출력 길이 제한)
+  - `CompositeToolExecutor` 추가: Built-in 우선, 그 외는 `McpToolExecutor`로 라우팅
+  - `WorkerService` 수정: LLM 요청 도구 목록에 Built-in + MCP 도구를 함께 전달
+  - 단위 테스트 추가/보강:
+    - `BuiltInToolExecutorTest` (파일 I/O, 검색, 경로 이탈 차단, bash 실행)
+    - `WorkerServiceTest` (Built-in 도구 레지스트리 주입 반영)
+- **설계 결정**:
+  - 도구 실행 인터페이스(`LlmToolExecutor`)는 유지하고 `@Primary` 합성 실행기로 라우팅
+  - 경로 보안은 `squad.builtin-tools.workspace-root`(기본 `/workspace`) 기준 정규화 + startsWith 검증
+  - 오류는 예외 throw 대신 `[오류]` 텍스트로 반환해 LLM tool_use 루프와 일관성 유지

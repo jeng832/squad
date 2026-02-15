@@ -5,12 +5,12 @@ import com.squad.llm.tool.LlmToolExecutor;
 import com.squad.llm.tool.LlmToolResult;
 import com.squad.mcp.gateway.McpToolExecutor;
 import org.springframework.context.annotation.Primary;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 
 /**
  * Built-in Tool과 MCP Tool 실행을 통합 라우팅하는 Executor.
  */
-@Component
+@Service
 @Primary
 public class CompositeToolExecutor implements LlmToolExecutor {
 

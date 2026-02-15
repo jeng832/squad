@@ -7,6 +7,7 @@ import org.junit.jupiter.api.io.TempDir;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,7 +19,7 @@ class BuiltInToolExecutorTest {
 
     @Test
     void fileWriteAndRead() {
-        BuiltInToolExecutor executor = new BuiltInToolExecutor(new BuiltInToolRegistry(), workspace.toString());
+        BuiltInToolExecutor executor = createExecutor();
 
         LlmToolResult write = executor.execute(new LlmToolCall(
                 "c1",
@@ -37,7 +38,7 @@ class BuiltInToolExecutorTest {
 
     @Test
     void fileSearchByGlobAndPattern() throws Exception {
-        BuiltInToolExecutor executor = new BuiltInToolExecutor(new BuiltInToolRegistry(), workspace.toString());
+        BuiltInToolExecutor executor = createExecutor();
 
         Files.createDirectories(workspace.resolve("src"));
         Files.writeString(workspace.resolve("src/a.txt"), "alpha keyword");
@@ -55,7 +56,7 @@ class BuiltInToolExecutorTest {
 
     @Test
     void blocksPathTraversalOutsideWorkspace() {
-        BuiltInToolExecutor executor = new BuiltInToolExecutor(new BuiltInToolRegistry(), workspace.toString());
+        BuiltInToolExecutor executor = createExecutor();
 
         LlmToolResult result = executor.execute(new LlmToolCall(
                 "c4",
@@ -69,7 +70,7 @@ class BuiltInToolExecutorTest {
 
     @Test
     void bashExecRunsInWorkspace() {
-        BuiltInToolExecutor executor = new BuiltInToolExecutor(new BuiltInToolRegistry(), workspace.toString());
+        BuiltInToolExecutor executor = createExecutor();
 
         LlmToolResult result = executor.execute(new LlmToolCall(
                 "c5",
@@ -79,5 +80,18 @@ class BuiltInToolExecutorTest {
 
         assertThat(result.output()).contains("exitCode=0");
         assertThat(result.output()).contains(workspace.toAbsolutePath().normalize().toString());
+    }
+
+    private BuiltInToolExecutor createExecutor() {
+        return new BuiltInToolExecutor(
+                new BuiltInToolRegistry(),
+                List.of(
+                        new FileReadToolCommand(),
+                        new FileWriteToolCommand(),
+                        new FileSearchToolCommand(),
+                        new BashExecToolCommand()
+                ),
+                workspace.toString()
+        );
     }
 }

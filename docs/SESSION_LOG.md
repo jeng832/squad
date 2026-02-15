@@ -627,3 +627,15 @@
   - Worker의 MCP 도구 범위: `getAllTools()` (Agent별 필터링은 후속 작업)
   - OrchestratorService는 수정하지 않음 (내부 도구만 사용)
 - **codex-cli 코드리뷰**: 1회 리뷰, 이슈 없음 → 승인
+
+### 작업 9-5: MCP 환경변수 및 Secret 주입
+- **PR**: [#55](https://github.com/jeng832/squad/pull/55)
+- **구현 내용**:
+  - `EnvResolver`: 환경변수에서 `ref:secret/<name>` 참조를 `SecretService`로 복호화하여 치환
+  - `McpConfig.withResolvedEnv()`: 해결된 환경변수로 새 불변 객체 생성
+  - `McpToolRegistry.registerMcp()`: 프로세스 시작 전 Secret 참조 해결 통합
+  - Fail-Closed 정책: Secret 해결 실패 시 프로세스 시작 차단
+- **설계 결정**:
+  - 방안 B (별도 EnvResolver 컴포넌트) 채택: SRP 준수, 값 객체가 서비스에 의존하지 않음
+  - McpConfig는 raw env 보관, 해결된 env는 withResolvedEnv()로 새 불변 객체 생성
+- **codex-cli 코드리뷰**: P1 이슈 1건 (Secret 해결 실패 시 기존 프로세스 orphan 방지) → 수정 완료

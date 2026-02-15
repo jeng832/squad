@@ -1,6 +1,8 @@
 package com.squad.llm.tool.builtin;
 
 import java.nio.file.InvalidPathException;
+import java.nio.file.LinkOption;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Map;
 
@@ -10,9 +12,11 @@ import java.util.Map;
 public class BuiltInToolContext {
 
     private final Path workspaceRoot;
+    private final Path workspaceRootRealPath;
 
     public BuiltInToolContext(Path workspaceRoot) {
-        this.workspaceRoot = workspaceRoot;
+        this.workspaceRoot = workspaceRoot.toAbsolutePath().normalize();
+        this.workspaceRootRealPath = resolveWorkspaceRealPath(this.workspaceRoot);
     }
 
     public Path workspaceRoot() {
@@ -35,6 +39,23 @@ public class BuiltInToolContext {
         Path normalized = candidate.normalize().toAbsolutePath();
         if (!normalized.startsWith(workspaceRoot)) {
             throw new IllegalArgumentException("workspace 밖 경로는 접근할 수 없습니다: " + rawPath);
+        }
+
+        Path anchor = findExistingAnchor(normalized);
+        if (anchor == null) {
+            throw new IllegalArgumentException("workspace 경로를 확인할 수 없습니다: " + rawPath);
+        }
+
+        Path anchorRealPath = toRealPath(anchor);
+        if (!anchorRealPath.startsWith(workspaceRootRealPath)) {
+            throw new IllegalArgumentException("workspace 밖 경로는 접근할 수 없습니다: " + rawPath);
+        }
+
+        if (Files.exists(normalized, LinkOption.NOFOLLOW_LINKS)) {
+            Path normalizedRealPath = toRealPath(normalized);
+            if (!normalizedRealPath.startsWith(workspaceRootRealPath)) {
+                throw new IllegalArgumentException("workspace 밖 경로는 접근할 수 없습니다: " + rawPath);
+            }
         }
         return normalized;
     }
@@ -77,6 +98,29 @@ public class BuiltInToolContext {
             return Integer.parseInt(String.valueOf(value));
         } catch (NumberFormatException e) {
             return defaultValue;
+        }
+    }
+
+    private Path resolveWorkspaceRealPath(Path rootPath) {
+        if (Files.exists(rootPath, LinkOption.NOFOLLOW_LINKS)) {
+            return toRealPath(rootPath);
+        }
+        return rootPath;
+    }
+
+    private Path findExistingAnchor(Path path) {
+        Path current = path;
+        while (current != null && !Files.exists(current, LinkOption.NOFOLLOW_LINKS)) {
+            current = current.getParent();
+        }
+        return current;
+    }
+
+    private Path toRealPath(Path path) {
+        try {
+            return path.toRealPath();
+        } catch (Exception e) {
+            throw new IllegalArgumentException("경로 확인에 실패했습니다: " + path, e);
         }
     }
 }

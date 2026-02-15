@@ -4,6 +4,8 @@ import com.squad.llm.model.LlmToolCall;
 import com.squad.llm.tool.LlmToolResult;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.junit.jupiter.api.condition.DisabledOnOs;
+import org.junit.jupiter.api.condition.OS;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,6 +64,24 @@ class BuiltInToolExecutorTest {
                 "c4",
                 "file_read",
                 Map.of("path", "../secret.txt")
+        ));
+
+        assertThat(result.output()).contains("[오류]");
+        assertThat(result.output()).contains("workspace 밖");
+    }
+
+    @Test
+    @DisabledOnOs(OS.WINDOWS)
+    void blocksSymlinkEscapeOutsideWorkspace() throws Exception {
+        BuiltInToolExecutor executor = createExecutor();
+        Path outside = Files.createTempFile("outside-", ".txt");
+        Files.writeString(outside, "outside");
+        Files.createSymbolicLink(workspace.resolve("link-outside.txt"), outside);
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c4-2",
+                "file_read",
+                Map.of("path", "link-outside.txt")
         ));
 
         assertThat(result.output()).contains("[오류]");

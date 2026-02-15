@@ -158,6 +158,34 @@ class BuiltInToolExecutorTest {
         assertThat(result.output()).contains("허용되지 않는 명령");
     }
 
+    @Test
+    void bashExecBlocksFindCommand() {
+        BuiltInToolExecutor executor = createExecutor();
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c9",
+                "bash_exec",
+                Map.of("command", "find . -name \"*.txt\"")
+        ));
+
+        assertThat(result.output()).contains("[오류]");
+        assertThat(result.output()).contains("허용되지 않는 명령");
+    }
+
+    @Test
+    void bashExecBlocksSedCommand() {
+        BuiltInToolExecutor executor = createExecutor();
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c10",
+                "bash_exec",
+                Map.of("command", "sed -n 1p notes.txt")
+        ));
+
+        assertThat(result.output()).contains("[오류]");
+        assertThat(result.output()).contains("허용되지 않는 명령");
+    }
+
     private BuiltInToolExecutor createExecutor() {
         var commands = List.of(
                 new FileReadToolCommand(),

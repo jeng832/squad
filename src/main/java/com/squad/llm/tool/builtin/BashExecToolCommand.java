@@ -21,8 +21,8 @@ public class BashExecToolCommand implements BuiltInToolCommand {
     private static final int MAX_OUTPUT_CHARS = 12000;
     private static final Set<Character> FORBIDDEN_META_CHARS = Set.of('|', '&', ';', '`', '$', '<', '>');
     private static final Set<String> ALLOWED_COMMANDS = Set.of(
-            "pwd", "ls", "cat", "echo", "grep", "find", "wc", "head", "tail",
-            "mkdir", "touch", "cp", "mv", "sed"
+            "pwd", "ls", "cat", "echo", "grep", "wc", "head", "tail",
+            "mkdir", "touch", "cp", "mv"
     );
     private static final Pattern TOKEN_PATTERN = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)");
 

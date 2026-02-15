@@ -5,6 +5,7 @@ import com.squad.llm.model.LlmToolCall;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.nio.file.LinkOption;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.PathMatcher;
@@ -53,7 +54,8 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
 
         List<String> matches;
         try (Stream<Path> stream = Files.walk(base)) {
-            matches = stream.filter(Files::isRegularFile)
+            matches = stream.filter(file -> Files.isRegularFile(file, LinkOption.NOFOLLOW_LINKS))
+                    .filter(file -> isSafeWorkspaceFile(file, context))
                     .filter(file -> matcher.matches(base.relativize(file)))
                     .filter(file -> matchesPattern(file, pattern))
                     .limit(resultLimit)
@@ -75,6 +77,16 @@ public class FileSearchToolCommand implements BuiltInToolCommand {
         try {
             return Files.readString(file).contains(pattern);
         } catch (IOException ignored) {
+            return false;
+        }
+    }
+
+    private boolean isSafeWorkspaceFile(Path file, BuiltInToolContext context) {
+        try {
+            String relativePath = context.workspaceRoot().relativize(file).toString();
+            context.resolveWithinWorkspace(relativePath);
+            return true;
+        } catch (Exception ignored) {
             return false;
         }
     }

@@ -89,6 +89,25 @@ class BuiltInToolExecutorTest {
     }
 
     @Test
+    @DisabledOnOs(OS.WINDOWS)
+    void fileSearchIgnoresSymlinkOutsideWorkspace() throws Exception {
+        BuiltInToolExecutor executor = createExecutor();
+        Path outside = Files.createTempFile("outside-search-", ".txt");
+        Files.writeString(outside, "secret keyword");
+        Files.createDirectories(workspace.resolve("src"));
+        Files.createSymbolicLink(workspace.resolve("src/link.txt"), outside);
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c4-3",
+                "file_search",
+                Map.of("path", "src", "glob", "*.txt", "pattern", "keyword")
+        ));
+
+        assertThat(result.output()).doesNotContain("src/link.txt");
+        assertThat(result.output()).contains("검색 결과가 없습니다");
+    }
+
+    @Test
     void bashExecRunsInWorkspace() {
         BuiltInToolExecutor executor = createExecutor();
 

@@ -36,6 +36,7 @@ public class BashExecToolCommand implements BuiltInToolCommand {
     private static final int DEFAULT_TIMEOUT_SECONDS = 30;
     private static final int MAX_TIMEOUT_SECONDS = 120;
     private static final int MAX_OUTPUT_CHARS = 12000;
+    private static final int MAX_OUTPUT_DRAIN_BYTES = MAX_OUTPUT_CHARS * 4;
     private static final Set<Character> FORBIDDEN_META_CHARS = Set.of('|', '&', ';', '`', '$', '<', '>');
     private static final Set<String> ALLOWED_COMMANDS = Set.of(
             "pwd", "ls", "cat", "echo", "grep", "wc", "head", "tail",
@@ -98,9 +99,17 @@ public class BashExecToolCommand implements BuiltInToolCommand {
                 ByteArrayOutputStream buffer = new ByteArrayOutputStream();
                 InputStream in = process.getInputStream();
                 byte[] chunk = new byte[8192];
+                int totalRead = 0;
                 int read;
                 while ((read = in.read(chunk)) != -1) {
-                    buffer.write(chunk, 0, read);
+                    int remaining = MAX_OUTPUT_DRAIN_BYTES - totalRead;
+                    if (remaining <= 0) {
+                        discardRemainingInput(in);
+                        break;
+                    }
+                    int writeLen = Math.min(read, remaining);
+                    buffer.write(chunk, 0, writeLen);
+                    totalRead += read;
                 }
                 return buffer.toByteArray();
             });
@@ -123,6 +132,16 @@ public class BashExecToolCommand implements BuiltInToolCommand {
             return new String(output, StandardCharsets.UTF_8);
         } finally {
             drainer.shutdownNow();
+        }
+    }
+
+    /**
+     * 남은 입력 스트림을 소비하여 프로세스가 정상 종료할 수 있도록 한다.
+     */
+    private void discardRemainingInput(InputStream in) throws java.io.IOException {
+        byte[] discard = new byte[8192];
+        while (in.read(discard) != -1) {
+            // 나머지 출력 버림
         }
     }
 

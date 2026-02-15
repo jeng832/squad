@@ -144,6 +144,20 @@ class BuiltInToolExecutorTest {
         assertThat(result.output()).contains("메타 문자");
     }
 
+    @Test
+    void bashExecBlocksNonAllowlistedCommand() {
+        BuiltInToolExecutor executor = createExecutor();
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c8",
+                "bash_exec",
+                Map.of("command", "python -c \"print('hi')\"")
+        ));
+
+        assertThat(result.output()).contains("[오류]");
+        assertThat(result.output()).contains("허용되지 않는 명령");
+    }
+
     private BuiltInToolExecutor createExecutor() {
         var commands = List.of(
                 new FileReadToolCommand(),

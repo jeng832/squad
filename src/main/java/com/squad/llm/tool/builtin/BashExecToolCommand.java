@@ -20,17 +20,21 @@ public class BashExecToolCommand implements BuiltInToolCommand {
     private static final int MAX_TIMEOUT_SECONDS = 120;
     private static final int MAX_OUTPUT_CHARS = 12000;
     private static final Set<Character> FORBIDDEN_META_CHARS = Set.of('|', '&', ';', '`', '$', '<', '>');
+    private static final Set<String> ALLOWED_COMMANDS = Set.of(
+            "pwd", "ls", "cat", "echo", "grep", "find", "wc", "head", "tail",
+            "mkdir", "touch", "cp", "mv", "sed"
+    );
     private static final Pattern TOKEN_PATTERN = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)");
 
     @Override
     public LlmTool definition() {
         return new LlmTool(
                 "bash_exec",
-                "Execute restricted command in workspace (no shell operators)",
+                "Execute allowlisted command in workspace (no shell operators)",
                 Map.of(
                         "type", "object",
                         "properties", Map.of(
-                                "command", Map.of("type", "string", "description", "Command to execute without shell operators"),
+                                "command", Map.of("type", "string", "description", "Allowlisted command without shell operators"),
                                 "timeoutSeconds", Map.of("type", "integer", "description", "Execution timeout in seconds, default 30")
                         ),
                         "required", List.of("command")
@@ -85,6 +89,7 @@ public class BashExecToolCommand implements BuiltInToolCommand {
         if (tokens.isEmpty()) {
             throw new IllegalArgumentException("실행할 명령이 비어 있습니다.");
         }
+        validateAllowedCommand(tokens.getFirst());
 
         for (String token : tokens) {
             validateTokenPath(token, context);
@@ -155,5 +160,11 @@ public class BashExecToolCommand implements BuiltInToolCommand {
                 || token.equals("..")
                 || token.startsWith("./")
                 || token.startsWith("../");
+    }
+
+    private void validateAllowedCommand(String commandName) {
+        if (!ALLOWED_COMMANDS.contains(commandName)) {
+            throw new IllegalArgumentException("허용되지 않는 명령입니다: " + commandName);
+        }
     }
 }

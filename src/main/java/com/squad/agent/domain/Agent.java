@@ -30,7 +30,8 @@ public class Agent {
     private String name;
 
     @Convert(converter = RoleTypeConverter.class)
-    @Column(name = "role_type", nullable = false)
+    @Column(name = "role_type", nullable = false,
+            columnDefinition = "ENUM('orchestrator','worker','analyst','scribe','custom')")
     private RoleType roleType;
 
     @Column(nullable = false, columnDefinition = "TEXT")

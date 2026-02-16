@@ -154,6 +154,10 @@ public class SkillCommand {
         }
 
         List<Long> requiredMcps = readRequiredMcps(ctx, writer, null);
+        if (requiredMcps == null) {
+            printCancelled(writer);
+            return;
+        }
 
         printCreateSummary(writer, name, description, prompt, requiredMcps);
 
@@ -361,9 +365,9 @@ public class SkillCommand {
                                         List<Long> preSelectedIds) {
         Optional<JsonNode> response = apiClient.get(MCPS_API_PATH);
         if (response.isEmpty()) {
-            writer.println("MCP 서버에 연결할 수 없습니다.");
+            writer.println("MCP 서버에 연결할 수 없습니다. 기존 MCP 설정을 유지합니다.");
             writer.flush();
-            return List.of();
+            return null;
         }
 
         JsonNode data = response.get().get("data");

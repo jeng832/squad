@@ -155,8 +155,7 @@ public class SkillCommand {
 
         List<Long> requiredMcps = readRequiredMcps(ctx, writer, null);
         if (requiredMcps == null) {
-            printCancelled(writer);
-            return;
+            requiredMcps = List.of();
         }
 
         printCreateSummary(writer, name, description, prompt, requiredMcps);

@@ -3,6 +3,8 @@ package com.squad.cli.form;
 import com.squad.cli.shell.CommandContext;
 import org.jline.reader.EndOfFileException;
 import org.jline.reader.UserInterruptException;
+import org.jline.terminal.Attributes;
+import org.jline.terminal.Terminal;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -96,10 +98,17 @@ public class InteractiveFormReader {
         return sb.isEmpty() ? "" : sb.toString();
     }
 
+    private static final int ESC = 0x1b;
+    private static final int CTRL_C = 0x03;
+    private static final int ENTER_CR = '\r';
+    private static final int ENTER_LF = '\n';
+    private static final int ESC_TIMEOUT_MS = 50;
+
     /**
-     * 번호로 항목을 선택받는다.
+     * 화살표키로 항목을 선택받는다.
      *
-     * <p>옵션 목록을 번호와 함께 표시하고 사용자가 번호를 입력한다.</p>
+     * <p>옵션 목록을 표시하고 화살표키(↑↓)로 이동, Enter로 확정, ESC/Ctrl+C로 취소한다.
+     * 목록의 위/아래 끝에서 순환한다.</p>
      *
      * @param ctx     커맨드 컨텍스트
      * @param prompt  선택 프롬프트
@@ -107,29 +116,118 @@ public class InteractiveFormReader {
      * @return 선택된 인덱스 (0-based), 취소 시 -1
      */
     public int readSelection(CommandContext ctx, String prompt, List<String> options) {
+        Terminal terminal = ctx.terminal();
         PrintWriter writer = ctx.writer();
+        int selectedIndex = 0;
+
         writer.println(prompt + ":");
-        for (int i = 0; i < options.size(); i++) {
-            writer.printf("  %d) %s%n", i + 1, options.get(i));
-        }
+        renderOptions(writer, options, selectedIndex);
+        printNavigationHint(writer);
         writer.flush();
 
+        Attributes originalAttributes = terminal.enterRawMode();
         try {
-            String input = ctx.lineReader().readLine("선택 (1-" + options.size() + "): ").trim();
-            int selection = Integer.parseInt(input);
-            if (selection >= 1 && selection <= options.size()) {
-                return selection - 1;
+            while (true) {
+                int key = terminal.reader().read();
+
+                if (key == ENTER_CR || key == ENTER_LF) {
+                    clearNavigationHint(writer);
+                    return selectedIndex;
+                }
+
+                if (key == CTRL_C) {
+                    clearNavigationHint(writer);
+                    return -1;
+                }
+
+                if (key == ESC) {
+                    int direction = readEscSequence(terminal);
+                    if (direction == 0) {
+                        clearNavigationHint(writer);
+                        return -1;
+                    }
+                    selectedIndex = wrapIndex(selectedIndex + direction, options.size());
+                    moveUpAndRedraw(writer, options, selectedIndex);
+                }
             }
-            writer.println("잘못된 선택입니다.");
-            writer.flush();
+        } catch (IOException e) {
             return -1;
-        } catch (NumberFormatException e) {
-            writer.println("숫자를 입력해주세요.");
-            writer.flush();
-            return -1;
-        } catch (UserInterruptException | EndOfFileException e) {
+        } finally {
+            terminal.setAttributes(originalAttributes);
+        }
+    }
+
+    /**
+     * ESC 시퀀스를 읽어 화살표키 방향을 판별한다.
+     *
+     * <p>ESC 이후 50ms 내에 '[' + 'A'/'B'가 오면 화살표키로 판단하고,
+     * 타임아웃이면 ESC 단독(취소)으로 판단한다.</p>
+     *
+     * @param terminal JLine3 Terminal
+     * @return -1(위), +1(아래), 0(ESC 단독/취소)
+     * @throws IOException 읽기 실패 시
+     */
+    private int readEscSequence(Terminal terminal) throws IOException {
+        int next = peekWithTimeout(terminal, ESC_TIMEOUT_MS);
+        if (next != '[') {
+            return 0;
+        }
+        int arrow = terminal.reader().read(ESC_TIMEOUT_MS);
+        if (arrow == 'A') {
             return -1;
         }
+        if (arrow == 'B') {
+            return 1;
+        }
+        return 0;
+    }
+
+    private int peekWithTimeout(Terminal terminal, int timeoutMs) throws IOException {
+        return terminal.reader().read(timeoutMs);
+    }
+
+    private void renderOptions(PrintWriter writer, List<String> options, int selectedIndex) {
+        for (int i = 0; i < options.size(); i++) {
+            String prefix = (i == selectedIndex) ? "> " : "  ";
+            writer.println(prefix + options.get(i));
+        }
+    }
+
+    private void printNavigationHint(PrintWriter writer) {
+        writer.print("\033[90m↑↓ 이동 | Enter 선택 | ESC 취소\033[0m");
+        writer.flush();
+    }
+
+    private void clearNavigationHint(PrintWriter writer) {
+        writer.print("\r\033[2K");
+        writer.flush();
+    }
+
+    /**
+     * 커서를 옵션 목록 시작으로 올려 다시 그린다.
+     *
+     * @param writer        출력 PrintWriter
+     * @param options       옵션 목록
+     * @param selectedIndex 현재 선택 인덱스
+     */
+    private void moveUpAndRedraw(PrintWriter writer, List<String> options, int selectedIndex) {
+        int linesToMoveUp = options.size();
+        writer.print("\r\033[2K");
+        writer.print("\033[" + linesToMoveUp + "A");
+        for (int i = 0; i < options.size(); i++) {
+            String prefix = (i == selectedIndex) ? "> " : "  ";
+            writer.print("\r\033[2K" + prefix + options.get(i));
+            if (i < options.size() - 1) {
+                writer.println();
+            }
+        }
+        writer.println();
+        printNavigationHint(writer);
+        writer.flush();
+    }
+
+    private int wrapIndex(int index, int size) {
+        return ((index % size) + size) % size;
     }
 
     /**

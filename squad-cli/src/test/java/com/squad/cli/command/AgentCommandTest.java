@@ -153,19 +153,23 @@ class AgentCommandTest {
     }
 
     @Test
-    @DisplayName("/agent delete - ID 없이 호출하면 사용법을 안내한다")
+    @DisplayName("/agent delete - ID 없이 호출하면 에이전트 목록에서 선택한다")
     void deleteAgentNoId() {
+        when(apiClient.get("/api/v1/agents")).thenReturn(Optional.empty());
+
         executeCommand("delete");
 
-        assertThat(outputBuffer.toString()).contains("사용법");
+        assertThat(outputBuffer.toString()).contains("서버에 연결할 수 없습니다");
     }
 
     @Test
-    @DisplayName("/agent update - ID 없이 호출하면 사용법을 안내한다")
+    @DisplayName("/agent update - ID 없이 호출하면 에이전트 목록에서 선택한다")
     void updateAgentNoId() {
+        when(apiClient.get("/api/v1/agents")).thenReturn(Optional.empty());
+
         executeCommand("update");
 
-        assertThat(outputBuffer.toString()).contains("사용법");
+        assertThat(outputBuffer.toString()).contains("서버에 연결할 수 없습니다");
     }
 
     @Test

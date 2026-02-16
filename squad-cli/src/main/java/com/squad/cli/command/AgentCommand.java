@@ -178,13 +178,15 @@ public class AgentCommand {
     private void handleUpdate(CommandContext ctx, String idArg) {
         PrintWriter writer = ctx.writer();
 
+        String id;
         if (idArg.isBlank()) {
-            writer.println("사용법: /agent update {id}");
-            writer.flush();
-            return;
+            id = selectAgentInteractively(ctx, "수정할 에이전트 선택");
+            if (id == null) {
+                return;
+            }
+        } else {
+            id = idArg.trim();
         }
-
-        String id = idArg.trim();
         Optional<JsonNode> existing = apiClient.get(API_PATH + "/" + id);
         if (existing.isEmpty()) {
             writer.println("에이전트를 찾을 수 없습니다. (ID: " + id + ")");
@@ -275,23 +277,27 @@ public class AgentCommand {
     private void handleDelete(CommandContext ctx, String idArg) {
         PrintWriter writer = ctx.writer();
 
+        String id;
+        String agentName;
         if (idArg.isBlank()) {
-            writer.println("사용법: /agent delete {id}");
-            writer.flush();
-            return;
+            id = selectAgentInteractively(ctx, "삭제할 에이전트 선택");
+            if (id == null) {
+                return;
+            }
+            Optional<JsonNode> existing = apiClient.get(API_PATH + "/" + id);
+            JsonNode agentData = existing.map(r -> r.get("data")).orElse(null);
+            agentName = agentData != null ? agentData.get("name").asText() : id;
+        } else {
+            id = idArg.trim();
+            Optional<JsonNode> existing = apiClient.get(API_PATH + "/" + id);
+            if (existing.isEmpty()) {
+                writer.println("에이전트를 찾을 수 없습니다. (ID: " + id + ")");
+                writer.flush();
+                return;
+            }
+            JsonNode agentData = existing.get().get("data");
+            agentName = agentData != null ? agentData.get("name").asText() : id;
         }
-
-        String id = idArg.trim();
-
-        Optional<JsonNode> existing = apiClient.get(API_PATH + "/" + id);
-        if (existing.isEmpty()) {
-            writer.println("에이전트를 찾을 수 없습니다. (ID: " + id + ")");
-            writer.flush();
-            return;
-        }
-
-        JsonNode agentData = existing.get().get("data");
-        String agentName = agentData != null ? agentData.get("name").asText() : id;
 
         if (!formReader.readConfirm(ctx, "'" + agentName + "' 에이전트를 삭제하시겠습니까?")) {
             printCancelled(writer);
@@ -348,6 +354,48 @@ public class AgentCommand {
         writer.println("생성일:         " + extractField(data, "createdAt"));
         writer.println("수정일:         " + extractField(data, "updatedAt"));
         writer.flush();
+    }
+
+    /**
+     * 에이전트 목록을 조회하여 화살표키 선택 UI로 하나를 고른다.
+     *
+     * @param ctx    커맨드 컨텍스트
+     * @param prompt 선택 프롬프트
+     * @return 선택된 에이전트 ID, 취소 또는 목록 없음 시 null
+     */
+    private String selectAgentInteractively(CommandContext ctx, String prompt) {
+        PrintWriter writer = ctx.writer();
+        Optional<JsonNode> response = apiClient.get(API_PATH);
+
+        if (response.isEmpty()) {
+            writer.println("서버에 연결할 수 없습니다.");
+            writer.flush();
+            return null;
+        }
+
+        JsonNode data = response.get().get("data");
+        if (data == null || !data.isArray() || data.isEmpty()) {
+            writer.println("등록된 에이전트가 없습니다.");
+            writer.flush();
+            return null;
+        }
+
+        List<String> options = new java.util.ArrayList<>();
+        List<String> ids = new java.util.ArrayList<>();
+        for (JsonNode agent : data) {
+            String id = agent.get("id").asText();
+            String name = agent.get("name").asText();
+            String roleType = agent.get("roleType").asText();
+            ids.add(id);
+            options.add("[" + id + "] " + name + " (" + roleType + ")");
+        }
+
+        int selected = formReader.readSelection(ctx, prompt, options);
+        if (selected < 0) {
+            printCancelled(writer);
+            return null;
+        }
+        return ids.get(selected);
     }
 
     private void printCreateSummary(PrintWriter writer, String name, String roleType,

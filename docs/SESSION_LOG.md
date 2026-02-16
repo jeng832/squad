@@ -738,10 +738,13 @@
     - `{id}`: 상세 조회 (apiKey 마스킹)
   - `CommandExecutor` 인터페이스: `(CommandContext ctx, String args)` 시그니처로 변경
   - 18개 테스트 케이스 (list/detail/delete/masking 시나리오)
-- **코드리뷰 (Codex CLI)**:
-  - [High] readMultiLine의 cancel vs "keep value" 모호성 → 빈 문자열과 null 구분으로 해결
-  - [Medium] 상세 조회 NPE 방어 → extractField() 활용으로 null-safe 처리
-  - [Medium] apiKey 마스킹 테스트 누락 → 3개 테스트 추가 (ref:secret, 일반값, 짧은값)
+- **코드리뷰 (Codex CLI, 4회 반복 → 이슈 없을 때까지)**:
+  - 1차: [High] readMultiLine의 cancel vs "keep value" 모호성 → 빈 문자열과 null 구분으로 해결
+  - 1차: [Medium] 상세 조회 NPE 방어 → extractField() 활용으로 null-safe 처리
+  - 1차: [Medium] apiKey 마스킹 테스트 누락 → 3개 테스트 추가 (ref:secret, 일반값, 짧은값)
+  - 2차: [P1] API Key 평문 입력 화면 노출 및 히스토리 저장 위험 → readSecret() 마스킹 입력 메서드 추가
+  - 3차: [P2] readFromFile에서 trim()이 파일 공백 제거 → trim 제거, [P2] update NPE → extractField 적용
+  - 4차: 추가 이슈 없음 → 승인 종료
 - **설계 결정**:
   - CommandContext를 record로 구현 (불변, 간결)
   - InteractiveFormReader를 별도 컴포넌트로 분리 (MCP, Squad 등 다른 커맨드에서 재사용)

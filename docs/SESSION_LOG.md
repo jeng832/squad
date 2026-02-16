@@ -801,3 +801,45 @@
   - 멤버 선택: 멀티 선택 UI 미구현으로 쉼표 구분 ID 입력 방식 채택 (향후 개선 가능)
   - update 시 PUT body에 항상 기존값 포함하여 서버 side null 덮어쓰기 방지
   - readConfirm 화살표키 선택 UI 적용 (readSelection 재사용)
+
+### readMultiSelection 멀티 선택 UI 구현
+- `InteractiveFormReader.readMultiSelection()`: 화살표키(↑↓) + 스페이스바 토글 + Enter 확정
+  - `[x]`/`[ ]` 마커로 선택 상태 표시
+  - `preSelected` 파라미터로 기존 선택값 복원 지원
+- `SquadCommand.readAgentIds()`: 쉼표 구분 입력 → 멀티 선택 UI로 교체
+
+### 에디터 기반 JSON/텍스트 입력 지원
+- `InteractiveFormReader.readWithEditor()`: 외부 에디터(vi/nano/etc) 기반 텍스트 편집
+  - `$VISUAL` → `$EDITOR` → `vi` 순서로 에디터 결정
+  - 임시 파일 + `terminal.pause()`/`resume()` 패턴
+- `InteractiveFormReader.readJsonInput()`: 에디터/직접입력/건너뛰기 3가지 선택
+- JSON 파싱 실패 시 재시도 루프 ("다시 입력하시겠습니까?" 확인)
+- McpCommand, SquadCommand에 에디터 기반 JSON 입력 적용
+
+### 작업 11-5: Skill/Secret 관리 CLI
+- **PR**: [#65](https://github.com/jeng832/squad/pull/65)
+- **구현 내용**:
+  - `SkillCommand`: `/skill` 서브커맨드 처리
+    - `list`: Skill 목록 테이블 출력 (ID, 이름, 설명, 필요 MCP 수)
+    - `create`: 가이드 폼 (이름 → 설명 → 프롬프트(에디터/직접입력) → requiredMcps(멀티선택) → 확인)
+    - `update`: 기존값 기본값 지원, 프롬프트/MCP 변경 여부 선택
+    - `delete`: ID 미지정 시 화살표키 선택, 확인 후 삭제
+    - `{id}`: 상세 조회 (프롬프트 전문, requiredMcps 표시)
+  - `SecretCommand`: `/secret` 서브커맨드 처리
+    - `list`: Secret 목록 테이블 출력 (ID, 이름, 참조 형식, 생성일)
+    - `create`: 이름 → 값(readSecret 마스킹) → 확인
+    - `update`: 이름 "수정 불가" 표시, 값만 수정
+    - `delete`: 확인 후 삭제
+    - `{id}`: 상세 조회 (값 `********` 마스킹, `ref:secret/{name}` 참조)
+  - `InteractiveFormReader.resolveEditorName()` public 메서드 추가
+  - SkillCommandTest 16개, SecretCommandTest 16개 테스트
+- **Codex CLI 코드리뷰 (4회 반복)**:
+  - 1차: P1 - MCP API 실패 시 `List.of()` 반환으로 기존 MCP 덮어쓰기 → null 반환으로 수정
+  - 1차: P2 - handleCreate에서 requiredMcps null 미처리 → null 체크 추가
+  - 2차: P2 - MCP 서버 장애 시 Skill 생성 불가 → create에서 null → 빈 리스트 대체
+  - 3차: P2 - MCP 멀티선택 ESC 취소 시 동작 불일치 → 컨텍스트별 분리
+  - 4차: P2 - update에서 API 실패 시 기존 MCP 삭제 → null 시 기존값 유지
+- **설계 결정**:
+  - MCP null 처리: create(null→빈리스트), update(null→기존값유지)
+  - Secret 이름 수정 불가: `ref:secret/{name}` 참조 깨짐 방지
+  - Skill 프롬프트 입력: 에디터/직접입력 2가지 선택 (건너뛰기 없음, 프롬프트 필수)

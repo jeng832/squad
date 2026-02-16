@@ -1,13 +1,12 @@
 package com.squad.cli.shell;
 
 import com.squad.cli.config.CliConfig;
-import org.jline.reader.EndOfFileException;
-import org.jline.reader.LineReader;
-import org.jline.reader.LineReaderBuilder;
-import org.jline.reader.UserInterruptException;
-import org.jline.reader.impl.completer.StringsCompleter;
+import com.squad.cli.util.FuzzySearchEngine;
+import org.jline.keymap.KeyMap;
+import org.jline.reader.*;
 import org.jline.terminal.Terminal;
 import org.jline.terminal.TerminalBuilder;
+import org.jline.utils.InfoCmp;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -27,13 +26,16 @@ public class InteractiveShell {
     private final CliConfig cliConfig;
     private final CommandRegistry commandRegistry;
     private final SlashCommandPalette commandPalette;
+    private final FuzzySearchEngine fuzzySearchEngine;
 
     public InteractiveShell(CliConfig cliConfig,
                             CommandRegistry commandRegistry,
-                            SlashCommandPalette commandPalette) {
+                            SlashCommandPalette commandPalette,
+                            FuzzySearchEngine fuzzySearchEngine) {
         this.cliConfig = cliConfig;
         this.commandRegistry = commandRegistry;
         this.commandPalette = commandPalette;
+        this.fuzzySearchEngine = fuzzySearchEngine;
         registerBuiltinCommands();
     }
 
@@ -52,15 +54,18 @@ public class InteractiveShell {
 
             ensureHistoryDirectory();
 
+            SlashCommandCompleter completer = new SlashCommandCompleter(commandRegistry, fuzzySearchEngine);
+
             LineReader lineReader = LineReaderBuilder.builder()
                     .terminal(terminal)
-                    .completer(new StringsCompleter(
-                            commandRegistry.getAll().keySet().stream()
-                                    .map(name -> "/" + name)
-                                    .toList()
-                    ))
+                    .completer(completer)
                     .variable(LineReader.HISTORY_FILE, cliConfig.getHistoryFilePath())
+                    .option(LineReader.Option.AUTO_LIST, true)
+                    .option(LineReader.Option.AUTO_MENU, true)
+                    .option(LineReader.Option.LIST_AMBIGUOUS, false)
                     .build();
+
+            bindSlashAutoComplete(lineReader);
 
             PrintWriter writer = terminal.writer();
             writer.println("Squad CLI v0.1.0 - '/help'로 사용 가능한 커맨드를 확인하세요.");
@@ -133,6 +138,39 @@ public class InteractiveShell {
 
         commandRegistry.register("status", "서버 연결 상태를 확인합니다",
                 args -> System.out.println("서버 상태 확인 기능은 추후 구현 예정입니다."));
+        commandRegistry.register("status2", "테스트 용입니다.",
+                args -> System.out.println("테스트 용 입니다."));
+    }
+
+    private void bindSlashAutoComplete(LineReader lineReader) {
+        lineReader.getWidgets().put("slash-auto-complete", () -> {
+            lineReader.getBuffer().write('/');
+            lineReader.callWidget(LineReader.COMPLETE_WORD);
+            return true;
+        });
+
+        lineReader.getWidgets().put("slash-menu-down", () -> {
+            if (lineReader.getBuffer().toString().startsWith("/")) {
+                lineReader.callWidget(LineReader.MENU_COMPLETE);
+            } else {
+                lineReader.callWidget(LineReader.DOWN_LINE_OR_HISTORY);
+            }
+            return true;
+        });
+
+        KeyMap<Binding> keyMap = lineReader.getKeyMaps().get(LineReader.MAIN);
+        keyMap.bind(new Reference("slash-auto-complete"), "/");
+        keyMap.bind(new Reference("slash-menu-down"), KeyMap.key(lineReader.getTerminal(), InfoCmp.Capability.key_down));
+
+        KeyMap<Binding> menuKeyMap = lineReader.getKeyMaps().get("menu");
+        if (menuKeyMap != null) {
+            lineReader.getWidgets().put("menu-accept-and-execute", () -> {
+                lineReader.callWidget(LineReader.ACCEPT_LINE);
+                return true;
+            });
+            menuKeyMap.bind(new Reference("menu-accept-and-execute"), "\r");
+            menuKeyMap.bind(new Reference("menu-accept-and-execute"), "\n");
+        }
     }
 
     private void ensureHistoryDirectory() throws IOException {

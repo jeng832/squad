@@ -155,7 +155,8 @@ public class SkillCommand {
 
         List<Long> requiredMcps = readRequiredMcps(ctx, writer, null);
         if (requiredMcps == null) {
-            requiredMcps = List.of();
+            printCancelled(writer);
+            return;
         }
 
         printCreateSummary(writer, name, description, prompt, requiredMcps);
@@ -257,9 +258,11 @@ public class SkillCommand {
                 // 기존값 유지
             } else {
                 List<Long> newMcps = readRequiredMcps(ctx, writer, requiredMcps);
-                if (newMcps != null) {
-                    requiredMcps = newMcps;
+                if (newMcps == null) {
+                    printCancelled(writer);
+                    return;
                 }
+                requiredMcps = newMcps;
             }
         }
 
@@ -358,15 +361,15 @@ public class SkillCommand {
      * @param ctx           커맨드 컨텍스트
      * @param writer        출력용 PrintWriter
      * @param preSelectedIds 미리 선택할 MCP ID 목록 (null 가능)
-     * @return 선택된 MCP ID 리스트, 선택 없음 시 빈 리스트, 취소 시 null
+     * @return 선택된 MCP ID 리스트, 선택 없음 또는 API 실패 시 빈 리스트, 사용자 취소 시 null
      */
     private List<Long> readRequiredMcps(CommandContext ctx, PrintWriter writer,
                                         List<Long> preSelectedIds) {
         Optional<JsonNode> response = apiClient.get(MCPS_API_PATH);
         if (response.isEmpty()) {
-            writer.println("MCP 서버에 연결할 수 없습니다. 기존 MCP 설정을 유지합니다.");
+            writer.println("MCP 서버에 연결할 수 없습니다. MCP 없이 진행합니다.");
             writer.flush();
-            return null;
+            return List.of();
         }
 
         JsonNode data = response.get().get("data");

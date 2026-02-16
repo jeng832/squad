@@ -17,11 +17,23 @@ import java.util.Optional;
  *
  * <p>화살표 키 탐색 시 {@code >} 접두사로 선택 상태를 표시하며,
  * 후보 수에 관계없이 일관된 선택 UX를 제공한다.</p>
+ *
+ * <p>서브커맨드가 있는 커맨드 선택 시 2단계 서브커맨드 선택 UI를 제공한다.</p>
  */
 public class SlashCommandCompleter implements Completer {
 
     private static final String SELECTED_PREFIX = "> ";
     private static final String UNSELECTED_PREFIX = "  ";
+
+    /**
+     * 탐색 단계.
+     */
+    enum NavigationLevel {
+        /** 1단계: 커맨드 선택 */
+        COMMAND,
+        /** 2단계: 서브커맨드 선택 */
+        SUBCOMMAND
+    }
 
     private final CommandRegistry commandRegistry;
     private final FuzzySearchEngine fuzzySearchEngine;
@@ -29,6 +41,8 @@ public class SlashCommandCompleter implements Completer {
     private int selectedIndex = -1;
     private String anchorQuery = "";
     private List<String> lastMatchedNames = List.of();
+    private NavigationLevel currentLevel = NavigationLevel.COMMAND;
+    private String parentCommandName = "";
 
     public SlashCommandCompleter(CommandRegistry commandRegistry, FuzzySearchEngine fuzzySearchEngine) {
         this.commandRegistry = commandRegistry;
@@ -37,6 +51,15 @@ public class SlashCommandCompleter implements Completer {
 
     @Override
     public void complete(LineReader reader, ParsedLine line, List<Candidate> candidates) {
+        if (currentLevel == NavigationLevel.SUBCOMMAND) {
+            completeSubcommands(reader, candidates);
+            return;
+        }
+
+        completeCommands(reader, line, candidates);
+    }
+
+    private void completeCommands(LineReader reader, ParsedLine line, List<Candidate> candidates) {
         String buffer = line.word();
 
         if (!buffer.startsWith("/") && !line.line().isEmpty()) {
@@ -69,7 +92,6 @@ public class SlashCommandCompleter implements Completer {
                 .orElse(0);
 
         int termWidth = reader.getTerminal().getWidth();
-        int prefixLen = SELECTED_PREFIX.length();
         int minDisplayWidth = (termWidth / 2) + 1;
 
         for (int i = 0; i < matched.size(); i++) {
@@ -95,6 +117,49 @@ public class SlashCommandCompleter implements Completer {
                         true
                 ));
             });
+        }
+    }
+
+    private void completeSubcommands(LineReader reader, List<Candidate> candidates) {
+        List<CommandRegistry.SubcommandInfo> subcommands = commandRegistry.find(parentCommandName)
+                .map(CommandRegistry.CommandEntry::subcommands)
+                .orElse(List.of());
+
+        int maxNameLen = lastMatchedNames.stream()
+                .mapToInt(String::length)
+                .max()
+                .orElse(0);
+
+        int termWidth = reader.getTerminal().getWidth();
+        int minDisplayWidth = (termWidth / 2) + 1;
+
+        for (int i = 0; i < lastMatchedNames.size(); i++) {
+            String name = lastMatchedNames.get(i);
+            String description = subcommands.stream()
+                    .filter(sub -> sub.name().equals(name))
+                    .map(CommandRegistry.SubcommandInfo::description)
+                    .findFirst()
+                    .orElse("");
+
+            String prefix = (selectedIndex >= 0 && i == selectedIndex)
+                    ? SELECTED_PREFIX
+                    : UNSELECTED_PREFIX;
+            String padded = name + " ".repeat(maxNameLen - name.length());
+            String content = prefix + padded + "  " + description;
+            int currentWidth = displayWidth(content);
+            String display = currentWidth >= minDisplayWidth
+                    ? content
+                    : content + " ".repeat(minDisplayWidth - currentWidth);
+
+            candidates.add(new Candidate(
+                    "/" + parentCommandName + " " + name,
+                    display,
+                    null,
+                    null,
+                    null,
+                    null,
+                    true
+            ));
         }
     }
 
@@ -136,12 +201,65 @@ public class SlashCommandCompleter implements Completer {
     }
 
     /**
+     * 서브커맨드 선택 레벨로 진입한다.
+     *
+     * <p>지정된 커맨드의 서브커맨드 목록으로 후보를 설정하고,
+     * 첫 번째 항목을 선택 상태로 설정한다.</p>
+     *
+     * @param commandName 부모 커맨드 이름
+     */
+    public void enterSubcommandLevel(String commandName) {
+        this.parentCommandName = commandName;
+        this.currentLevel = NavigationLevel.SUBCOMMAND;
+
+        List<String> subNames = commandRegistry.find(commandName)
+                .map(entry -> entry.subcommands().stream()
+                        .map(CommandRegistry.SubcommandInfo::name)
+                        .sorted()
+                        .toList())
+                .orElse(List.of());
+
+        this.lastMatchedNames = subNames;
+        this.selectedIndex = 0;
+        this.anchorQuery = "";
+    }
+
+    /**
+     * 커맨드 선택 레벨로 복귀한다.
+     */
+    public void resetToCommandLevel() {
+        this.currentLevel = NavigationLevel.COMMAND;
+        this.parentCommandName = "";
+        resetSelection();
+    }
+
+    /**
+     * 현재 서브커맨드 선택 레벨인지 여부를 반환한다.
+     *
+     * @return 서브커맨드 레벨이면 {@code true}
+     */
+    public boolean isInSubcommandLevel() {
+        return currentLevel == NavigationLevel.SUBCOMMAND;
+    }
+
+    /**
+     * 부모 커맨드 이름을 반환한다.
+     *
+     * @return 부모 커맨드 이름 (서브커맨드 레벨이 아니면 빈 문자열)
+     */
+    public String getParentCommandName() {
+        return parentCommandName;
+    }
+
+    /**
      * 선택 상태를 초기화한다.
      */
     public void resetSelection() {
         selectedIndex = -1;
         anchorQuery = "";
         lastMatchedNames = List.of();
+        currentLevel = NavigationLevel.COMMAND;
+        parentCommandName = "";
     }
 
     /**

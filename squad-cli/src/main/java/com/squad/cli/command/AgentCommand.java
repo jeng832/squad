@@ -48,7 +48,13 @@ public class AgentCommand {
         this.apiClient = apiClient;
         this.tableRenderer = tableRenderer;
         this.formReader = formReader;
-        commandRegistry.register("agent", "에이전트 관리 (list/create/update/delete)", this::execute);
+        commandRegistry.register("agent", "에이전트 관리 (list/create/update/delete)", this::execute,
+                List.of(
+                        new CommandRegistry.SubcommandInfo("list", "에이전트 목록 조회"),
+                        new CommandRegistry.SubcommandInfo("create", "새 에이전트 생성"),
+                        new CommandRegistry.SubcommandInfo("update", "에이전트 수정"),
+                        new CommandRegistry.SubcommandInfo("delete", "에이전트 삭제")
+                ));
     }
 
     private void execute(CommandContext ctx, String args) {

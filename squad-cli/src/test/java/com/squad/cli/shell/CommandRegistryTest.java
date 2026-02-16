@@ -4,6 +4,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -138,5 +139,33 @@ class CommandRegistryTest {
         registry.find("echo").get().executor().execute(null, "hello");
 
         assertThat(captured).hasToString("hello");
+    }
+
+    @Test
+    @DisplayName("서브커맨드 없이 등록하면 hasSubcommands()는 false를 반환한다")
+    void registerWithoutSubcommandsHasNoSubcommands() {
+        registry.register("help", "도움말", (ctx, args) -> {});
+
+        CommandRegistry.CommandEntry entry = registry.find("help").get();
+
+        assertThat(entry.hasSubcommands()).isFalse();
+        assertThat(entry.subcommands()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("서브커맨드를 포함하여 등록하면 hasSubcommands()는 true를 반환한다")
+    void registerWithSubcommandsHasSubcommands() {
+        List<CommandRegistry.SubcommandInfo> subs = List.of(
+                new CommandRegistry.SubcommandInfo("list", "목록 조회"),
+                new CommandRegistry.SubcommandInfo("create", "생성")
+        );
+        registry.register("agent", "에이전트 관리", (ctx, args) -> {}, subs);
+
+        CommandRegistry.CommandEntry entry = registry.find("agent").get();
+
+        assertThat(entry.hasSubcommands()).isTrue();
+        assertThat(entry.subcommands()).hasSize(2);
+        assertThat(entry.subcommands().get(0).name()).isEqualTo("list");
+        assertThat(entry.subcommands().get(1).name()).isEqualTo("create");
     }
 }

@@ -161,7 +161,13 @@ public class InteractiveShell {
 
         lineReader.getWidgets().put("slash-menu-down", () -> {
             String buffer = lineReader.getBuffer().toString();
-            if (buffer.startsWith("/")) {
+            if (buffer.startsWith("/") || completer.isInSubcommandLevel()) {
+                if (completer.isInSubcommandLevel()) {
+                    completer.selectNext();
+                    lineReader.callWidget(LineReader.LIST_CHOICES);
+                    return true;
+                }
+
                 String query = buffer.substring(1);
 
                 if (completer.isNavigating() && !query.equals(completer.getAnchorQuery())) {
@@ -193,7 +199,10 @@ public class InteractiveShell {
 
         lineReader.getWidgets().put("slash-menu-up", () -> {
             String buffer = lineReader.getBuffer().toString();
-            if (buffer.startsWith("/") && completer.isNavigating()) {
+            if (completer.isInSubcommandLevel()) {
+                completer.selectPrevious();
+                lineReader.callWidget(LineReader.LIST_CHOICES);
+            } else if (buffer.startsWith("/") && completer.isNavigating()) {
                 completer.selectPrevious();
                 lineReader.callWidget(LineReader.LIST_CHOICES);
             } else {
@@ -203,12 +212,42 @@ public class InteractiveShell {
         });
 
         lineReader.getWidgets().put("slash-accept", () -> {
+            if (completer.isInSubcommandLevel()) {
+                completer.getSelectedName().ifPresent(subName -> {
+                    String fullCommand = "/" + completer.getParentCommandName() + " " + subName;
+                    lineReader.getBuffer().clear();
+                    lineReader.getBuffer().write(fullCommand);
+                });
+                completer.resetSelection();
+                lineReader.callWidget(LineReader.ACCEPT_LINE);
+                return true;
+            }
+
             completer.getSelectedName().ifPresent(name -> {
-                lineReader.getBuffer().clear();
-                lineReader.getBuffer().write("/" + name);
+                CommandRegistry.CommandEntry entry = commandRegistry.find(name).orElse(null);
+                if (entry != null && entry.hasSubcommands()) {
+                    lineReader.getBuffer().clear();
+                    lineReader.getBuffer().write("/" + name);
+                    completer.enterSubcommandLevel(name);
+                } else {
+                    lineReader.getBuffer().clear();
+                    lineReader.getBuffer().write("/" + name);
+                    completer.resetSelection();
+                }
             });
+
+            if (completer.isInSubcommandLevel()) {
+                lineReader.callWidget(LineReader.LIST_CHOICES);
+            } else {
+                lineReader.callWidget(LineReader.ACCEPT_LINE);
+            }
+            return true;
+        });
+
+        lineReader.getWidgets().put("slash-escape", () -> {
+            lineReader.getBuffer().clear();
             completer.resetSelection();
-            lineReader.callWidget(LineReader.ACCEPT_LINE);
+            lineReader.callWidget(LineReader.REDISPLAY);
             return true;
         });
 
@@ -220,6 +259,7 @@ public class InteractiveShell {
                 KeyMap.key(lineReader.getTerminal(), InfoCmp.Capability.key_up));
         keyMap.bind(new Reference("slash-accept"), "\r");
         keyMap.bind(new Reference("slash-accept"), "\n");
+        keyMap.bind(new Reference("slash-escape"), "\u001b");
     }
 
     private void ensureHistoryDirectory() throws IOException {

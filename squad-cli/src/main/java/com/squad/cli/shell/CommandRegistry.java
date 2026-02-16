@@ -4,6 +4,7 @@ import org.springframework.stereotype.Component;
 
 import java.util.Collections;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -27,13 +28,28 @@ public class CommandRegistry {
      * @throws IllegalArgumentException name이 null이거나 빈 문자열인 경우
      */
     public void register(String name, String description, CommandExecutor executor) {
+        register(name, description, executor, List.of());
+    }
+
+    /**
+     * 서브커맨드를 포함하여 커맨드를 등록한다.
+     *
+     * @param name        커맨드 이름 (슬래시 제외, 예: "agent")
+     * @param description 커맨드 설명
+     * @param executor    커맨드 실행기
+     * @param subcommands 서브커맨드 목록
+     * @throws IllegalArgumentException name이 null이거나 빈 문자열인 경우
+     */
+    public void register(String name, String description, CommandExecutor executor,
+                          List<SubcommandInfo> subcommands) {
         if (name == null || name.isBlank()) {
             throw new IllegalArgumentException("커맨드 이름은 비어있을 수 없습니다.");
         }
         if (executor == null) {
             throw new IllegalArgumentException("커맨드 실행기는 null일 수 없습니다.");
         }
-        commands.put(name.toLowerCase(), new CommandEntry(name.toLowerCase(), description, executor));
+        List<SubcommandInfo> subs = subcommands != null ? List.copyOf(subcommands) : List.of();
+        commands.put(name.toLowerCase(), new CommandEntry(name.toLowerCase(), description, executor, subs));
     }
 
     /**
@@ -68,13 +84,33 @@ public class CommandRegistry {
     }
 
     /**
+     * 서브커맨드 정보.
+     *
+     * @param name        서브커맨드 이름
+     * @param description 서브커맨드 설명
+     */
+    public record SubcommandInfo(String name, String description) {
+    }
+
+    /**
      * 커맨드 엔트리.
      *
      * @param name        커맨드 이름
      * @param description 커맨드 설명
      * @param executor    커맨드 실행기
+     * @param subcommands 서브커맨드 목록
      */
-    public record CommandEntry(String name, String description, CommandExecutor executor) {
+    public record CommandEntry(String name, String description, CommandExecutor executor,
+                                List<SubcommandInfo> subcommands) {
+
+        /**
+         * 서브커맨드가 있는지 여부를 반환한다.
+         *
+         * @return 서브커맨드가 있으면 {@code true}
+         */
+        public boolean hasSubcommands() {
+            return subcommands != null && !subcommands.isEmpty();
+        }
     }
 
     /**

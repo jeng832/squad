@@ -700,3 +700,21 @@
     - 전체 흐름(생성→시작→완료), Container 실패 시 정리, 취소 흐름, 상태 검증
   - 전체 테스트 수: 437 → 443 (신규 테스트 메서드 ~93개)
   - 모든 테스트 통과 확인 (0 failures, 0 ignored)
+
+### 작업 11-1: CLI 프로젝트 셋업
+- **PR**: [#60](https://github.com/jeng832/squad/pull/60)
+- **이슈**: [#59](https://github.com/jeng832/squad/issues/59) (CLI 인터페이스) 생성
+- **구현 내용**:
+  - `:squad-cli` Gradle 서브모듈 생성 (Picocli 4.7.7 + JLine3 3.25.1 + Spring Boot 3.4.2)
+  - Spring Boot DI 컨테이너만 사용 (`web-application-type: none`)
+  - `SquadCliApplication`: REPL/One-shot 분기 진입점
+  - `SquadCliCommand`: Picocli 최상위 커맨드
+  - `SpringPicocliFactory`: Spring DI ↔ Picocli IFactory 브릿지
+  - `RestClientConfig` + `SquadApiClient`: RestClient + Virtual Threads 기반 API 클라이언트
+  - `InteractiveShell`: JLine3 REPL 루프 (프롬프트, 자동완성, 히스토리)
+  - `CommandRegistry`: 슬래시 커맨드 등록/조회 (등록 순서 유지, 대소문자 무시)
+  - `SlashCommandPalette`: 퍼지 검색 기반 커맨드 팔레트
+  - `FuzzySearchEngine`: 레벤슈타인 거리 + 부분매칭 + 연속매칭 가점
+  - `TableRenderer`: 테이블 포맷 출력 (한글 와이드 문자 너비 지원)
+  - 단위 테스트 3개: CommandRegistryTest, FuzzySearchEngineTest, TableRendererTest
+  - 17개 파일 생성/수정, 전체 빌드 성공 (기존 모듈 영향 없음)

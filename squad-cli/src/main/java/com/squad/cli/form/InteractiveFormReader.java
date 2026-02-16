@@ -275,12 +275,8 @@ public class InteractiveFormReader {
      * @return 예(true), 아니오(false)
      */
     public boolean readConfirm(CommandContext ctx, String prompt) {
-        try {
-            String input = ctx.lineReader().readLine(prompt + " (y/n): ").trim().toLowerCase();
-            return "y".equals(input) || "yes".equals(input);
-        } catch (UserInterruptException | EndOfFileException e) {
-            return false;
-        }
+        int selected = readSelection(ctx, prompt, List.of("예", "아니오"));
+        return selected == 0;
     }
 
     private String maskPreview(String value) {

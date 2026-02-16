@@ -778,3 +778,26 @@
   - AgentCommand 패턴 완전 답습 (등록, 서브커맨드, 선택 UI)
   - config JSON은 전체 교체 방식 (부분 병합 대비 버그 적고 테스트 용이)
   - Optional field 처리: readLine의 null 반환을 "입력 없음"으로 취급 (구조적 한계 수용)
+
+### 작업 11-4: Squad 관리 CLI 커맨드
+- **PR**: [#64](https://github.com/jeng832/squad/pull/64)
+- **구현 내용**:
+  - `SquadCommand`: `/squad` 서브커맨드 처리
+    - `list`: Squad 목록 테이블 출력 (ID, 이름, 설명, Orchestrator ID, 멤버 수)
+    - `create`: 가이드 폼 (이름 → 설명 → Orchestrator 선택 → 멤버 ID 입력 → 직접 통신 JSON → 확인)
+    - `update`: ID 미지정 시 화살표키 선택, 기존값 기본값 지원, 멤버/직접통신 변경 여부 선택
+    - `delete`: ID 미지정 시 화살표키 선택, 확인 후 삭제
+    - `{id}`: 상세 조회 (직접 통신 JSON pretty print)
+  - Orchestrator 선택: Agent 목록에서 ORCHESTRATOR roleType만 필터링
+  - 멤버 Agent: 쉼표 구분 ID 입력 (사용 가능 Agent 목록 표시, 잘못된 ID 경고 후 무시, 중복 제거)
+  - 직접 통신 규칙: JSON 입력 (예시 제공, 최대 3회 재시도, 빈 입력 시 건너뜀)
+  - 22개 테스트 케이스
+- **Codex CLI 코드리뷰 결과** (4회 반복):
+  - 1차: P1 - update 시 directCommunication 미변경 시에도 기존값 null로 덮어씀 → 기존값 보존으로 수정
+  - 2차: 이슈 없음
+  - 3차: P1 - readAgentIds에서 Ctrl+C와 빈 입력 미구분 → null 반환으로 취소 처리 분리
+  - 4차: 이슈 없음 (수렴)
+- **설계 결정**:
+  - 멤버 선택: 멀티 선택 UI 미구현으로 쉼표 구분 ID 입력 방식 채택 (향후 개선 가능)
+  - update 시 PUT body에 항상 기존값 포함하여 서버 side null 덮어쓰기 방지
+  - readConfirm 화살표키 선택 UI 적용 (readSelection 재사용)

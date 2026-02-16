@@ -127,7 +127,7 @@ class McpCommandTest {
     void createMcp() {
         when(formReader.readLine(eq(ctx), eq("이름"))).thenReturn("GitHub MCP");
         when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn("GitHub 연동");
-        when(formReader.readMultiLine(eq(ctx), eq("config JSON")))
+        when(formReader.readJsonInput(eq(ctx), eq("config JSON 입력"), any(), any()))
                 .thenReturn("{\"command\": \"npx\", \"args\": [\"-y\", \"@mcp/server-github\"]}");
         when(formReader.readConfirm(any(), any())).thenReturn(true);
 
@@ -156,67 +156,47 @@ class McpCommandTest {
     }
 
     @Test
-    @DisplayName("/mcp create - 잘못된 JSON 입력 후 재입력하여 생성한다")
-    void createMcpRetryOnInvalidJson() {
+    @DisplayName("/mcp create - 잘못된 JSON 입력 시 생성에 실패한다")
+    void createMcpInvalidJson() {
         when(formReader.readLine(eq(ctx), eq("이름"))).thenReturn("Test MCP");
         when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
-        when(formReader.readMultiLine(eq(ctx), eq("config JSON")))
-                .thenReturn("invalid json")
-                .thenReturn("{\"command\": \"npx\"}");
-        when(formReader.readConfirm(any(), any())).thenReturn(true);
-
-        ObjectNode response = mapper.createObjectNode();
-        response.put("success", true);
-        ObjectNode data = mapper.createObjectNode();
-        data.put("id", 2);
-        response.set("data", data);
-        when(apiClient.post(eq("/api/v1/mcps"), any())).thenReturn(Optional.of(response));
-
-        executeCommand("create");
-
-        String output = outputBuffer.toString();
-        assertThat(output).contains("JSON 파싱 실패");
-        assertThat(output).contains("MCP가 생성되었습니다");
-    }
-
-    @Test
-    @DisplayName("/mcp create - command 키 누락 시 재입력을 유도한다")
-    void createMcpMissingCommand() {
-        when(formReader.readLine(eq(ctx), eq("이름"))).thenReturn("Test MCP");
-        when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
-        when(formReader.readMultiLine(eq(ctx), eq("config JSON")))
-                .thenReturn("{\"type\": \"stdio\"}")
-                .thenReturn("{\"command\": \"npx\"}");
-        when(formReader.readConfirm(any(), any())).thenReturn(true);
-
-        ObjectNode response = mapper.createObjectNode();
-        response.put("success", true);
-        ObjectNode data = mapper.createObjectNode();
-        data.put("id", 3);
-        response.set("data", data);
-        when(apiClient.post(eq("/api/v1/mcps"), any())).thenReturn(Optional.of(response));
-
-        executeCommand("create");
-
-        String output = outputBuffer.toString();
-        assertThat(output).contains("'command' 키가 필요합니다");
-        assertThat(output).contains("MCP가 생성되었습니다");
-    }
-
-    @Test
-    @DisplayName("/mcp create - config 입력 횟수 초과 시 취소된다")
-    void createMcpExceedsMaxAttempts() {
-        when(formReader.readLine(eq(ctx), eq("이름"))).thenReturn("Test MCP");
-        when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
-        when(formReader.readMultiLine(eq(ctx), eq("config JSON")))
-                .thenReturn("bad1")
-                .thenReturn("bad2")
-                .thenReturn("bad3");
+        when(formReader.readJsonInput(eq(ctx), eq("config JSON 입력"), any(), any()))
+                .thenReturn("invalid json");
+        when(formReader.readConfirm(any(), eq("다시 입력하시겠습니까?"))).thenReturn(false);
 
         executeCommand("create");
 
         verify(apiClient, never()).post(any(), any());
-        assertThat(outputBuffer.toString()).contains("시도 횟수를 초과");
+        assertThat(outputBuffer.toString()).contains("JSON 파싱 실패");
+    }
+
+    @Test
+    @DisplayName("/mcp create - command 키 누락 시 생성에 실패한다")
+    void createMcpMissingCommand() {
+        when(formReader.readLine(eq(ctx), eq("이름"))).thenReturn("Test MCP");
+        when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
+        when(formReader.readJsonInput(eq(ctx), eq("config JSON 입력"), any(), any()))
+                .thenReturn("{\"type\": \"stdio\"}");
+        when(formReader.readConfirm(any(), eq("다시 입력하시겠습니까?"))).thenReturn(false);
+
+        executeCommand("create");
+
+        verify(apiClient, never()).post(any(), any());
+        assertThat(outputBuffer.toString()).contains("'command' 키가 필요합니다");
+    }
+
+    @Test
+    @DisplayName("/mcp create - config 입력을 건너뛰면 취소된다")
+    void createMcpConfigSkipped() {
+        when(formReader.readLine(eq(ctx), eq("이름"))).thenReturn("Test MCP");
+        when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
+        when(formReader.readJsonInput(eq(ctx), eq("config JSON 입력"), any(), any()))
+                .thenReturn(null);
+
+        executeCommand("create");
+
+        verify(apiClient, never()).post(any(), any());
+        assertThat(outputBuffer.toString()).contains("취소되었습니다");
     }
 
     @Test
@@ -300,8 +280,9 @@ class McpCommandTest {
         when(apiClient.get("/api/v1/mcps/1")).thenReturn(Optional.of(response));
         when(formReader.readLine(eq(ctx), eq("이름"), eq("GitHub MCP"))).thenReturn("GitHub MCP Updated");
         when(formReader.readLine(eq(ctx), eq("설명"), eq("GitHub 연동"))).thenReturn("GitHub 연동 업데이트");
-        when(formReader.readMultiLine(eq(ctx), any())).thenReturn("");
-        when(formReader.readConfirm(any(), any())).thenReturn(true);
+        // config 변경 안함 → false, 수정 확인 → true
+        when(formReader.readConfirm(any(), eq("config를 변경하시겠습니까?"))).thenReturn(false);
+        when(formReader.readConfirm(any(), eq("수정하시겠습니까?"))).thenReturn(true);
 
         ObjectNode updateResponse = mapper.createObjectNode();
         updateResponse.put("success", true);
@@ -339,23 +320,14 @@ class McpCommandTest {
     void createMcpRejectsArray() {
         when(formReader.readLine(eq(ctx), eq("이름"))).thenReturn("Test MCP");
         when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
-        when(formReader.readMultiLine(eq(ctx), eq("config JSON")))
-                .thenReturn("[1, 2, 3]")
-                .thenReturn("{\"command\": \"npx\"}");
-        when(formReader.readConfirm(any(), any())).thenReturn(true);
-
-        ObjectNode response = mapper.createObjectNode();
-        response.put("success", true);
-        ObjectNode data = mapper.createObjectNode();
-        data.put("id", 4);
-        response.set("data", data);
-        when(apiClient.post(eq("/api/v1/mcps"), any())).thenReturn(Optional.of(response));
+        when(formReader.readJsonInput(eq(ctx), eq("config JSON 입력"), any(), any()))
+                .thenReturn("[1, 2, 3]");
+        when(formReader.readConfirm(any(), eq("다시 입력하시겠습니까?"))).thenReturn(false);
 
         executeCommand("create");
 
-        String output = outputBuffer.toString();
-        assertThat(output).contains("JSON 객체여야 합니다");
-        assertThat(output).contains("MCP가 생성되었습니다");
+        verify(apiClient, never()).post(any(), any());
+        assertThat(outputBuffer.toString()).contains("JSON 객체여야 합니다");
     }
 
     private void executeCommand(String args) {

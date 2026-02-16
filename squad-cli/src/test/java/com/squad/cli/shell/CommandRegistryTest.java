@@ -21,7 +21,7 @@ class CommandRegistryTest {
     @Test
     @DisplayName("커맨드를 등록하고 이름으로 조회할 수 있다")
     void registerAndFind() {
-        registry.register("help", "도움말 표시", args -> {});
+        registry.register("help", "도움말 표시", (ctx, args) -> {});
 
         Optional<CommandRegistry.CommandEntry> result = registry.find("help");
 
@@ -33,7 +33,7 @@ class CommandRegistryTest {
     @Test
     @DisplayName("대소문자를 무시하고 커맨드를 조회한다")
     void findIgnoresCase() {
-        registry.register("Help", "도움말 표시", args -> {});
+        registry.register("Help", "도움말 표시", (ctx, args) -> {});
 
         assertThat(registry.find("help")).isPresent();
         assertThat(registry.find("HELP")).isPresent();
@@ -55,14 +55,14 @@ class CommandRegistryTest {
     @Test
     @DisplayName("null 이름으로 등록 시 예외가 발생한다")
     void registerNullNameThrows() {
-        assertThatThrownBy(() -> registry.register(null, "설명", args -> {}))
+        assertThatThrownBy(() -> registry.register(null, "설명", (ctx, args) -> {}))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
     @Test
     @DisplayName("빈 이름으로 등록 시 예외가 발생한다")
     void registerBlankNameThrows() {
-        assertThatThrownBy(() -> registry.register("  ", "설명", args -> {}))
+        assertThatThrownBy(() -> registry.register("  ", "설명", (ctx, args) -> {}))
                 .isInstanceOf(IllegalArgumentException.class);
     }
 
@@ -76,8 +76,8 @@ class CommandRegistryTest {
     @Test
     @DisplayName("등록된 모든 커맨드를 조회할 수 있다")
     void getAllReturnsAllCommands() {
-        registry.register("help", "도움말", args -> {});
-        registry.register("quit", "종료", args -> {});
+        registry.register("help", "도움말", (ctx, args) -> {});
+        registry.register("quit", "종료", (ctx, args) -> {});
 
         Map<String, CommandRegistry.CommandEntry> all = registry.getAll();
 
@@ -88,9 +88,9 @@ class CommandRegistryTest {
     @Test
     @DisplayName("getAll()은 등록 순서를 유지한다")
     void getAllPreservesInsertionOrder() {
-        registry.register("alpha", "첫 번째", args -> {});
-        registry.register("beta", "두 번째", args -> {});
-        registry.register("gamma", "세 번째", args -> {});
+        registry.register("alpha", "첫 번째", (ctx, args) -> {});
+        registry.register("beta", "두 번째", (ctx, args) -> {});
+        registry.register("gamma", "세 번째", (ctx, args) -> {});
 
         assertThat(registry.getAll().keySet())
                 .containsExactly("alpha", "beta", "gamma");
@@ -99,7 +99,7 @@ class CommandRegistryTest {
     @Test
     @DisplayName("getAll()은 불변 맵을 반환한다")
     void getAllReturnsUnmodifiableMap() {
-        registry.register("help", "도움말", args -> {});
+        registry.register("help", "도움말", (ctx, args) -> {});
 
         Map<String, CommandRegistry.CommandEntry> all = registry.getAll();
 
@@ -112,18 +112,18 @@ class CommandRegistryTest {
     void sizeReturnsCorrectCount() {
         assertThat(registry.size()).isZero();
 
-        registry.register("help", "도움말", args -> {});
+        registry.register("help", "도움말", (ctx, args) -> {});
         assertThat(registry.size()).isEqualTo(1);
 
-        registry.register("quit", "종료", args -> {});
+        registry.register("quit", "종료", (ctx, args) -> {});
         assertThat(registry.size()).isEqualTo(2);
     }
 
     @Test
     @DisplayName("같은 이름으로 재등록하면 덮어쓴다")
     void registerOverwritesExisting() {
-        registry.register("help", "이전 설명", args -> {});
-        registry.register("help", "새 설명", args -> {});
+        registry.register("help", "이전 설명", (ctx, args) -> {});
+        registry.register("help", "새 설명", (ctx, args) -> {});
 
         assertThat(registry.size()).isEqualTo(1);
         assertThat(registry.find("help").get().description()).isEqualTo("새 설명");
@@ -133,9 +133,9 @@ class CommandRegistryTest {
     @DisplayName("커맨드 실행기가 정상적으로 호출된다")
     void executorIsInvoked() {
         StringBuilder captured = new StringBuilder();
-        registry.register("echo", "에코", captured::append);
+        registry.register("echo", "에코", (ctx, args) -> captured.append(args));
 
-        registry.find("echo").get().executor().execute("hello");
+        registry.find("echo").get().executor().execute(null, "hello");
 
         assertThat(captured).hasToString("hello");
     }

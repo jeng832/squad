@@ -203,7 +203,7 @@ public class InteractiveFormReader {
                 writer.flush();
                 return null;
             }
-            String content = Files.readString(path).trim();
+            String content = Files.readString(path);
             writer.println("파일에서 읽음: " + filePath + " (" + content.length() + "자)");
             writer.flush();
             return content;

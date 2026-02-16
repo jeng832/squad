@@ -197,8 +197,8 @@ public class AgentCommand {
         writer.println("(Enter로 기존 값 유지)");
         writer.flush();
 
-        String currentName = agentData.get("name").asText();
-        String currentRole = agentData.get("role").asText();
+        String currentName = extractField(agentData, "name");
+        String currentRole = extractField(agentData, "role");
         JsonNode currentLlmConfig = agentData.get("llmConfig");
 
         String name = formReader.readLine(ctx, "이름", currentName);

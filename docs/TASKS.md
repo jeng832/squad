@@ -137,7 +137,7 @@
 |---|--------|------|---------------|-----|
 | 11-1 | CLI 프로젝트 설정 | `:squad-cli` Gradle 서브모듈 생성, Picocli + JLine3 의존성, REST API 클라이언트 (RestClient), 인터랙티브 셸 기본 프레임워크, 슬래시 커맨드 팔레트, 퍼지 검색 엔진 | 8~10개 파일 | [#60](https://github.com/jeng832/squad/pull/60) |
 | 11-2 | Agent 관리 CLI | `/agent list/create/update/delete`, 가이드 폼 (roleType 선택, LLM 설정, MCP 멀티 선택), 테이블 출력 | 5~6개 파일 | [#62](https://github.com/jeng832/squad/pull/62) |
-| 11-3 | MCP 관리 CLI | `/mcp list/create/update/delete`, config JSON 입력/편집 지원 | 3~4개 파일 | |
+| 11-3 | MCP 관리 CLI | `/mcp list/create/update/delete`, config JSON 입력/편집 지원 | 3~4개 파일 | [#63](https://github.com/jeng832/squad/pull/63) |
 | 11-4 | Squad 관리 CLI | `/squad list/create/update/delete`, Orchestrator 선택, 멤버 멀티 선택, 직접 통신 규칙 설정 | 4~5개 파일 | |
 | 11-5 | Skill/Secret 관리 CLI | `/skill list/create/update/delete`, `/secret list/create/update/delete`, Secret 값 마스킹 출력 | 4~5개 파일 | |
 | 11-6 | 세션 실행 CLI | `/session list/start/cancel/status/result`, Squad 선택 + 프롬프트 입력 가이드 폼, 결과 마크다운 렌더링 | 4~5개 파일 | |

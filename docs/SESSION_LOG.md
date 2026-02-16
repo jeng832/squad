@@ -749,3 +749,32 @@
   - CommandContext를 record로 구현 (불변, 간결)
   - InteractiveFormReader를 별도 컴포넌트로 분리 (MCP, Squad 등 다른 커맨드에서 재사용)
   - 생성자에서 CommandRegistry에 등록하는 패턴 (Spring DI + 자동 등록)
+
+### readSelection 화살표키 선택 UI 개선
+- `InteractiveFormReader.readSelection()`: 번호 입력 → 화살표키(↑↓) 선택 UI로 변경
+  - `terminal.enterRawMode()` + `NonBlockingReader.read(timeout)` 사용
+  - ESC 시퀀스 감지로 화살표키 vs ESC 단독 구분 (50ms 타임아웃)
+  - ANSI 이스케이프 시퀀스로 화면 갱신
+- `AgentCommand`: update/delete에서 ID 미지정 시 에이전트 목록 화살표키 선택 지원
+
+### 작업 11-3: MCP 관리 CLI 커맨드
+- **PR**: [#64](https://github.com/jeng832/squad/pull/64)
+- **구현 내용**:
+  - `McpCommand`: `/mcp` 서브커맨드 처리
+    - `list`: MCP 목록 테이블 출력 (ID, 이름, 설명, 커맨드)
+    - `create`: 가이드 폼 (이름 → 설명 → config JSON 입력 → 확인)
+    - `update`: ID 미지정 시 화살표키 선택, 기존값 기본값 지원, config 유지 가능
+    - `delete`: ID 미지정 시 화살표키 선택, 확인 후 삭제
+    - `{id}`: 상세 조회 (config JSON pretty print)
+  - config JSON 입력: `readMultiLine()` + `@파일경로` 지원
+    - JSON 객체 타입 검증, `command` 키 필수 검증
+    - 파싱 실패 시 에러 출력 후 재입력 유도 (최대 3회)
+  - `McpCommandTest`: 21개 테스트 케이스
+- **코드리뷰 (Codex CLI, 4회 반복)**:
+  - 1차: [P2] update에서 description 취소 미처리 → null 체크 추가
+  - 2차: [P2] create/update의 optional field null 처리 → `readOptionalLine` 헬퍼 도입
+  - 3차~4차: 동일 P2 반복 (InteractiveFormReader.readLine API 구조적 한계) → 수용 합의
+- **설계 결정**:
+  - AgentCommand 패턴 완전 답습 (등록, 서브커맨드, 선택 UI)
+  - config JSON은 전체 교체 방식 (부분 병합 대비 버그 적고 테스트 용이)
+  - Optional field 처리: readLine의 null 반환을 "입력 없음"으로 취급 (구조적 한계 수용)

@@ -133,6 +133,43 @@ public class InteractiveFormReader {
     }
 
     /**
+     * 비밀 값을 마스킹하여 입력받는다.
+     *
+     * <p>입력 시 문자가 '*'로 표시되어 화면에 원본 값이 노출되지 않는다.
+     * JLine 히스토리에도 기록되지 않는다.</p>
+     *
+     * @param ctx          커맨드 컨텍스트
+     * @param prompt       입력 프롬프트
+     * @param defaultValue 기본값 (null 가능)
+     * @return 사용자 입력 문자열, 취소 시 null
+     */
+    public String readSecret(CommandContext ctx, String prompt, String defaultValue) {
+        String displayPrompt = defaultValue != null
+                ? prompt + " (" + maskPreview(defaultValue) + "): "
+                : prompt + ": ";
+        try {
+            String input = ctx.lineReader().readLine(displayPrompt, '*').trim();
+            if (input.isEmpty() && defaultValue != null) {
+                return defaultValue;
+            }
+            return input.isEmpty() ? null : input;
+        } catch (UserInterruptException | EndOfFileException e) {
+            return null;
+        }
+    }
+
+    /**
+     * 비밀 값을 마스킹하여 입력받는다. 기본값 없음.
+     *
+     * @param ctx    커맨드 컨텍스트
+     * @param prompt 입력 프롬프트
+     * @return 사용자 입력 문자열, 취소 시 null
+     */
+    public String readSecret(CommandContext ctx, String prompt) {
+        return readSecret(ctx, prompt, null);
+    }
+
+    /**
      * 예/아니오 확인을 받는다.
      *
      * @param ctx    커맨드 컨텍스트
@@ -146,6 +183,16 @@ public class InteractiveFormReader {
         } catch (UserInterruptException | EndOfFileException e) {
             return false;
         }
+    }
+
+    private String maskPreview(String value) {
+        if (value.startsWith("ref:secret/")) {
+            return value;
+        }
+        if (value.length() <= 8) {
+            return "****";
+        }
+        return value.substring(0, 4) + "****" + value.substring(value.length() - 4);
     }
 
     private String readFromFile(PrintWriter writer, String filePath) {

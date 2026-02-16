@@ -134,7 +134,7 @@ public class AgentCommand {
             return;
         }
 
-        String apiKey = formReader.readLine(ctx, "API Key (ref:secret/ 형식)");
+        String apiKey = formReader.readSecret(ctx, "API Key (ref:secret/ 형식)");
         if (apiKey == null) {
             printCancelled(writer);
             return;
@@ -236,7 +236,7 @@ public class AgentCommand {
             return;
         }
 
-        String apiKey = formReader.readLine(ctx, "API Key", currentApiKey);
+        String apiKey = formReader.readSecret(ctx, "API Key", currentApiKey);
         if (apiKey == null) {
             printCancelled(writer);
             return;

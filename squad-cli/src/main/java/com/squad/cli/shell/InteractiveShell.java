@@ -180,9 +180,7 @@ public class InteractiveShell {
                             .toList();
                     List<String> matched = query.isEmpty()
                             ? allNames
-                            : fuzzySearchEngine.search(query, allNames).stream()
-                                    .sorted()
-                                    .toList();
+                            : completer.filterByPrefixPriority(query, allNames);
                     if (matched.isEmpty()) {
                         return true;
                     }

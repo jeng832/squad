@@ -81,9 +81,7 @@ public class SlashCommandCompleter implements Completer {
                     .toList();
             matched = query.isEmpty()
                     ? allNames
-                    : fuzzySearchEngine.search(query, allNames).stream()
-                            .sorted()
-                            .toList();
+                    : filterByPrefixPriority(query, allNames);
         }
 
         int maxNameLen = commandRegistry.getAll().keySet().stream()
@@ -290,6 +288,30 @@ public class SlashCommandCompleter implements Completer {
             return Optional.of(lastMatchedNames.get(selectedIndex));
         }
         return Optional.empty();
+    }
+
+    /**
+     * prefix 매칭 우선 필터링을 수행한다.
+     *
+     * <p>쿼리로 시작하는 커맨드가 있으면 해당 항목만 반환하고,
+     * 없으면 퍼지 검색 결과 전체를 반환한다. 결과는 알파벳순으로 정렬된다.</p>
+     *
+     * @param query    검색 쿼리
+     * @param allNames 전체 커맨드 이름 목록
+     * @return 필터링 및 정렬된 매칭 목록
+     */
+    public List<String> filterByPrefixPriority(String query, List<String> allNames) {
+        String lowerQuery = query.toLowerCase();
+        List<String> prefixMatched = allNames.stream()
+                .filter(name -> name.toLowerCase().startsWith(lowerQuery))
+                .sorted()
+                .toList();
+        if (!prefixMatched.isEmpty()) {
+            return prefixMatched;
+        }
+        return fuzzySearchEngine.search(query, allNames).stream()
+                .sorted()
+                .toList();
     }
 
     private int displayWidth(String text) {

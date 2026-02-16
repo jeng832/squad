@@ -86,8 +86,9 @@ public class CommandRegistry {
         /**
          * 커맨드를 실행한다.
          *
+         * @param ctx  커맨드 실행 컨텍스트 (터미널, LineReader 등)
          * @param args 커맨드 인자 (슬래시와 커맨드 이름 제외)
          */
-        void execute(String args);
+        void execute(CommandContext ctx, String args);
     }
 }

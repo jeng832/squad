@@ -69,42 +69,44 @@ public class InteractiveShell {
             bindSlashAutoComplete(lineReader, completer);
 
             PrintWriter writer = terminal.writer();
+            CommandContext ctx = new CommandContext(lineReader, terminal, writer);
+
             writer.println("Squad CLI v0.1.0 - '/help'로 사용 가능한 커맨드를 확인하세요.");
             writer.println("종료: Ctrl+D 또는 /quit");
             writer.flush();
 
-            runLoop(lineReader, writer);
+            runLoop(ctx);
         }
     }
 
-    private void runLoop(LineReader lineReader, PrintWriter writer) {
+    private void runLoop(CommandContext ctx) {
         while (true) {
             try {
-                String line = lineReader.readLine(cliConfig.getPrompt()).trim();
+                String line = ctx.lineReader().readLine(cliConfig.getPrompt()).trim();
                 if (line.isEmpty()) {
                     continue;
                 }
-                processInput(line, writer);
+                processInput(ctx, line);
             } catch (UserInterruptException e) {
                 // Ctrl+C: 현재 입력 취소, 루프 계속
             } catch (EndOfFileException e) {
-                writer.println("안녕히 가세요!");
-                writer.flush();
+                ctx.writer().println("안녕히 가세요!");
+                ctx.writer().flush();
                 return;
             }
         }
     }
 
-    private void processInput(String line, PrintWriter writer) {
+    private void processInput(CommandContext ctx, String line) {
         if (line.startsWith("/")) {
-            executeSlashCommand(line, writer);
+            executeSlashCommand(ctx, line);
         } else {
-            writer.println("알 수 없는 입력입니다. '/help'로 사용 가능한 커맨드를 확인하세요.");
-            writer.flush();
+            ctx.writer().println("알 수 없는 입력입니다. '/help'로 사용 가능한 커맨드를 확인하세요.");
+            ctx.writer().flush();
         }
     }
 
-    private void executeSlashCommand(String line, PrintWriter writer) {
+    private void executeSlashCommand(CommandContext ctx, String line) {
         String withoutSlash = line.substring(1);
         String[] parts = withoutSlash.split("\\s+", 2);
         String commandName = parts[0];
@@ -112,35 +114,41 @@ public class InteractiveShell {
 
         commandRegistry.find(commandName)
                 .ifPresentOrElse(
-                        entry -> entry.executor().execute(args),
+                        entry -> entry.executor().execute(ctx, args),
                         () -> {
                             String palette = commandPalette.formatPalette(commandName);
-                            writer.println(palette);
-                            writer.flush();
+                            ctx.writer().println(palette);
+                            ctx.writer().flush();
                         }
                 );
     }
 
     private void registerBuiltinCommands() {
         commandRegistry.register("help", "사용 가능한 커맨드 목록을 표시합니다",
-                args -> System.out.println(commandPalette.formatPalette(null)));
+                (ctx, args) -> {
+                    ctx.writer().println(commandPalette.formatPalette(null));
+                    ctx.writer().flush();
+                });
 
         commandRegistry.register("quit", "CLI를 종료합니다",
-                args -> {
-                    System.out.println("안녕히 가세요!");
+                (ctx, args) -> {
+                    ctx.writer().println("안녕히 가세요!");
+                    ctx.writer().flush();
                     System.exit(0);
                 });
 
         commandRegistry.register("exit", "CLI를 종료합니다",
-                args -> {
-                    System.out.println("안녕히 가세요!");
+                (ctx, args) -> {
+                    ctx.writer().println("안녕히 가세요!");
+                    ctx.writer().flush();
                     System.exit(0);
                 });
 
         commandRegistry.register("status", "서버 연결 상태를 확인합니다",
-                args -> System.out.println("서버 상태 확인 기능은 추후 구현 예정입니다."));
-        commandRegistry.register("status2", "테스트 용입니다.",
-                args -> System.out.println("테스트 용 입니다."));
+                (ctx, args) -> {
+                    ctx.writer().println("서버 상태 확인 기능은 추후 구현 예정입니다.");
+                    ctx.writer().flush();
+                });
     }
 
     private void bindSlashAutoComplete(LineReader lineReader, SlashCommandCompleter completer) {

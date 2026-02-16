@@ -13,12 +13,13 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.List;
 
 /**
  * JLine3 기반 인터랙티브 REPL 셸.
  *
  * <p>프롬프트를 표시하고 사용자 입력을 받아 슬래시 커맨드를 실행한다.
- * Tab 자동완성, 히스토리, 퍼지 커맨드 팔레트를 지원한다.</p>
+ * Tab 자동완성, 히스토리, 커스텀 화살표 키 선택 UI를 지원한다.</p>
  */
 @Component
 public class InteractiveShell {
@@ -61,11 +62,11 @@ public class InteractiveShell {
                     .completer(completer)
                     .variable(LineReader.HISTORY_FILE, cliConfig.getHistoryFilePath())
                     .option(LineReader.Option.AUTO_LIST, true)
-                    .option(LineReader.Option.AUTO_MENU, true)
+                    .option(LineReader.Option.AUTO_MENU, false)
                     .option(LineReader.Option.LIST_AMBIGUOUS, false)
                     .build();
 
-            bindSlashAutoComplete(lineReader);
+            bindSlashAutoComplete(lineReader, completer);
 
             PrintWriter writer = terminal.writer();
             writer.println("Squad CLI v0.1.0 - '/help'로 사용 가능한 커맨드를 확인하세요.");
@@ -142,35 +143,75 @@ public class InteractiveShell {
                 args -> System.out.println("테스트 용 입니다."));
     }
 
-    private void bindSlashAutoComplete(LineReader lineReader) {
+    private void bindSlashAutoComplete(LineReader lineReader, SlashCommandCompleter completer) {
         lineReader.getWidgets().put("slash-auto-complete", () -> {
+            completer.resetSelection();
             lineReader.getBuffer().write('/');
             lineReader.callWidget(LineReader.COMPLETE_WORD);
             return true;
         });
 
         lineReader.getWidgets().put("slash-menu-down", () -> {
-            if (lineReader.getBuffer().toString().startsWith("/")) {
-                lineReader.callWidget(LineReader.MENU_COMPLETE);
+            String buffer = lineReader.getBuffer().toString();
+            if (buffer.startsWith("/")) {
+                String query = buffer.substring(1);
+
+                if (completer.isNavigating() && !query.equals(completer.getAnchorQuery())) {
+                    completer.resetSelection();
+                }
+
+                if (!completer.isNavigating()) {
+                    List<String> allNames = commandRegistry.getAll().keySet().stream()
+                            .sorted()
+                            .toList();
+                    List<String> matched = query.isEmpty()
+                            ? allNames
+                            : fuzzySearchEngine.search(query, allNames).stream()
+                                    .sorted()
+                                    .toList();
+                    if (matched.isEmpty()) {
+                        return true;
+                    }
+                    completer.startNavigation(query, matched);
+                } else {
+                    completer.selectNext();
+                }
+                lineReader.callWidget(LineReader.LIST_CHOICES);
             } else {
                 lineReader.callWidget(LineReader.DOWN_LINE_OR_HISTORY);
             }
             return true;
         });
 
+        lineReader.getWidgets().put("slash-menu-up", () -> {
+            String buffer = lineReader.getBuffer().toString();
+            if (buffer.startsWith("/") && completer.isNavigating()) {
+                completer.selectPrevious();
+                lineReader.callWidget(LineReader.LIST_CHOICES);
+            } else {
+                lineReader.callWidget(LineReader.UP_LINE_OR_HISTORY);
+            }
+            return true;
+        });
+
+        lineReader.getWidgets().put("slash-accept", () -> {
+            completer.getSelectedName().ifPresent(name -> {
+                lineReader.getBuffer().clear();
+                lineReader.getBuffer().write("/" + name);
+            });
+            completer.resetSelection();
+            lineReader.callWidget(LineReader.ACCEPT_LINE);
+            return true;
+        });
+
         KeyMap<Binding> keyMap = lineReader.getKeyMaps().get(LineReader.MAIN);
         keyMap.bind(new Reference("slash-auto-complete"), "/");
-        keyMap.bind(new Reference("slash-menu-down"), KeyMap.key(lineReader.getTerminal(), InfoCmp.Capability.key_down));
-
-        KeyMap<Binding> menuKeyMap = lineReader.getKeyMaps().get("menu");
-        if (menuKeyMap != null) {
-            lineReader.getWidgets().put("menu-accept-and-execute", () -> {
-                lineReader.callWidget(LineReader.ACCEPT_LINE);
-                return true;
-            });
-            menuKeyMap.bind(new Reference("menu-accept-and-execute"), "\r");
-            menuKeyMap.bind(new Reference("menu-accept-and-execute"), "\n");
-        }
+        keyMap.bind(new Reference("slash-menu-down"),
+                KeyMap.key(lineReader.getTerminal(), InfoCmp.Capability.key_down));
+        keyMap.bind(new Reference("slash-menu-up"),
+                KeyMap.key(lineReader.getTerminal(), InfoCmp.Capability.key_up));
+        keyMap.bind(new Reference("slash-accept"), "\r");
+        keyMap.bind(new Reference("slash-accept"), "\n");
     }
 
     private void ensureHistoryDirectory() throws IOException {

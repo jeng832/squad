@@ -231,7 +231,8 @@ public class SquadCommand {
                 ? objectMapper.convertValue(currentDirectComm, Map.class)
                 : null;
         if (formReader.readConfirm(ctx, "직접 통신 규칙을 변경하시겠습니까?")) {
-            directCommunication = readDirectCommunication(ctx);
+            String existingJson = formatJsonForEditor(currentDirectComm);
+            directCommunication = readDirectCommunication(ctx, existingJson);
         }
 
         if (!formReader.readConfirm(ctx, "수정하시겠습니까?")) {
@@ -437,46 +438,56 @@ public class SquadCommand {
                 .collect(Collectors.toList());
     }
 
+    private static final String DIRECT_COMM_TEMPLATE = "{\n"
+            + "  \"enabled\": true,\n"
+            + "  \"rules\": [\n"
+            + "    {\"from\": \"agent-1\", \"to\": \"agent-2\", \"allowed\": true}\n"
+            + "  ]\n"
+            + "}";
+
     /**
-     * 직접 통신 규칙 JSON을 입력받는다.
-     *
-     * <p>빈 입력 시 null을 반환한다 (직접 통신 설정 없음).
-     * 최대 3회까지 재시도를 허용한다.</p>
+     * 직접 통신 규칙 JSON을 에디터 또는 직접 입력으로 받는다.
      *
      * @param ctx 커맨드 컨텍스트
-     * @return 파싱된 직접 통신 설정 Map, 미입력 시 null
+     * @return 파싱된 직접 통신 설정 Map, 건너뛰기 또는 취소 시 null
+     */
+    private Map<String, Object> readDirectCommunication(CommandContext ctx) {
+        return readDirectCommunication(ctx, null);
+    }
+
+    /**
+     * 직접 통신 규칙 JSON을 에디터 또는 직접 입력으로 받는다.
+     *
+     * <p>기존값이 있으면 에디터에 미리 채워진다.
+     * JSON 파싱 실패 시 에러를 출력하고 null을 반환한다.</p>
+     *
+     * @param ctx           커맨드 컨텍스트
+     * @param existingValue 기존 JSON 문자열 (update 시, null 가능)
+     * @return 파싱된 직접 통신 설정 Map, 건너뛰기 또는 취소 시 null
      */
     @SuppressWarnings("unchecked")
-    private Map<String, Object> readDirectCommunication(CommandContext ctx) {
+    private Map<String, Object> readDirectCommunication(CommandContext ctx, String existingValue) {
         PrintWriter writer = ctx.writer();
-        writer.println("직접 통신 규칙 예시:");
-        writer.println("  {\"enabled\": true, \"rules\": [{\"from\": \"worker-1\", \"to\": \"worker-2\", \"allowed\": true}]}");
-        writer.flush();
 
-        int maxAttempts = 3;
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            String input = formReader.readMultiLine(ctx, "직접 통신 JSON (선택, 빈 줄만 입력하면 건너뜀)");
-            if (input == null || input.isEmpty()) {
-                return null;
-            }
-
-            try {
-                JsonNode node = objectMapper.readTree(input);
-                if (!node.isObject()) {
-                    writer.println("JSON 객체여야 합니다.");
-                    writer.flush();
-                    continue;
-                }
-                return objectMapper.convertValue(node, Map.class);
-            } catch (JsonProcessingException e) {
-                writer.println("JSON 파싱 실패: " + e.getOriginalMessage());
-                writer.flush();
-            }
+        String input = formReader.readJsonInput(ctx, "직접 통신 JSON 입력",
+                DIRECT_COMM_TEMPLATE, existingValue);
+        if (input == null) {
+            return null;
         }
 
-        writer.println("입력 시도 횟수를 초과했습니다. 직접 통신 설정을 건너뜁니다.");
-        writer.flush();
-        return null;
+        try {
+            JsonNode node = objectMapper.readTree(input);
+            if (!node.isObject()) {
+                writer.println("JSON 객체여야 합니다.");
+                writer.flush();
+                return null;
+            }
+            return objectMapper.convertValue(node, Map.class);
+        } catch (JsonProcessingException e) {
+            writer.println("JSON 파싱 실패: " + e.getOriginalMessage());
+            writer.flush();
+            return null;
+        }
     }
 
     /**
@@ -583,6 +594,17 @@ public class SquadCommand {
             }
         }
         return result;
+    }
+
+    private String formatJsonForEditor(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+        } catch (JsonProcessingException e) {
+            return node.toString();
+        }
     }
 
     private String formatAgentIds(JsonNode agentIds) {

@@ -185,20 +185,15 @@ public class McpCommand {
         printConfigPretty(writer, currentConfig);
         writer.flush();
 
-        String configInput = formReader.readMultiLine(ctx, "새 config JSON (빈 줄만 입력하면 기존 유지)");
-        if (configInput == null) {
-            printCancelled(writer);
-            return;
-        }
-
-        Map<String, Object> config;
-        if (configInput.isEmpty()) {
-            config = objectMapper.convertValue(currentConfig, Map.class);
-        } else {
-            config = parseConfigJson(writer, configInput);
-            if (config == null) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> config = objectMapper.convertValue(currentConfig, Map.class);
+        if (formReader.readConfirm(ctx, "config를 변경하시겠습니까?")) {
+            String existingJson = formatJsonForEditor(currentConfig);
+            Map<String, Object> newConfig = readConfigJson(ctx, existingJson);
+            if (newConfig == null) {
                 return;
             }
+            config = newConfig;
         }
 
         if (!formReader.readConfirm(ctx, "수정하시겠습니까?")) {
@@ -340,40 +335,43 @@ public class McpCommand {
         return ids.get(selected);
     }
 
+    private static final String CONFIG_TEMPLATE = "{\n"
+            + "  \"command\": \"\",\n"
+            + "  \"args\": [],\n"
+            + "  \"env\": {}\n"
+            + "}";
+
     /**
-     * config JSON을 대화형으로 입력받는다.
-     *
-     * <p>파싱 실패 시 에러를 출력하고 재입력을 유도한다.
-     * 최대 3회까지 시도하며, 초과하면 취소로 처리한다.</p>
+     * config JSON을 에디터 또는 직접 입력으로 받는다.
      *
      * @param ctx 커맨드 컨텍스트
      * @return 파싱된 config Map, 취소 시 null
      */
     private Map<String, Object> readConfigJson(CommandContext ctx) {
+        return readConfigJson(ctx, null);
+    }
+
+    /**
+     * config JSON을 에디터 또는 직접 입력으로 받는다.
+     *
+     * <p>기존값이 있으면 에디터에 미리 채워진다.
+     * config는 필수이며 건너뛰기 선택 시 null을 반환한다.</p>
+     *
+     * @param ctx           커맨드 컨텍스트
+     * @param existingValue 기존 config JSON 문자열 (update 시, null 가능)
+     * @return 파싱된 config Map, 취소 시 null
+     */
+    private Map<String, Object> readConfigJson(CommandContext ctx, String existingValue) {
         PrintWriter writer = ctx.writer();
-        int maxAttempts = 3;
 
-        for (int attempt = 0; attempt < maxAttempts; attempt++) {
-            String input = formReader.readMultiLine(ctx, "config JSON");
-            if (input == null) {
-                printCancelled(writer);
-                return null;
-            }
-            if (input.isEmpty()) {
-                writer.println("config는 필수입니다.");
-                writer.flush();
-                continue;
-            }
-
-            Map<String, Object> config = parseConfigJson(writer, input);
-            if (config != null) {
-                return config;
-            }
+        String input = formReader.readJsonInput(ctx, "config JSON 입력",
+                CONFIG_TEMPLATE, existingValue);
+        if (input == null) {
+            printCancelled(writer);
+            return null;
         }
 
-        writer.println("config 입력 시도 횟수를 초과했습니다.");
-        writer.flush();
-        return null;
+        return parseConfigJson(writer, input);
     }
 
     /**
@@ -454,6 +452,17 @@ public class McpCommand {
     private void printCancelled(PrintWriter writer) {
         writer.println("취소되었습니다.");
         writer.flush();
+    }
+
+    private String formatJsonForEditor(JsonNode node) {
+        if (node == null || node.isNull()) {
+            return null;
+        }
+        try {
+            return objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(node);
+        } catch (JsonProcessingException e) {
+            return node.toString();
+        }
     }
 
     private void printConfigPretty(PrintWriter writer, JsonNode config) {

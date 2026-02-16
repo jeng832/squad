@@ -394,6 +394,125 @@ public class InteractiveFormReader {
         return selected == 0;
     }
 
+    /**
+     * 외부 에디터를 열어 텍스트를 편집받는다.
+     *
+     * <p>에디터 결정 순서: {@code $VISUAL} → {@code $EDITOR} → {@code vi}.
+     * 임시 파일에 초기 내용을 기록한 후 에디터를 실행하고,
+     * 에디터 종료 후 파일 내용을 읽어 반환한다.</p>
+     *
+     * <p>JLine Terminal을 일시 정지하여 에디터가 터미널을 온전히 점유하도록 한다.</p>
+     *
+     * @param ctx             커맨드 컨텍스트
+     * @param initialContent  에디터에 미리 채울 내용 (null이면 빈 파일)
+     * @param fileExtension   임시 파일 확장자 (예: ".json")
+     * @return 편집된 텍스트, 취소 또는 에러 시 null
+     */
+    public String readWithEditor(CommandContext ctx, String initialContent, String fileExtension) {
+        PrintWriter writer = ctx.writer();
+        Terminal terminal = ctx.terminal();
+
+        String editor = resolveEditor();
+        Path tempFile = null;
+
+        try {
+            tempFile = Files.createTempFile("squad-edit-", fileExtension);
+            if (initialContent != null && !initialContent.isEmpty()) {
+                Files.writeString(tempFile, initialContent);
+            }
+
+            writer.println("에디터를 여는 중... (" + editor + ")");
+            writer.flush();
+
+            terminal.pause();
+            try {
+                ProcessBuilder pb = new ProcessBuilder(editor, tempFile.toString());
+                pb.inheritIO();
+                Process process = pb.start();
+                int exitCode = process.waitFor();
+
+                if (exitCode != 0) {
+                    writer.println("에디터가 비정상 종료되었습니다. (exit code: " + exitCode + ")");
+                    writer.flush();
+                    return null;
+                }
+            } finally {
+                terminal.resume();
+            }
+
+            String content = Files.readString(tempFile).trim();
+            return content.isEmpty() ? null : content;
+        } catch (IOException e) {
+            writer.println("에디터 실행 실패: " + e.getMessage());
+            writer.flush();
+            return null;
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            writer.println("에디터 실행이 중단되었습니다.");
+            writer.flush();
+            return null;
+        } finally {
+            deleteTempFile(tempFile);
+        }
+    }
+
+    /**
+     * JSON 입력 방법을 선택받아 JSON 문자열을 반환한다.
+     *
+     * <p>"에디터로 편집" / "직접 입력" / "건너뛰기" 3가지 선택지를 제공한다.
+     * update 시 기존값을 전달하면 에디터에 미리 채워진다.</p>
+     *
+     * @param ctx           커맨드 컨텍스트
+     * @param prompt        선택 프롬프트
+     * @param template      에디터 초기 템플릿 (새 입력 시)
+     * @param existingValue 기존 JSON 값 (update 시, null 가능)
+     * @return JSON 문자열, 건너뛰기 또는 취소 시 null
+     */
+    public String readJsonInput(CommandContext ctx, String prompt,
+                                String template, String existingValue) {
+        String editorName = resolveEditor();
+        List<String> options = List.of(
+                "에디터로 편집 (" + editorName + ")",
+                "직접 입력",
+                "건너뛰기"
+        );
+
+        int selected = readSelection(ctx, prompt, options);
+        if (selected < 0 || selected == 2) {
+            return null;
+        }
+
+        if (selected == 0) {
+            String editorContent = (existingValue != null && !existingValue.isEmpty())
+                    ? existingValue : template;
+            return readWithEditor(ctx, editorContent, ".json");
+        }
+
+        return readMultiLine(ctx, prompt);
+    }
+
+    private String resolveEditor() {
+        String visual = System.getenv("VISUAL");
+        if (visual != null && !visual.isBlank()) {
+            return visual;
+        }
+        String editor = System.getenv("EDITOR");
+        if (editor != null && !editor.isBlank()) {
+            return editor;
+        }
+        return "vi";
+    }
+
+    private void deleteTempFile(Path path) {
+        if (path != null) {
+            try {
+                Files.deleteIfExists(path);
+            } catch (IOException ignored) {
+                // 임시 파일 삭제 실패는 무시
+            }
+        }
+    }
+
     private String maskPreview(String value) {
         if (value.startsWith("ref:secret/")) {
             return value;

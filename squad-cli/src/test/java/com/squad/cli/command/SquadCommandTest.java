@@ -165,8 +165,8 @@ class SquadCommandTest {
         // 멤버 선택 (인덱스 1 = worker-1, ID: 20)
         when(formReader.readMultiSelection(eq(ctx), eq("멤버 Agent 선택"), any(), any())).thenReturn(List.of(1));
 
-        // 직접 통신 건너뜀
-        when(formReader.readMultiLine(eq(ctx), any())).thenReturn("");
+        // 직접 통신 건너뜀 (readJsonInput에서 null 반환 = 건너뛰기)
+        when(formReader.readJsonInput(eq(ctx), any(), any(), any())).thenReturn(null);
 
         // 확인
         when(formReader.readConfirm(any(), any())).thenReturn(true);

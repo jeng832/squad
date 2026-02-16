@@ -121,8 +121,8 @@ public class SquadCommand {
             return;
         }
 
-        // 멤버 Agent 선택 (쉼표 구분 ID 입력)
-        List<Long> agentIds = readAgentIds(ctx, writer);
+        // 멤버 Agent 선택
+        List<Long> agentIds = readAgentIds(ctx, writer, null);
         if (agentIds == null) {
             printCancelled(writer);
             return;
@@ -210,7 +210,7 @@ public class SquadCommand {
 
         List<Long> agentIds = parseCurrentAgentIds(currentAgentIds);
         if (formReader.readConfirm(ctx, "멤버를 변경하시겠습니까?")) {
-            List<Long> newAgentIds = readAgentIds(ctx, writer);
+            List<Long> newAgentIds = readAgentIds(ctx, writer, agentIds);
             if (newAgentIds == null) {
                 printCancelled(writer);
                 return;
@@ -385,64 +385,56 @@ public class SquadCommand {
     }
 
     /**
-     * 멤버 Agent ID를 쉼표 구분으로 입력받는다.
+     * 멤버 Agent를 화살표키 + 스페이스바 멀티 선택 UI로 선택받는다.
      *
-     * <p>빈 입력 시 빈 리스트를 반환한다. 숫자가 아닌 값은 경고 후 무시한다.</p>
+     * <p>등록된 Agent 목록을 표시하고 스페이스바로 토글, Enter로 확정한다.
+     * 기존 선택 Agent ID가 있으면 미리 체크된 상태로 표시한다.</p>
      *
-     * @param ctx    커맨드 컨텍스트
-     * @param writer 출력용 PrintWriter
-     * @return Agent ID 리스트, 빈 입력 시 빈 리스트, 취소(Ctrl+C) 시 null
+     * @param ctx           커맨드 컨텍스트
+     * @param writer        출력용 PrintWriter
+     * @param preSelectedIds 미리 선택할 Agent ID 목록 (null 가능)
+     * @return Agent ID 리스트, 취소(ESC/Ctrl+C) 시 null
      */
-    private List<Long> readAgentIds(CommandContext ctx, PrintWriter writer) {
-        showAvailableAgents(writer);
-        String input = formReader.readLine(ctx, "멤버 Agent IDs (쉼표 구분, 예: 1,3,5)");
-        if (input == null) {
-            return null;
-        }
-        if (input.isBlank()) {
-            return List.of();
-        }
-
-        List<Long> result = new ArrayList<>();
-        for (String token : input.split(",")) {
-            String trimmed = token.trim();
-            if (trimmed.isEmpty()) {
-                continue;
-            }
-            try {
-                result.add(Long.parseLong(trimmed));
-            } catch (NumberFormatException e) {
-                writer.println("'" + trimmed + "'은(는) 유효한 ID가 아닙니다. 무시합니다.");
-                writer.flush();
-            }
-        }
-        return result.stream()
-                .distinct()
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * 사용 가능한 Agent 목록을 간단히 표시한다.
-     *
-     * @param writer 출력용 PrintWriter
-     */
-    private void showAvailableAgents(PrintWriter writer) {
+    private List<Long> readAgentIds(CommandContext ctx, PrintWriter writer, List<Long> preSelectedIds) {
         Optional<JsonNode> response = apiClient.get(AGENTS_API_PATH);
         if (response.isEmpty()) {
-            return;
+            writer.println("서버에 연결할 수 없습니다.");
+            writer.flush();
+            return null;
         }
 
         JsonNode data = response.get().get("data");
         if (data == null || !data.isArray() || data.isEmpty()) {
-            return;
+            writer.println("등록된 에이전트가 없습니다.");
+            writer.flush();
+            return List.of();
         }
 
-        writer.println("등록된 에이전트:");
+        List<String> options = new ArrayList<>();
+        List<Long> agentIdList = new ArrayList<>();
+        List<Integer> preSelected = new ArrayList<>();
+
         for (JsonNode agent : data) {
-            writer.println("  [" + agent.get("id").asText() + "] "
-                    + agent.get("name").asText() + " (" + extractField(agent, "roleType") + ")");
+            long agentId = agent.get("id").asLong();
+            String agentName = agent.get("name").asText();
+            String roleType = extractField(agent, "roleType");
+            agentIdList.add(agentId);
+            options.add("[" + agentId + "] " + agentName + " (" + roleType + ")");
+
+            if (preSelectedIds != null && preSelectedIds.contains(agentId)) {
+                preSelected.add(options.size() - 1);
+            }
         }
-        writer.flush();
+
+        List<Integer> selectedIndices = formReader.readMultiSelection(
+                ctx, "멤버 Agent 선택", options, preSelected.isEmpty() ? null : preSelected);
+        if (selectedIndices == null) {
+            return null;
+        }
+
+        return selectedIndices.stream()
+                .map(agentIdList::get)
+                .collect(Collectors.toList());
     }
 
     /**

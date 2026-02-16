@@ -11,6 +11,7 @@ import java.io.IOException;
 import java.io.PrintWriter;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.List;
 
 /**
@@ -102,6 +103,7 @@ public class InteractiveFormReader {
     private static final int CTRL_C = 0x03;
     private static final int ENTER_CR = '\r';
     private static final int ENTER_LF = '\n';
+    private static final int SPACE = ' ';
     private static final int ESC_TIMEOUT_MS = 50;
 
     /**
@@ -155,6 +157,119 @@ public class InteractiveFormReader {
         } finally {
             terminal.setAttributes(originalAttributes);
         }
+    }
+
+    /**
+     * 화살표키와 스페이스바로 여러 항목을 선택받는다.
+     *
+     * <p>옵션 목록을 체크박스 형태로 표시하고 화살표키(↑↓)로 이동,
+     * 스페이스바로 선택/해제 토글, Enter로 확정, ESC/Ctrl+C로 취소한다.
+     * 기존 선택 상태를 {@code preSelected}로 전달할 수 있다.</p>
+     *
+     * @param ctx         커맨드 컨텍스트
+     * @param prompt      선택 프롬프트
+     * @param options     선택 옵션 목록
+     * @param preSelected 미리 선택된 인덱스 목록 (null 가능)
+     * @return 선택된 인덱스 리스트 (0-based), 취소 시 null
+     */
+    public List<Integer> readMultiSelection(CommandContext ctx, String prompt,
+                                            List<String> options, List<Integer> preSelected) {
+        Terminal terminal = ctx.terminal();
+        PrintWriter writer = ctx.writer();
+        int cursorIndex = 0;
+        boolean[] selected = new boolean[options.size()];
+
+        if (preSelected != null) {
+            for (int idx : preSelected) {
+                if (idx >= 0 && idx < selected.length) {
+                    selected[idx] = true;
+                }
+            }
+        }
+
+        writer.println(prompt + ":");
+        renderMultiOptions(writer, options, selected, cursorIndex);
+        printMultiNavigationHint(writer);
+        writer.flush();
+
+        Attributes originalAttributes = terminal.enterRawMode();
+        try {
+            while (true) {
+                int key = terminal.reader().read();
+
+                if (key == ENTER_CR || key == ENTER_LF) {
+                    clearNavigationHint(writer);
+                    return collectSelectedIndices(selected);
+                }
+
+                if (key == CTRL_C) {
+                    clearNavigationHint(writer);
+                    return null;
+                }
+
+                if (key == SPACE) {
+                    selected[cursorIndex] = !selected[cursorIndex];
+                    moveUpAndRedrawMulti(writer, options, selected, cursorIndex);
+                    continue;
+                }
+
+                if (key == ESC) {
+                    int direction = readEscSequence(terminal);
+                    if (direction == 0) {
+                        clearNavigationHint(writer);
+                        return null;
+                    }
+                    cursorIndex = wrapIndex(cursorIndex + direction, options.size());
+                    moveUpAndRedrawMulti(writer, options, selected, cursorIndex);
+                }
+            }
+        } catch (IOException e) {
+            return null;
+        } finally {
+            terminal.setAttributes(originalAttributes);
+        }
+    }
+
+    private void renderMultiOptions(PrintWriter writer, List<String> options,
+                                    boolean[] selected, int cursorIndex) {
+        for (int i = 0; i < options.size(); i++) {
+            String cursor = (i == cursorIndex) ? "> " : "  ";
+            String check = selected[i] ? "[x] " : "[ ] ";
+            writer.println(cursor + check + options.get(i));
+        }
+    }
+
+    private void printMultiNavigationHint(PrintWriter writer) {
+        writer.print("\033[90m↑↓ 이동 | Space 선택/해제 | Enter 확정 | ESC 취소\033[0m");
+        writer.flush();
+    }
+
+    private void moveUpAndRedrawMulti(PrintWriter writer, List<String> options,
+                                      boolean[] selected, int cursorIndex) {
+        int linesToMoveUp = options.size();
+        writer.print("\r\033[2K");
+        writer.print("\033[" + linesToMoveUp + "A");
+        for (int i = 0; i < options.size(); i++) {
+            String cursor = (i == cursorIndex) ? "> " : "  ";
+            String check = selected[i] ? "[x] " : "[ ] ";
+            writer.print("\r\033[2K" + cursor + check + options.get(i));
+            if (i < options.size() - 1) {
+                writer.println();
+            }
+        }
+        writer.println();
+        printMultiNavigationHint(writer);
+        writer.flush();
+    }
+
+    private List<Integer> collectSelectedIndices(boolean[] selected) {
+        List<Integer> result = new ArrayList<>();
+        for (int i = 0; i < selected.length; i++) {
+            if (selected[i]) {
+                result.add(i);
+            }
+        }
+        return result;
     }
 
     /**

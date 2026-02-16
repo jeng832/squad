@@ -15,6 +15,7 @@ import org.junit.jupiter.api.Test;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -161,8 +162,8 @@ class SquadCommandTest {
         when(apiClient.get("/api/v1/agents")).thenReturn(Optional.of(agentListResponse));
         when(formReader.readSelection(eq(ctx), eq("Orchestrator 선택"), any())).thenReturn(0);
 
-        // 멤버 입력
-        when(formReader.readLine(eq(ctx), eq("멤버 Agent IDs (쉼표 구분, 예: 1,3,5)"))).thenReturn("20");
+        // 멤버 선택 (인덱스 1 = worker-1, ID: 20)
+        when(formReader.readMultiSelection(eq(ctx), eq("멤버 Agent 선택"), any(), any())).thenReturn(List.of(1));
 
         // 직접 통신 건너뜀
         when(formReader.readMultiLine(eq(ctx), any())).thenReturn("");
@@ -231,36 +232,25 @@ class SquadCommandTest {
     }
 
     @Test
-    @DisplayName("/squad create - 멤버 ID에 잘못된 값 입력 시 무시한다")
-    void createSquadInvalidMemberIds() {
+    @DisplayName("/squad create - 멤버 선택 취소 시 생성을 취소한다")
+    void createSquadMemberSelectionCancelled() {
         when(formReader.readLine(eq(ctx), eq("이름"))).thenReturn("팀");
         when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
 
         ObjectNode agentListResponse = createAgentListResponse(
-                createAgent(10L, "orchestrator-1", "ORCHESTRATOR")
+                createAgent(10L, "orchestrator-1", "ORCHESTRATOR"),
+                createAgent(20L, "worker-1", "WORKER")
         );
         when(apiClient.get("/api/v1/agents")).thenReturn(Optional.of(agentListResponse));
         when(formReader.readSelection(eq(ctx), eq("Orchestrator 선택"), any())).thenReturn(0);
 
-        // 잘못된 ID 포함
-        when(formReader.readLine(eq(ctx), eq("멤버 Agent IDs (쉼표 구분, 예: 1,3,5)"))).thenReturn("20,abc,30");
-
-        when(formReader.readMultiLine(eq(ctx), any())).thenReturn("");
-        when(formReader.readConfirm(any(), any())).thenReturn(true);
-
-        ObjectNode response = mapper.createObjectNode();
-        response.put("success", true);
-        ObjectNode data = mapper.createObjectNode();
-        data.put("id", 1);
-        response.set("data", data);
-        when(apiClient.post(eq("/api/v1/squads"), any())).thenReturn(Optional.of(response));
+        // 멤버 선택 취소 (ESC/Ctrl+C)
+        when(formReader.readMultiSelection(eq(ctx), eq("멤버 Agent 선택"), any(), any())).thenReturn(null);
 
         executeCommand("create");
 
-        String output = outputBuffer.toString();
-        assertThat(output).contains("'abc'");
-        assertThat(output).contains("유효한 ID가 아닙니다");
-        assertThat(output).contains("Squad가 생성되었습니다");
+        verify(apiClient, never()).post(any(), any());
+        assertThat(outputBuffer.toString()).contains("취소되었습니다");
     }
 
     @Test

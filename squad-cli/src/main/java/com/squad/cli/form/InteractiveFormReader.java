@@ -491,6 +491,17 @@ public class InteractiveFormReader {
         return readMultiLine(ctx, prompt);
     }
 
+    /**
+     * 현재 설정된 에디터 이름을 반환한다.
+     *
+     * <p>결정 순서: {@code $VISUAL} → {@code $EDITOR} → {@code vi}</p>
+     *
+     * @return 에디터 이름
+     */
+    public String resolveEditorName() {
+        return resolveEditor();
+    }
+
     private String resolveEditor() {
         String visual = System.getenv("VISUAL");
         if (visual != null && !visual.isBlank()) {

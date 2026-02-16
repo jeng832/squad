@@ -758,7 +758,7 @@
 - `AgentCommand`: update/delete에서 ID 미지정 시 에이전트 목록 화살표키 선택 지원
 
 ### 작업 11-3: MCP 관리 CLI 커맨드
-- **PR**: [#64](https://github.com/jeng832/squad/pull/64)
+- **PR**: [#63](https://github.com/jeng832/squad/pull/63)
 - **구현 내용**:
   - `McpCommand`: `/mcp` 서브커맨드 처리
     - `list`: MCP 목록 테이블 출력 (ID, 이름, 설명, 커맨드)

@@ -162,6 +162,7 @@ class McpCommandTest {
         when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
         when(formReader.readJsonInput(eq(ctx), eq("config JSON 입력"), any(), any()))
                 .thenReturn("invalid json");
+        when(formReader.readConfirm(any(), eq("다시 입력하시겠습니까?"))).thenReturn(false);
 
         executeCommand("create");
 
@@ -176,6 +177,7 @@ class McpCommandTest {
         when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
         when(formReader.readJsonInput(eq(ctx), eq("config JSON 입력"), any(), any()))
                 .thenReturn("{\"type\": \"stdio\"}");
+        when(formReader.readConfirm(any(), eq("다시 입력하시겠습니까?"))).thenReturn(false);
 
         executeCommand("create");
 
@@ -320,6 +322,7 @@ class McpCommandTest {
         when(formReader.readLine(eq(ctx), eq("설명 (선택)"))).thenReturn(null);
         when(formReader.readJsonInput(eq(ctx), eq("config JSON 입력"), any(), any()))
                 .thenReturn("[1, 2, 3]");
+        when(formReader.readConfirm(any(), eq("다시 입력하시겠습니까?"))).thenReturn(false);
 
         executeCommand("create");
 

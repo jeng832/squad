@@ -469,24 +469,29 @@ public class SquadCommand {
     private Map<String, Object> readDirectCommunication(CommandContext ctx, String existingValue) {
         PrintWriter writer = ctx.writer();
 
-        String input = formReader.readJsonInput(ctx, "직접 통신 JSON 입력",
-                DIRECT_COMM_TEMPLATE, existingValue);
-        if (input == null) {
-            return null;
-        }
-
-        try {
-            JsonNode node = objectMapper.readTree(input);
-            if (!node.isObject()) {
-                writer.println("JSON 객체여야 합니다.");
-                writer.flush();
+        while (true) {
+            String input = formReader.readJsonInput(ctx, "직접 통신 JSON 입력",
+                    DIRECT_COMM_TEMPLATE, existingValue);
+            if (input == null) {
                 return null;
             }
-            return objectMapper.convertValue(node, Map.class);
-        } catch (JsonProcessingException e) {
-            writer.println("JSON 파싱 실패: " + e.getOriginalMessage());
-            writer.flush();
-            return null;
+
+            try {
+                JsonNode node = objectMapper.readTree(input);
+                if (!node.isObject()) {
+                    writer.println("JSON 객체여야 합니다.");
+                    writer.flush();
+                } else {
+                    return objectMapper.convertValue(node, Map.class);
+                }
+            } catch (JsonProcessingException e) {
+                writer.println("JSON 파싱 실패: " + e.getOriginalMessage());
+                writer.flush();
+            }
+
+            if (!formReader.readConfirm(ctx, "다시 입력하시겠습니까?")) {
+                return null;
+            }
         }
     }
 

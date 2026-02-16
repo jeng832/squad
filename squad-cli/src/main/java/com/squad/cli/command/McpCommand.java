@@ -364,14 +364,24 @@ public class McpCommand {
     private Map<String, Object> readConfigJson(CommandContext ctx, String existingValue) {
         PrintWriter writer = ctx.writer();
 
-        String input = formReader.readJsonInput(ctx, "config JSON 입력",
-                CONFIG_TEMPLATE, existingValue);
-        if (input == null) {
-            printCancelled(writer);
-            return null;
-        }
+        while (true) {
+            String input = formReader.readJsonInput(ctx, "config JSON 입력",
+                    CONFIG_TEMPLATE, existingValue);
+            if (input == null) {
+                printCancelled(writer);
+                return null;
+            }
 
-        return parseConfigJson(writer, input);
+            Map<String, Object> config = parseConfigJson(writer, input);
+            if (config != null) {
+                return config;
+            }
+
+            if (!formReader.readConfirm(ctx, "다시 입력하시겠습니까?")) {
+                printCancelled(writer);
+                return null;
+            }
+        }
     }
 
     /**

@@ -718,3 +718,31 @@
   - `TableRenderer`: 테이블 포맷 출력 (한글 와이드 문자 너비 지원)
   - 단위 테스트 3개: CommandRegistryTest, FuzzySearchEngineTest, TableRendererTest
   - 17개 파일 생성/수정, 전체 빌드 성공 (기존 모듈 영향 없음)
+
+## 2026-02-16
+
+### 작업 11-2: Agent 관리 CLI 커맨드
+- **PR**: [#62](https://github.com/jeng832/squad/pull/62)
+- **구현 내용**:
+  - `CommandContext` 레코드 추가: LineReader, Terminal, PrintWriter를 묶어 커맨드에 전달
+  - `InteractiveFormReader`: 재사용 가능한 대화형 폼 유틸리티
+    - `readLine()`: 한 줄 입력 (기본값 지원)
+    - `readMultiLine()`: 여러 줄 입력 (@파일경로로 파일 읽기 지원), 빈 입력과 취소 구분
+    - `readSelection()`: 번호 선택
+    - `readConfirm()`: y/n 확인
+  - `AgentCommand`: `/agent` 서브커맨드 처리
+    - `list`: 에이전트 목록 테이블 출력
+    - `create`: 가이드 폼 (이름 → roleType 선택 → 시스템 프롬프트 → LLM 설정 → 확인)
+    - `update {id}`: 기존 값 표시, Enter로 유지, 빈 프롬프트=유지 vs Ctrl+C=취소 구분
+    - `delete {id}`: 에이전트명 표시 후 확인
+    - `{id}`: 상세 조회 (apiKey 마스킹)
+  - `CommandExecutor` 인터페이스: `(CommandContext ctx, String args)` 시그니처로 변경
+  - 18개 테스트 케이스 (list/detail/delete/masking 시나리오)
+- **코드리뷰 (Codex CLI)**:
+  - [High] readMultiLine의 cancel vs "keep value" 모호성 → 빈 문자열과 null 구분으로 해결
+  - [Medium] 상세 조회 NPE 방어 → extractField() 활용으로 null-safe 처리
+  - [Medium] apiKey 마스킹 테스트 누락 → 3개 테스트 추가 (ref:secret, 일반값, 짧은값)
+- **설계 결정**:
+  - CommandContext를 record로 구현 (불변, 간결)
+  - InteractiveFormReader를 별도 컴포넌트로 분리 (MCP, Squad 등 다른 커맨드에서 재사용)
+  - 생성자에서 CommandRegistry에 등록하는 패턴 (Spring DI + 자동 등록)

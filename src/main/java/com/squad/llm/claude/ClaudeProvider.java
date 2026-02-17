@@ -2,14 +2,16 @@ package com.squad.llm.claude;
 
 import com.squad.llm.LlmProvider;
 import com.squad.llm.model.*;
-import org.springframework.http.HttpStatus;
-import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.web.reactive.function.BodyInserters;
-import org.springframework.web.reactive.function.client.ClientResponse;
 import org.springframework.web.reactive.function.client.WebClient;
 import org.springframework.web.reactive.function.client.WebClientRequestException;
 import reactor.core.publisher.Mono;
+
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.time.Duration;
 import java.util.ArrayList;
@@ -28,6 +30,7 @@ import java.util.concurrent.TimeoutException;
  */
 public class ClaudeProvider implements LlmProvider {
 
+    private static final Logger log = LoggerFactory.getLogger(ClaudeProvider.class);
     private static final String PROVIDER_NAME = "claude";
     private static final String MESSAGES_PATH = "/v1/messages";
     private static final String DEFAULT_API_VERSION = "2023-06-01";
@@ -69,20 +72,34 @@ public class ClaudeProvider implements LlmProvider {
     @Override
     public LlmResponse sendMessage(LlmRequest request) {
         ClaudeRequest body = toClaudeRequest(request);
+        try {
+            String json = new ObjectMapper().writeValueAsString(body);
+            log.debug("Claude 요청 JSON: {}", json);
+        } catch (JsonProcessingException e) {
+            log.warn("Claude 요청 직렬화 실패", e);
+        }
         int maxAttempts = Math.max(1, maxRetries + 1);
         long backoffMillis = initialBackoffMillis;
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                ClientResponse response = webClient.post()
+                Object result = webClient.post()
                         .uri(MESSAGES_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("anthropic-version", DEFAULT_API_VERSION)
                         .body(BodyInserters.fromValue(body))
-                        .exchangeToMono(Mono::just)
+                        .exchangeToMono(resp -> {
+                            if (resp.statusCode().isError()) {
+                                return resp.bodyToMono(String.class)
+                                        .defaultIfEmpty("(응답 본문 없음)")
+                                        .map(errorBody -> new IllegalStateException(
+                                                "Claude 호출 실패: " + resp.statusCode() + " " + errorBody));
+                            }
+                            return resp.bodyToMono(ClaudeResponse.class);
+                        })
                         .block(timeout);
 
-                if (response == null) {
+                if (result == null) {
                     if (attempt < maxAttempts) {
                         backoffMillis = sleepBackoff(backoffMillis);
                         continue;
@@ -90,16 +107,15 @@ public class ClaudeProvider implements LlmProvider {
                     throw new IllegalStateException("Claude 응답이 없습니다.");
                 }
 
-                if (response.statusCode().isError()) {
-                    String errorBody = response.bodyToMono(String.class).block(timeout);
-                    if (isRetryableStatus(response.statusCode()) && attempt < maxAttempts) {
+                if (result instanceof IllegalStateException error) {
+                    if (attempt < maxAttempts && isRetryableErrorMessage(error.getMessage())) {
                         backoffMillis = sleepBackoff(backoffMillis);
                         continue;
                     }
-                    throw new IllegalStateException("Claude 호출 실패: " + response.statusCode() + " " + errorBody);
+                    throw error;
                 }
 
-                ClaudeResponse claudeResponse = response.bodyToMono(ClaudeResponse.class).block(timeout);
+                ClaudeResponse claudeResponse = (ClaudeResponse) result;
                 if (claudeResponse == null) {
                     if (attempt < maxAttempts) {
                         backoffMillis = sleepBackoff(backoffMillis);
@@ -179,8 +195,11 @@ public class ClaudeProvider implements LlmProvider {
         );
     }
 
-    private boolean isRetryableStatus(HttpStatusCode status) {
-        return status.value() == HttpStatus.TOO_MANY_REQUESTS.value() || status.is5xxServerError();
+    private boolean isRetryableErrorMessage(String message) {
+        if (message == null) {
+            return false;
+        }
+        return message.contains("429 TOO_MANY_REQUESTS") || message.contains("5") && message.contains("SERVER_ERROR");
     }
 
     private boolean isRetryableException(RuntimeException ex) {

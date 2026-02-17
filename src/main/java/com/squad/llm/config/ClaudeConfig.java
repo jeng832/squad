@@ -1,6 +1,8 @@
 package com.squad.llm.config;
 
 import com.squad.llm.claude.ClaudeProvider;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
@@ -12,6 +14,8 @@ import java.time.Duration;
 
 @Configuration
 public class ClaudeConfig {
+
+    private static final Logger log = LoggerFactory.getLogger(ClaudeConfig.class);
 
     @Bean
     public ClaudeProvider claudeProvider(
@@ -26,6 +30,10 @@ public class ClaudeConfig {
             @Value("${squad.llm.claude.retry.max-backoff:2000}") long maxBackoffMillis,
             @Value("${squad.llm.claude.retry.jitter:0.2}") double jitterRatio
     ) {
+        boolean hasKey = apiKey != null && !apiKey.isBlank();
+        log.info("Claude API 설정: baseUrl={}, model={}, apiKey={}", baseUrl, defaultModel,
+                hasKey ? apiKey.substring(0, Math.min(10, apiKey.length())) + "..." : "(미설정)");
+
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(Duration.ofMillis(timeoutMillis));
 

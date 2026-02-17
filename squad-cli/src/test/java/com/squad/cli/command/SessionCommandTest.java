@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 import com.squad.cli.api.SquadApiClient;
+import com.squad.cli.config.CliConfig;
 import com.squad.cli.form.InteractiveFormReader;
 import com.squad.cli.shell.CommandContext;
 import com.squad.cli.shell.CommandRegistry;
@@ -12,10 +13,14 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
+import org.springframework.messaging.simp.stomp.StompSession;
+import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeoutException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
@@ -28,6 +33,8 @@ class SessionCommandTest {
     private SquadApiClient apiClient;
     private TableRenderer tableRenderer;
     private InteractiveFormReader formReader;
+    private WebSocketStompClient stompClient;
+    private CliConfig cliConfig;
 
     private StringWriter outputBuffer;
     private PrintWriter writer;
@@ -41,8 +48,11 @@ class SessionCommandTest {
         apiClient = mock(SquadApiClient.class);
         tableRenderer = new TableRenderer();
         formReader = mock(InteractiveFormReader.class);
+        stompClient = mock(WebSocketStompClient.class);
+        cliConfig = mock(CliConfig.class);
+        when(cliConfig.getServerUrl()).thenReturn("http://localhost:8080");
 
-        new SessionCommand(registry, apiClient, tableRenderer, formReader);
+        new SessionCommand(registry, apiClient, tableRenderer, formReader, stompClient, cliConfig);
 
         outputBuffer = new StringWriter();
         writer = new PrintWriter(outputBuffer);
@@ -61,7 +71,7 @@ class SessionCommandTest {
     void registersSubcommands() {
         var entry = registry.find("session").get();
         assertThat(entry.hasSubcommands()).isTrue();
-        assertThat(entry.subcommands()).hasSize(5);
+        assertThat(entry.subcommands()).hasSize(6);
     }
 
     @Nested
@@ -531,6 +541,69 @@ class SessionCommandTest {
             executeCommand("result abc");
 
             assertThat(outputBuffer.toString()).contains("사용법");
+        }
+    }
+
+    @Nested
+    @DisplayName("/session monitor")
+    class MonitorTests {
+
+        @Test
+        @DisplayName("WebSocket 연결 타임아웃 시 오류 메시지를 출력한다")
+        void monitorConnectionTimeout() {
+            CompletableFuture<StompSession> future = new CompletableFuture<>();
+            future.completeExceptionally(new TimeoutException("연결 시간 초과"));
+            when(stompClient.connectAsync(eq("ws://localhost:8080/ws"), any())).thenReturn(future);
+
+            executeCommand("monitor 1");
+
+            assertThat(outputBuffer.toString()).contains("[오류]");
+        }
+
+        @Test
+        @DisplayName("비숫자 ID 입력 시 사용법을 안내한다")
+        void monitorInvalidId() {
+            executeCommand("monitor abc");
+
+            assertThat(outputBuffer.toString()).contains("사용법");
+        }
+
+        @Test
+        @DisplayName("ID 없이 호출하면 세션 목록에서 선택한다")
+        void monitorNoId() {
+            when(apiClient.get("/api/v1/sessions")).thenReturn(Optional.empty());
+
+            executeCommand("monitor");
+
+            assertThat(outputBuffer.toString()).contains("서버에 연결할 수 없습니다");
+        }
+
+        @Test
+        @DisplayName("https URL이 wss로 변환된다")
+        void monitorHttpsToWss() {
+            when(cliConfig.getServerUrl()).thenReturn("https://squad.example.com");
+            CompletableFuture<StompSession> future = new CompletableFuture<>();
+            future.completeExceptionally(new TimeoutException("timeout"));
+            when(stompClient.connectAsync(eq("wss://squad.example.com/ws"), any())).thenReturn(future);
+
+            executeCommand("monitor 1");
+
+            verify(stompClient).connectAsync(eq("wss://squad.example.com/ws"), any());
+        }
+
+        @Test
+        @DisplayName("세션 선택 취소 시 모니터링을 시작하지 않는다")
+        void monitorCancelledSelection() {
+            ObjectNode sessionsResponse = createListResponse(
+                    createSession(1L, 10L, "RUNNING", "프롬프트", null)
+            );
+            when(apiClient.get("/api/v1/sessions")).thenReturn(Optional.of(sessionsResponse));
+            when(formReader.readSelection(eq(ctx), eq("모니터링할 세션 선택"), any())).thenReturn(-1);
+
+            executeCommand("monitor");
+
+            verify(stompClient, never()).connectAsync(any(), any());
+            assertThat(outputBuffer.toString()).contains("취소되었습니다");
         }
     }
 

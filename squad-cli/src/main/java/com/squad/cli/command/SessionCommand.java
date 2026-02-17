@@ -2,11 +2,15 @@ package com.squad.cli.command;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.squad.cli.api.SquadApiClient;
+import com.squad.cli.config.CliConfig;
 import com.squad.cli.form.InteractiveFormReader;
 import com.squad.cli.shell.CommandContext;
 import com.squad.cli.shell.CommandRegistry;
 import com.squad.cli.ui.TableRenderer;
+import com.squad.cli.websocket.SessionMonitorHandler;
+import org.springframework.messaging.simp.stomp.StompSession;
 import org.springframework.stereotype.Component;
+import org.springframework.web.socket.messaging.WebSocketStompClient;
 
 import java.io.PrintWriter;
 import java.util.ArrayList;
@@ -14,37 +18,53 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.CountDownLatch;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 /**
  * 세션 관리 슬래시 커맨드.
  *
- * <p>{@code /session} 커맨드를 통해 세션의 목록 조회, 시작, 취소, 상태 확인, 결과 조회를 수행한다.
- * 세션 시작 시 Squad 선택과 프롬프트 입력을 가이드 폼으로 안내한다.</p>
+ * <p>{@code /session} 커맨드를 통해 세션의 목록 조회, 시작, 취소, 상태 확인, 결과 조회,
+ * 실시간 모니터링을 수행한다. 세션 시작 시 Squad 선택과 프롬프트 입력을 가이드 폼으로 안내한다.</p>
+ *
+ * <p>{@code /session monitor {id}}로 WebSocket(STOMP) 연결을 통해 세션의 진행 상황을
+ * 실시간으로 모니터링할 수 있다.</p>
  */
 @Component
 public class SessionCommand {
 
     private static final String API_PATH = "/api/v1/sessions";
     private static final String SQUADS_API_PATH = "/api/v1/squads";
+    private static final long WEBSOCKET_CONNECT_TIMEOUT_SECONDS = 10;
 
     private final SquadApiClient apiClient;
     private final TableRenderer tableRenderer;
     private final InteractiveFormReader formReader;
+    private final WebSocketStompClient stompClient;
+    private final CliConfig cliConfig;
 
     public SessionCommand(CommandRegistry commandRegistry,
                           SquadApiClient apiClient,
                           TableRenderer tableRenderer,
-                          InteractiveFormReader formReader) {
+                          InteractiveFormReader formReader,
+                          WebSocketStompClient stompClient,
+                          CliConfig cliConfig) {
         this.apiClient = apiClient;
         this.tableRenderer = tableRenderer;
         this.formReader = formReader;
-        commandRegistry.register("session", "세션 관리 (list/start/cancel/status/result)", this::execute,
+        this.stompClient = stompClient;
+        this.cliConfig = cliConfig;
+        commandRegistry.register("session", "세션 관리 (list/start/cancel/status/result/monitor)", this::execute,
                 List.of(
                         new CommandRegistry.SubcommandInfo("list", "세션 목록 조회"),
                         new CommandRegistry.SubcommandInfo("start", "새 세션 시작"),
                         new CommandRegistry.SubcommandInfo("cancel", "세션 취소"),
                         new CommandRegistry.SubcommandInfo("status", "세션 상태 확인"),
-                        new CommandRegistry.SubcommandInfo("result", "세션 결과 조회")
+                        new CommandRegistry.SubcommandInfo("result", "세션 결과 조회"),
+                        new CommandRegistry.SubcommandInfo("monitor", "세션 실시간 모니터링")
                 ));
     }
 
@@ -59,6 +79,7 @@ public class SessionCommand {
             case "cancel" -> handleCancel(ctx, subArgs);
             case "status" -> handleStatus(ctx, subArgs);
             case "result" -> handleResult(ctx, subArgs);
+            case "monitor" -> handleMonitor(ctx, subArgs);
             default -> handleStatus(ctx, subcommand);
         }
     }
@@ -350,6 +371,74 @@ public class SessionCommand {
     }
 
     /**
+     * 세션을 실시간으로 모니터링한다.
+     *
+     * <p>WebSocket(STOMP) 연결을 통해 서버의 {@code /topic/sessions/{sessionId}}를 구독하고,
+     * 에이전트 상태 변경, 메시지, 세션 완료 이벤트를 실시간으로 터미널에 출력한다.</p>
+     *
+     * <p>세션이 완료({@code SESSION_COMPLETE})되면 자동으로 종료된다.
+     * Ctrl+C로 중간에 모니터링을 중단할 수 있다.</p>
+     *
+     * @param ctx    커맨드 컨텍스트
+     * @param idArg  세션 ID (빈 문자열이면 선택 UI 표시)
+     */
+    private void handleMonitor(CommandContext ctx, String idArg) {
+        PrintWriter writer = ctx.writer();
+
+        String id;
+        if (idArg.isBlank()) {
+            id = selectSessionInteractively(ctx, "모니터링할 세션 선택");
+            if (id == null) {
+                return;
+            }
+        } else {
+            id = parseSessionId(writer, idArg);
+            if (id == null) {
+                return;
+            }
+        }
+
+        String wsUrl = buildWebSocketUrl();
+        CountDownLatch latch = new CountDownLatch(1);
+        SessionMonitorHandler handler = new SessionMonitorHandler(id, writer, latch);
+
+        StompSession stompSession = null;
+        try {
+            CompletableFuture<StompSession> future = stompClient.connectAsync(wsUrl, handler);
+            stompSession = future.get(WEBSOCKET_CONNECT_TIMEOUT_SECONDS, TimeUnit.SECONDS);
+
+            latch.await();
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            writer.println("[중단] 모니터링이 중단되었습니다.");
+        } catch (ExecutionException e) {
+            writer.println("[오류] WebSocket 연결 실패: " + e.getCause().getMessage());
+        } catch (TimeoutException e) {
+            writer.println("[오류] WebSocket 연결 시간 초과");
+        } finally {
+            if (stompSession != null && stompSession.isConnected()) {
+                stompSession.disconnect();
+            }
+            writer.flush();
+        }
+    }
+
+    /**
+     * 서버 URL에서 WebSocket URL을 생성한다.
+     *
+     * <p>{@code http://localhost:8080}을 {@code ws://localhost:8080/ws}로 변환한다.
+     * {@code https}는 {@code wss}로 변환한다.</p>
+     *
+     * @return WebSocket URL
+     */
+    private String buildWebSocketUrl() {
+        String serverUrl = cliConfig.getServerUrl();
+        String wsUrl = serverUrl.replaceFirst("^https://", "wss://")
+                .replaceFirst("^http://", "ws://");
+        return wsUrl + "/ws";
+    }
+
+    /**
      * Squad 목록을 조회하여 화살표키 선택 UI로 하나를 고른다.
      *
      * @param ctx    커맨드 컨텍스트
@@ -452,7 +541,7 @@ public class SessionCommand {
             Long.parseLong(id);
             return id;
         } catch (NumberFormatException e) {
-            writer.println("사용법: /session [list|start|cancel|status|result] 또는 /session {id}");
+            writer.println("사용법: /session [list|start|cancel|status|result|monitor] 또는 /session {id}");
             writer.flush();
             return null;
         }

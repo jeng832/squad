@@ -1,5 +1,24 @@
 # 세션 로그
 
+## 2026-02-17
+
+### 작업 내용
+
+#### 작업 11-7: 세션 실시간 모니터링 CLI
+- PR: [#69](https://github.com/jeng832/squad/pull/69)
+- `/session monitor {id}` 서브커맨드 추가
+- WebSocket(STOMP) 클라이언트로 서버의 `/topic/sessions/{sessionId}` 구독
+- 에이전트 상태 변경, 메시지, 세션 완료 이벤트를 타임스탬프와 함께 터미널 출력
+- `SESSION_COMPLETE` 이벤트 수신 시 자동 종료
+
+### 주요 결정사항
+- `spring-boot-starter-websocket` 의존성 사용 (Tomcat WebSocket 클라이언트 활용)
+- `JavaTimeModule`을 명시적으로 등록하여 `LocalDateTime` 역직렬화 지원 (Codex 리뷰에서 발견된 버그 수정)
+- `CountDownLatch`로 세션 완료까지 블로킹 제어
+- `CompletableFuture` 기반 비동기 연결 (Spring 6.x/Boot 3.x 호환)
+
+---
+
 ## 2026-02-16
 
 ### 작업 내용

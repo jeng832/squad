@@ -141,7 +141,7 @@
 | 11-4 | Squad 관리 CLI | `/squad list/create/update/delete`, Orchestrator 선택, 멤버 멀티 선택, 직접 통신 규칙 설정 | 4~5개 파일 | [#64](https://github.com/jeng832/squad/pull/64) |
 | 11-5 | Skill/Secret 관리 CLI | `/skill list/create/update/delete`, `/secret list/create/update/delete`, Secret 값 마스킹 출력 | 4~5개 파일 | [#65](https://github.com/jeng832/squad/pull/65) |
 | 11-6 | 세션 실행 CLI | `/session list/start/cancel/status/result`, Squad 선택 + 프롬프트 입력 가이드 폼, 결과 마크다운 렌더링 | 4~5개 파일 | [#66](https://github.com/jeng832/squad/pull/66) |
-| 11-7 | 세션 실시간 모니터링 CLI | `/session monitor {id}`, WebSocket(STOMP) 연결, 에이전트 상태 실시간 표시, 메시지 타임라인, Ctrl+C로 모니터링 중단 | 4~5개 파일 | |
+| 11-7 | 세션 실시간 모니터링 CLI | `/session monitor {id}`, WebSocket(STOMP) 연결, 에이전트 상태 실시간 표시, 메시지 타임라인, Ctrl+C로 모니터링 중단 | 4~5개 파일 | [#69](https://github.com/jeng832/squad/pull/69) |
 
 ---
 

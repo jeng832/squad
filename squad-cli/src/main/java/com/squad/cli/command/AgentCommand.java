@@ -122,8 +122,8 @@ public class AgentCommand {
         }
         String roleType = ROLE_TYPE_VALUES.get(roleIndex);
 
-        String role = formReader.readMultiLine(ctx, "시스템 프롬프트");
-        if (role == null || role.isEmpty()) {
+        String role = readPromptInput(ctx, null);
+        if (role == null) {
             printCancelled(writer);
             return;
         }
@@ -216,16 +216,17 @@ public class AgentCommand {
         }
 
         writer.println("현재 시스템 프롬프트:");
-        writer.println("  " + truncate(currentRole, 80));
+        printPrompt(writer, currentRole);
         writer.flush();
 
-        String role = formReader.readMultiLine(ctx, "새 시스템 프롬프트 (빈 줄만 입력하면 기존 유지)");
-        if (role == null) {
-            printCancelled(writer);
-            return;
-        }
-        if (role.isEmpty()) {
-            role = currentRole;
+        String role = currentRole;
+        if (formReader.readConfirm(ctx, "시스템 프롬프트를 변경하시겠습니까?")) {
+            String newRole = readPromptInput(ctx, currentRole);
+            if (newRole == null) {
+                printCancelled(writer);
+                return;
+            }
+            role = newRole;
         }
 
         String currentProvider = extractField(currentLlmConfig, "provider");
@@ -396,6 +397,46 @@ public class AgentCommand {
             return null;
         }
         return ids.get(selected);
+    }
+
+    /**
+     * 시스템 프롬프트를 에디터 또는 직접 입력으로 받는다.
+     *
+     * @param ctx           커맨드 컨텍스트
+     * @param existingValue 기존 프롬프트 (update 시, null 가능)
+     * @return 프롬프트 텍스트, 취소 시 null
+     */
+    private String readPromptInput(CommandContext ctx, String existingValue) {
+        String editorName = formReader.resolveEditorName();
+        List<String> options = List.of(
+                "에디터로 편집 (" + editorName + ")",
+                "직접 입력"
+        );
+
+        int selected = formReader.readSelection(ctx, "시스템 프롬프트 입력 방법", options);
+        if (selected < 0) {
+            return null;
+        }
+
+        if (selected == 0) {
+            return formReader.readWithEditor(ctx, existingValue, ".txt");
+        }
+
+        String input = formReader.readMultiLine(ctx, "시스템 프롬프트");
+        if (input == null || input.isEmpty()) {
+            return existingValue;
+        }
+        return input;
+    }
+
+    private void printPrompt(PrintWriter writer, String prompt) {
+        if (prompt == null || prompt.isEmpty()) {
+            writer.println("  (없음)");
+            return;
+        }
+        for (String line : prompt.split("\n")) {
+            writer.println("  " + line);
+        }
     }
 
     private void printCreateSummary(PrintWriter writer, String name, String roleType,

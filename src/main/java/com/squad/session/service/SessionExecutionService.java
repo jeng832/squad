@@ -194,7 +194,7 @@ public class SessionExecutionService {
      * @throws ValidationException 이미 완료/취소된 세션인 경우
      */
     public SessionResponse cancel(Long sessionId) {
-        Session session = transactionTemplate.execute(status -> {
+        List<Long> agentIds = transactionTemplate.execute(status -> {
             Session s = sessionRepository.findById(sessionId)
                     .orElseThrow(() -> new NotFoundException(ErrorCode.SESSION_NOT_FOUND));
 
@@ -203,25 +203,36 @@ public class SessionExecutionService {
                         "완료된 세션은 취소할 수 없습니다.");
             }
 
+            List<Long> ids = s.getStatus() == SessionStatus.RUNNING
+                    ? s.getSquad().getAgents().stream().map(Agent::getId).toList()
+                    : List.of();
+
             s.cancel();
-            return s;
+            return ids;
         });
 
-        if (session.getStatus() == SessionStatus.CANCELLED) {
-            cleanupSessionResources(sessionId, session.getSquad());
+        if (agentIds != null && !agentIds.isEmpty()) {
+            cleanupSessionResources(sessionId, agentIds);
         }
 
         log.info("세션 취소: sessionId={}", sessionId);
-        return SessionResponse.from(session);
+
+        return transactionTemplate.execute(status -> {
+            Session s = sessionRepository.findById(sessionId)
+                    .orElseThrow(() -> new NotFoundException(ErrorCode.SESSION_NOT_FOUND));
+            return SessionResponse.from(s);
+        });
     }
 
     /**
      * 세션 관련 리소스(Worker, Orchestration, Container)를 정리한다.
      *
+     * <p>트랜잭션 밖에서 호출되므로 JPA 엔티티가 아닌 에이전트 ID 목록을 받는다.</p>
+     *
      * @param sessionId 세션 ID
-     * @param squad     세션의 Squad
+     * @param agentIds  정리할 에이전트 ID 목록
      */
-    private void cleanupSessionResources(Long sessionId, Squad squad) {
+    private void cleanupSessionResources(Long sessionId, List<Long> agentIds) {
         try {
             workerService.stopAllWorkers(sessionId);
         } catch (Exception e) {
@@ -234,7 +245,26 @@ public class SessionExecutionService {
             log.warn("Orchestration 정지 실패: sessionId={}", sessionId, e);
         }
 
-        cleanupSessionContainers(sessionId, squad);
+        cleanupContainersByAgentIds(sessionId, agentIds);
+    }
+
+    /**
+     * 에이전트 ID 목록으로 컨테이너를 정리한다.
+     *
+     * @param sessionId 세션 ID
+     * @param agentIds  에이전트 ID 목록
+     */
+    private void cleanupContainersByAgentIds(Long sessionId, List<Long> agentIds) {
+        String sessionIdStr = String.valueOf(sessionId);
+        for (Long agentId : agentIds) {
+            try {
+                String containerName = containerLifecycleManager.buildContainerName(
+                        sessionIdStr, String.valueOf(agentId));
+                containerLifecycleManager.stopAndRemoveContainer(containerName);
+            } catch (Exception e) {
+                log.warn("Container 정리 실패: sessionId={}, agentId={}", sessionId, agentId, e);
+            }
+        }
     }
 
     /**

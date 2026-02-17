@@ -45,7 +45,7 @@ dependencies {
 
     // Docker Java Client
     implementation 'com.github.docker-java:docker-java-core:3.4.1'
-    implementation 'com.github.docker-java:docker-java-transport-httpclient5:3.4.1'
+    implementation 'com.github.docker-java:docker-java-transport-zerodep:3.4.1'
 
     // HTTP Client for LLM API calls
     implementation 'org.springframework.boot:spring-boot-starter-webflux'

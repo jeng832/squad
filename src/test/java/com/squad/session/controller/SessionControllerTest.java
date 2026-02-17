@@ -188,7 +188,7 @@ class SessionControllerTest {
     @Test
     void 세션_취소_시_성공_응답_반환() throws Exception {
         SessionResponse response = sampleResponse(SessionStatus.CANCELLED);
-        given(sessionService.cancel(1L)).willReturn(response);
+        given(sessionExecutionService.cancel(1L)).willReturn(response);
 
         mockMvc.perform(post("/api/v1/sessions/1/cancel"))
                 .andExpect(status().isOk())
@@ -199,7 +199,7 @@ class SessionControllerTest {
 
     @Test
     void 존재하지_않는_세션_취소_시_404_응답() throws Exception {
-        willThrow(new NotFoundException(ErrorCode.SESSION_NOT_FOUND)).given(sessionService).cancel(99L);
+        willThrow(new NotFoundException(ErrorCode.SESSION_NOT_FOUND)).given(sessionExecutionService).cancel(99L);
 
         mockMvc.perform(post("/api/v1/sessions/99/cancel"))
                 .andExpect(status().isNotFound())
@@ -210,7 +210,7 @@ class SessionControllerTest {
     @Test
     void 완료된_세션_취소_시_400_응답() throws Exception {
         willThrow(new ValidationException(ErrorCode.INVALID_SESSION_STATE, "완료된 세션은 취소할 수 없습니다."))
-                .given(sessionService).cancel(1L);
+                .given(sessionExecutionService).cancel(1L);
 
         mockMvc.perform(post("/api/v1/sessions/1/cancel"))
                 .andExpect(status().isBadRequest())

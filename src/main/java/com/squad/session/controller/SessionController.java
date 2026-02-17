@@ -49,6 +49,6 @@ public class SessionController {
 
     @PostMapping("/{id}/cancel")
     public ApiResponse<SessionResponse> cancel(@PathVariable Long id) {
-        return ApiResponse.success(sessionService.cancel(id), "세션이 취소되었습니다.");
+        return ApiResponse.success(sessionExecutionService.cancel(id), "세션이 취소되었습니다.");
     }
 }

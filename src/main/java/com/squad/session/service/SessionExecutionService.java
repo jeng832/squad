@@ -180,6 +180,64 @@ public class SessionExecutionService {
     }
 
     /**
+     * 세션을 취소하고 관련 리소스를 정리한다.
+     *
+     * <p>세션 상태를 CANCELLED로 전이하고, Worker 구독 정리,
+     * Orchestration 정지, Container 정리 등의 리소스 해제를 수행한다.</p>
+     *
+     * <p>PENDING 상태의 세션은 컨테이너가 시작되지 않았으므로
+     * DB 상태만 변경한다. RUNNING 상태의 세션만 리소스 정리를 수행한다.</p>
+     *
+     * @param sessionId 취소할 세션 ID
+     * @return 취소된 세션 정보
+     * @throws NotFoundException   세션이 존재하지 않는 경우
+     * @throws ValidationException 이미 완료/취소된 세션인 경우
+     */
+    public SessionResponse cancel(Long sessionId) {
+        Session session = transactionTemplate.execute(status -> {
+            Session s = sessionRepository.findById(sessionId)
+                    .orElseThrow(() -> new NotFoundException(ErrorCode.SESSION_NOT_FOUND));
+
+            if (s.getStatus() == SessionStatus.COMPLETED || s.getStatus() == SessionStatus.CANCELLED) {
+                throw new ValidationException(ErrorCode.INVALID_SESSION_STATE,
+                        "완료된 세션은 취소할 수 없습니다.");
+            }
+
+            s.cancel();
+            return s;
+        });
+
+        if (session.getStatus() == SessionStatus.CANCELLED) {
+            cleanupSessionResources(sessionId, session.getSquad());
+        }
+
+        log.info("세션 취소: sessionId={}", sessionId);
+        return SessionResponse.from(session);
+    }
+
+    /**
+     * 세션 관련 리소스(Worker, Orchestration, Container)를 정리한다.
+     *
+     * @param sessionId 세션 ID
+     * @param squad     세션의 Squad
+     */
+    private void cleanupSessionResources(Long sessionId, Squad squad) {
+        try {
+            workerService.stopAllWorkers(sessionId);
+        } catch (Exception e) {
+            log.warn("Worker 정지 실패: sessionId={}", sessionId, e);
+        }
+
+        try {
+            orchestratorService.stopOrchestration(sessionId);
+        } catch (Exception e) {
+            log.warn("Orchestration 정지 실패: sessionId={}", sessionId, e);
+        }
+
+        cleanupSessionContainers(sessionId, squad);
+    }
+
+    /**
      * 세션 완료 처리를 수행한다.
      *
      * <p>세션 상태를 COMPLETED로 전이하고, Worker 구독 정리,

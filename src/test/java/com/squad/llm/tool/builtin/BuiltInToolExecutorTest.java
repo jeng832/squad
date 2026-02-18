@@ -208,8 +208,8 @@ class BuiltInToolExecutorTest {
     }
 
     @Test
-    @DisplayName("bash_exec는 find 명령을 차단한다")
-    void bashExecBlocksFindCommand() {
+    @DisplayName("bash_exec는 find 명령을 허용한다")
+    void bashExecAllowsFindCommand() {
         BuiltInToolExecutor executor = createExecutor();
 
         LlmToolResult result = executor.execute(new LlmToolCall(
@@ -218,14 +218,15 @@ class BuiltInToolExecutorTest {
                 Map.of("command", "find . -name \"*.txt\"")
         ));
 
-        assertThat(result.output()).contains("[오류]");
-        assertThat(result.output()).contains("허용되지 않는 명령");
+        assertThat(result.output()).contains("exitCode=");
+        assertThat(result.output()).doesNotContain("[오류]");
     }
 
     @Test
-    @DisplayName("bash_exec는 sed 명령을 차단한다")
-    void bashExecBlocksSedCommand() {
+    @DisplayName("bash_exec는 sed 명령을 허용한다")
+    void bashExecAllowsSedCommand() throws Exception {
         BuiltInToolExecutor executor = createExecutor();
+        Files.writeString(workspace.resolve("notes.txt"), "line1\nline2\n");
 
         LlmToolResult result = executor.execute(new LlmToolCall(
                 "c10",
@@ -233,8 +234,56 @@ class BuiltInToolExecutorTest {
                 Map.of("command", "sed -n 1p notes.txt")
         ));
 
-        assertThat(result.output()).contains("[오류]");
-        assertThat(result.output()).contains("허용되지 않는 명령");
+        assertThat(result.output()).contains("exitCode=0");
+        assertThat(result.output()).doesNotContain("[오류]");
+    }
+
+    @Test
+    @DisplayName("bash_exec는 git 명령을 허용한다")
+    void bashExecAllowsGitCommand() {
+        BuiltInToolExecutor executor = createExecutor();
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c9-2",
+                "bash_exec",
+                Map.of("command", "git --version")
+        ));
+
+        assertThat(result.output()).contains("exitCode=");
+        assertThat(result.output()).doesNotContain("[오류]");
+    }
+
+    @Test
+    @DisplayName("bash_exec는 sort 명령을 허용한다")
+    void bashExecAllowsSortCommand() throws Exception {
+        BuiltInToolExecutor executor = createExecutor();
+        Files.writeString(workspace.resolve("data.txt"), "b\na\nc\n");
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c9-3",
+                "bash_exec",
+                Map.of("command", "sort data.txt")
+        ));
+
+        assertThat(result.output()).contains("exitCode=0");
+        assertThat(result.output()).contains("a");
+    }
+
+    @Test
+    @DisplayName("bash_exec는 diff 명령을 허용한다")
+    void bashExecAllowsDiffCommand() throws Exception {
+        BuiltInToolExecutor executor = createExecutor();
+        Files.writeString(workspace.resolve("a.txt"), "hello\n");
+        Files.writeString(workspace.resolve("b.txt"), "world\n");
+
+        LlmToolResult result = executor.execute(new LlmToolCall(
+                "c9-4",
+                "bash_exec",
+                Map.of("command", "diff a.txt b.txt")
+        ));
+
+        assertThat(result.output()).contains("exitCode=");
+        assertThat(result.output()).doesNotContain("[오류]");
     }
 
     @Test

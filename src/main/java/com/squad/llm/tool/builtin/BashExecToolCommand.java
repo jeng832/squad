@@ -39,8 +39,17 @@ public class BashExecToolCommand implements BuiltInToolCommand {
     private static final int MAX_OUTPUT_DRAIN_BYTES = MAX_OUTPUT_CHARS * 4;
     private static final Set<Character> FORBIDDEN_META_CHARS = Set.of('|', '&', ';', '`', '$', '<', '>');
     private static final Set<String> ALLOWED_COMMANDS = Set.of(
+            // 기존
             "pwd", "ls", "cat", "echo", "grep", "wc", "head", "tail",
-            "mkdir", "touch", "cp", "mv"
+            "mkdir", "touch", "cp", "mv",
+            // VCS
+            "git",
+            // 파일 검색/분석
+            "find", "tree", "file", "stat", "diff",
+            // 텍스트 처리
+            "sort", "uniq", "cut", "tr", "sed", "awk",
+            // 조합
+            "xargs"
     );
     private static final Pattern TOKEN_PATTERN = Pattern.compile("\"([^\"]*)\"|'([^']*)'|(\\S+)");
 
@@ -56,7 +65,7 @@ public class BashExecToolCommand implements BuiltInToolCommand {
                                 "command", Map.of(
                                         "type", "string",
                                         "description", "Allowlisted command without shell operators. Allowed commands: "
-                                                + allowlistedCommands + ". Use file_search instead of find."
+                                                + allowlistedCommands
                                 ),
                                 "timeoutSeconds", Map.of("type", "integer", "description", "Execution timeout in seconds, default 30")
                         ),

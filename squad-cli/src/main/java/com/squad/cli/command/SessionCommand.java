@@ -151,10 +151,39 @@ public class SessionCommand {
             return;
         }
 
+        String repoUrl = formReader.readLine(ctx, "Git 저장소 URL (선택, Enter로 건너뛰기)");
+        String branch = null;
+        String gitProvider = null;
+        String gitSecretName = null;
+
+        if (repoUrl != null && !repoUrl.isBlank()) {
+            branch = formReader.readLine(ctx, "브랜치", "main");
+
+            gitProvider = detectGitProvider(repoUrl);
+            if (gitProvider != null) {
+                writer.println("  → Provider 자동 감지: " + gitProvider);
+                writer.flush();
+            } else {
+                List<String> providerOptions = List.of("GITHUB", "GITLAB");
+                int providerIndex = formReader.readSelection(ctx, "Git Provider 선택", providerOptions);
+                if (providerIndex >= 0 && providerIndex < providerOptions.size()) {
+                    gitProvider = providerOptions.get(providerIndex);
+                }
+            }
+
+            gitSecretName = readGitSecret(ctx);
+        }
+
         writer.println();
         writer.println("--- 입력 확인 ---");
         writer.println("Squad ID: " + squadId);
         writer.println("프롬프트: " + truncate(userPrompt, 60));
+        if (repoUrl != null && !repoUrl.isBlank()) {
+            writer.println("Git URL:  " + repoUrl);
+            writer.println("브랜치:   " + (branch != null ? branch : "main"));
+            writer.println("Provider: " + (gitProvider != null ? gitProvider : "(없음)"));
+            writer.println("Secret:   " + (gitSecretName != null && !gitSecretName.isBlank() ? gitSecretName : "(없음)"));
+        }
         writer.flush();
 
         if (!formReader.readConfirm(ctx, "세션을 시작하시겠습니까?")) {
@@ -165,6 +194,14 @@ public class SessionCommand {
         Map<String, Object> body = new LinkedHashMap<>();
         body.put("squadId", Long.parseLong(squadId));
         body.put("userPrompt", userPrompt);
+        if (repoUrl != null && !repoUrl.isBlank()) {
+            body.put("repoUrl", repoUrl);
+            body.put("branch", branch);
+            body.put("gitProvider", gitProvider);
+            if (gitSecretName != null && !gitSecretName.isBlank()) {
+                body.put("gitSecretName", gitSecretName);
+            }
+        }
 
         Optional<JsonNode> createResponse = apiClient.post(API_PATH, body);
         if (createResponse.isEmpty()) {
@@ -566,6 +603,57 @@ public class SessionCommand {
     private void printCancelled(PrintWriter writer) {
         writer.println("취소되었습니다.");
         writer.flush();
+    }
+
+    /**
+     * URL에서 Git Provider를 자동 감지한다.
+     *
+     * @param repoUrl 저장소 URL
+     * @return 감지된 Provider 이름, 감지 불가 시 null
+     */
+    private String detectGitProvider(String repoUrl) {
+        String lower = repoUrl.toLowerCase();
+        if (lower.contains("github.com")) {
+            return "GITHUB";
+        }
+        if (lower.contains("gitlab.com")) {
+            return "GITLAB";
+        }
+        return null;
+    }
+
+    /**
+     * Secret 목록을 조회하여 Git Secret을 선택한다.
+     *
+     * @param ctx 커맨드 컨텍스트
+     * @return 선택된 Secret 이름, 건너뛰기 시 null
+     */
+    private String readGitSecret(CommandContext ctx) {
+        PrintWriter writer = ctx.writer();
+        Optional<JsonNode> response = apiClient.get("/api/v1/secrets");
+
+        if (response.isEmpty()) {
+            return null;
+        }
+
+        JsonNode data = response.get().get("data");
+        if (data == null || !data.isArray() || data.isEmpty()) {
+            writer.println("  (등록된 Secret이 없습니다. Enter로 건너뛰기)");
+            writer.flush();
+            return formReader.readLine(ctx, "Git Secret 이름 (선택, Enter로 건너뛰기)");
+        }
+
+        List<String> options = new ArrayList<>();
+        options.add("(건너뛰기)");
+        for (JsonNode secret : data) {
+            options.add(extractField(secret, "name"));
+        }
+
+        int selected = formReader.readSelection(ctx, "Git Secret 선택 (선택)", options);
+        if (selected <= 0 || selected >= options.size()) {
+            return null;
+        }
+        return options.get(selected);
     }
 
     private String extractField(JsonNode node, String fieldName) {

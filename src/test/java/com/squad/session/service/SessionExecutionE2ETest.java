@@ -113,7 +113,7 @@ class SessionExecutionE2ETest extends RedisTestContainerConfig {
     @DisplayName("세션 생성 → 시작 → 완료 전체 흐름이 정상 동작한다")
     void fullLifecycle() {
         SessionResponse created = sessionService.create(
-                new SessionCreateRequest(squad.getId(), "E2E 테스트 프롬프트"));
+                new SessionCreateRequest(squad.getId(), "E2E 테스트 프롬프트", null, null, null, null));
         assertThat(created.status()).isEqualTo(SessionStatus.PENDING);
 
         SessionResponse started = sessionExecutionService.start(created.id());
@@ -138,7 +138,7 @@ class SessionExecutionE2ETest extends RedisTestContainerConfig {
     @DisplayName("세션 시작 시 Container 생성 실패하면 정리 후 예외 전파")
     void startContainerFailureCleanup() {
         SessionResponse created = sessionService.create(
-                new SessionCreateRequest(squad.getId(), "실패 테스트"));
+                new SessionCreateRequest(squad.getId(), "실패 테스트", null, null, null, null));
 
         given(containerLifecycleManager.createAndStartContainer(
                 anyString(), eq(String.valueOf(worker.getId())), anyList()))
@@ -155,7 +155,7 @@ class SessionExecutionE2ETest extends RedisTestContainerConfig {
     @DisplayName("세션 취소 흐름이 정상 동작한다")
     void cancelFlow() {
         SessionResponse created = sessionService.create(
-                new SessionCreateRequest(squad.getId(), "취소 테스트"));
+                new SessionCreateRequest(squad.getId(), "취소 테스트", null, null, null, null));
         assertThat(created.status()).isEqualTo(SessionStatus.PENDING);
 
         SessionResponse cancelled = sessionService.cancel(created.id());
@@ -177,7 +177,7 @@ class SessionExecutionE2ETest extends RedisTestContainerConfig {
     @DisplayName("이미 시작된 세션을 다시 시작하면 ValidationException 발생")
     void startAlreadyRunningSession() {
         SessionResponse created = sessionService.create(
-                new SessionCreateRequest(squad.getId(), "중복 시작 테스트"));
+                new SessionCreateRequest(squad.getId(), "중복 시작 테스트", null, null, null, null));
 
         sessionExecutionService.start(created.id());
 
@@ -189,7 +189,7 @@ class SessionExecutionE2ETest extends RedisTestContainerConfig {
     @DisplayName("Container 생성 실패 후 세션 상태는 PENDING으로 유지된다")
     void containerFailureKeepsPendingStatus() {
         SessionResponse created = sessionService.create(
-                new SessionCreateRequest(squad.getId(), "상태 롤백 테스트"));
+                new SessionCreateRequest(squad.getId(), "상태 롤백 테스트", null, null, null, null));
 
         given(containerLifecycleManager.createAndStartContainer(
                 anyString(), eq(String.valueOf(worker.getId())), anyList()))
@@ -206,7 +206,7 @@ class SessionExecutionE2ETest extends RedisTestContainerConfig {
     @DisplayName("COMPLETED 세션은 취소할 수 없다")
     void cannotCancelCompletedSession() {
         SessionResponse created = sessionService.create(
-                new SessionCreateRequest(squad.getId(), "완료 후 취소 테스트"));
+                new SessionCreateRequest(squad.getId(), "완료 후 취소 테스트", null, null, null, null));
 
         sessionExecutionService.start(created.id());
         sessionExecutionService.complete(created.id(), "결과");

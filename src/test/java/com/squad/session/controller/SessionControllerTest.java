@@ -51,6 +51,10 @@ class SessionControllerTest {
                 "사용자 프롬프트",
                 status,
                 "작업 결과",
+                null,
+                null,
+                null,
+                null,
                 NOW,
                 status == SessionStatus.PENDING ? null : NOW,
                 NOW
@@ -91,12 +95,16 @@ class SessionControllerTest {
 
     @Test
     void 세션_생성_시_201_응답_반환() throws Exception {
-        SessionCreateRequest request = new SessionCreateRequest(2L, "새 프롬프트");
+        SessionCreateRequest request = new SessionCreateRequest(2L, "새 프롬프트", null, null, null, null);
         SessionResponse response = new SessionResponse(
                 10L,
                 2L,
                 request.userPrompt(),
                 SessionStatus.PENDING,
+                null,
+                null,
+                null,
+                null,
                 null,
                 null,
                 null,
@@ -127,7 +135,7 @@ class SessionControllerTest {
 
     @Test
     void 세션_생성_시_userPrompt_빈값이면_400_응답() throws Exception {
-        SessionCreateRequest request = new SessionCreateRequest(1L, " ");
+        SessionCreateRequest request = new SessionCreateRequest(1L, " ", null, null, null, null);
 
         mockMvc.perform(post("/api/v1/sessions")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -139,7 +147,7 @@ class SessionControllerTest {
 
     @Test
     void 존재하지_않는_Squad로_세션_생성_시_404_응답() throws Exception {
-        SessionCreateRequest request = new SessionCreateRequest(99L, "prompt");
+        SessionCreateRequest request = new SessionCreateRequest(99L, "prompt", null, null, null, null);
         given(sessionService.create(any(SessionCreateRequest.class)))
                 .willThrow(new NotFoundException(ErrorCode.SQUAD_NOT_FOUND));
 

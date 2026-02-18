@@ -37,7 +37,12 @@ public enum ErrorCode {
     INVALID_ORCHESTRATOR_ROLE(400, "Orchestrator 에이전트의 roleType이 'orchestrator'가 아닙니다."),
 
     // === Session ===
-    INVALID_SESSION_STATE(400, "세션의 현재 상태에서 해당 작업을 수행할 수 없습니다.");
+    INVALID_SESSION_STATE(400, "세션의 현재 상태에서 해당 작업을 수행할 수 없습니다."),
+
+    // === Git ===
+    INVALID_GIT_PROVIDER(400, "Git Provider를 판별할 수 없습니다."),
+    INVALID_GIT_URL(400, "유효하지 않은 Git 저장소 URL입니다."),
+    GIT_SECRET_NOT_FOUND(404, "지정된 Git Secret을 찾을 수 없습니다.");
 
     private final int httpStatus;
     private final String message;

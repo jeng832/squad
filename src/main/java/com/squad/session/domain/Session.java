@@ -39,6 +39,19 @@ public class Session {
     @Column(columnDefinition = "TEXT")
     private String result;
 
+    @Column(name = "repo_url", length = 500)
+    private String repoUrl;
+
+    @Column(name = "branch", length = 200)
+    private String branch;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "git_provider")
+    private GitProvider gitProvider;
+
+    @Column(name = "git_secret_name", length = 100)
+    private String gitSecretName;
+
     @Column(name = "started_at")
     private LocalDateTime startedAt;
 

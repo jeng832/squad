@@ -10,7 +10,9 @@ import com.squad.messaging.MessagePublisher;
 import com.squad.messaging.SessionMessage;
 import com.squad.monitoring.SessionEventPublisher;
 import com.squad.orchestration.OrchestratorService;
+import com.squad.secret.service.SecretService;
 import com.squad.worker.WorkerService;
+import com.squad.session.domain.GitProvider;
 import com.squad.session.domain.MessageType;
 import com.squad.session.domain.Session;
 import com.squad.session.domain.SessionStatus;
@@ -64,6 +66,9 @@ class SessionExecutionServiceTest {
     @Mock
     private TransactionTemplate transactionTemplate;
 
+    @Mock
+    private SecretService secretService;
+
     private SessionExecutionService sessionExecutionService;
 
     @BeforeEach
@@ -76,7 +81,7 @@ class SessionExecutionServiceTest {
         sessionExecutionService = new SessionExecutionService(
                 sessionRepository, containerLifecycleManager, messagePublisher,
                 orchestratorService, workerService, sessionEventPublisher,
-                transactionTemplate);
+                transactionTemplate, secretService);
     }
 
     private Agent createAgent(Long id, String name, RoleType roleType) {
@@ -357,6 +362,57 @@ class SessionExecutionServiceTest {
 
         assertThatThrownBy(() -> sessionExecutionService.complete(1L, null))
                 .isInstanceOf(NullPointerException.class);
+    }
+
+    @Test
+    @DisplayName("Git 정보가 있는 세션은 GIT_CLONE_URL, GIT_BRANCH env를 포함한다")
+    void startWithGitInfoIncludesEnv() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Squad squad = createSquad(orchestrator, Set.of());
+        Session session = Session.builder()
+                .id(1L).squad(squad).userPrompt("프롬프트").status(SessionStatus.PENDING)
+                .repoUrl("https://github.com/owner/repo")
+                .branch("feature/test")
+                .gitProvider(GitProvider.GITHUB)
+                .gitSecretName("my-token")
+                .build();
+
+        given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(secretService.resolveSecret("ref:secret/my-token")).willReturn("ghp_abc123");
+        given(containerLifecycleManager.createAndStartContainer(eq("1"), eq("10"), anyList()))
+                .willReturn("container-orchestrator");
+
+        sessionExecutionService.start(1L);
+
+        ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.forClass(List.class);
+        verify(containerLifecycleManager).createAndStartContainer(eq("1"), eq("10"), envCaptor.capture());
+
+        List<String> env = envCaptor.getValue();
+        assertThat(env).anyMatch(e -> e.startsWith("GIT_CLONE_URL="));
+        assertThat(env).anyMatch(e -> e.equals("GIT_BRANCH=feature/test"));
+        assertThat(env.stream().filter(e -> e.startsWith("GIT_CLONE_URL=")).findFirst().orElse(""))
+                .contains("ghp_abc123@github.com");
+    }
+
+    @Test
+    @DisplayName("Git 정보가 없는 세션은 GIT_CLONE_URL env를 포함하지 않는다")
+    void startWithoutGitInfoExcludesEnv() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Squad squad = createSquad(orchestrator, Set.of());
+        Session session = createPendingSession(squad);
+
+        given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(containerLifecycleManager.createAndStartContainer(eq("1"), eq("10"), anyList()))
+                .willReturn("container-orchestrator");
+
+        sessionExecutionService.start(1L);
+
+        ArgumentCaptor<List<String>> envCaptor = ArgumentCaptor.forClass(List.class);
+        verify(containerLifecycleManager).createAndStartContainer(eq("1"), eq("10"), envCaptor.capture());
+
+        List<String> env = envCaptor.getValue();
+        assertThat(env).noneMatch(e -> e.startsWith("GIT_CLONE_URL="));
+        assertThat(env).noneMatch(e -> e.startsWith("GIT_BRANCH="));
     }
 
     @Test

@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.RemoveContainerCmd;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -60,7 +61,15 @@ public class ContainerLifecycleManager {
         if (env != null && !env.isEmpty()) {
             cmd.withEnv(env);
         }
-        CreateContainerResponse response = cmd.exec();
+        CreateContainerResponse response;
+        try {
+            response = cmd.exec();
+        } catch (NotFoundException e) {
+            String message = "Agent 이미지가 없습니다: " + agentImage
+                    + ". 먼저 `docker build -f docker/agent/Dockerfile -t "
+                    + agentImage + " .` 를 실행하세요.";
+            throw new IllegalStateException(message, e);
+        }
         return response.getId();
     }
 

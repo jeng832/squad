@@ -72,15 +72,15 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
-tasks.named('bootJar', BootJar) {
-    mainClass = 'com.squad.SquadApplication'
-}
+def buildAgentRunner = providers.gradleProperty('agentRunner')
+        .map { it.toBoolean() }
+        .orElse(false)
 
-tasks.register('agentRunnerBootJar', BootJar) {
-    group = 'build'
-    description = 'Build executable jar for Agent Runner'
-    archiveFileName = 'agent-runner.jar'
-    mainClass = 'com.squad.agent.runner.AgentRunnerApplication'
-    classpath = sourceSets.main.runtimeClasspath
-    from sourceSets.main.output
+tasks.named('bootJar', BootJar) {
+    if (buildAgentRunner.get()) {
+        archiveFileName = 'agent-runner.jar'
+        mainClass = 'com.squad.agent.runner.AgentRunnerApplication'
+    } else {
+        mainClass = 'com.squad.SquadApplication'
+    }
 }

@@ -164,6 +164,14 @@
 
 ---
 
+### 12. Git Clone 기반 워크스페이스 구성 ([#70](https://github.com/jeng832/squad/issues/70))
+
+| # | 작업명 | 설명 | 예상 변경 범위 | PR |
+|---|--------|------|---------------|-----|
+| 12-1 | Session Git 정보 도메인 + API + CLI + 컨테이너 Git Clone + bash_exec 확장 | GitProvider enum, Session Git 필드, URL 검증/Provider 자동판별, Dockerfile git 설치, entrypoint clone 로직, GitCloneUrlBuilder, env 주입, allowlist 확장 | 17개 파일 | [#71](https://github.com/jeng832/squad/pull/71) |
+
+---
+
 ## Phase 2: Enhancement
 
 ### 12. OpenAI Provider 추가

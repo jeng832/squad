@@ -14,6 +14,10 @@ public record SessionResponse(
         String userPrompt,
         SessionStatus status,
         String result,
+        String repoUrl,
+        String branch,
+        String gitProvider,
+        String gitSecretName,
         LocalDateTime startedAt,
         LocalDateTime completedAt,
         LocalDateTime createdAt
@@ -26,6 +30,10 @@ public record SessionResponse(
                 session.getUserPrompt(),
                 session.getStatus(),
                 session.getResult(),
+                session.getRepoUrl(),
+                session.getBranch(),
+                session.getGitProvider() != null ? session.getGitProvider().name() : null,
+                session.getGitSecretName(),
                 session.getStartedAt(),
                 session.getCompletedAt(),
                 session.getCreatedAt()

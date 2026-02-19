@@ -10,6 +10,8 @@ import com.squad.messaging.SessionMessage;
 import com.squad.monitoring.SessionEventPublisher;
 import com.squad.orchestration.OrchestratorService;
 import com.squad.orchestration.SessionCompleteHandler;
+import com.squad.secret.service.SecretService;
+import com.squad.session.domain.GitCloneUrlBuilder;
 import com.squad.session.domain.Session;
 import com.squad.session.domain.SessionStatus;
 import com.squad.session.dto.SessionResponse;
@@ -55,6 +57,7 @@ public class SessionExecutionService {
     private final WorkerService workerService;
     private final SessionEventPublisher sessionEventPublisher;
     private final TransactionTemplate transactionTemplate;
+    private final SecretService secretService;
 
     /**
      * 세션을 시작한다.
@@ -115,14 +118,14 @@ public class SessionExecutionService {
         List<String> startedContainerIds = new ArrayList<>();
 
         try {
-            String orchestratorContainerId = startAgentContainer(sessionIdStr, orchestrator);
+            String orchestratorContainerId = startAgentContainer(sessionIdStr, orchestrator, session);
             startedContainerIds.add(orchestratorContainerId);
 
             for (Agent agent : squad.getAgents()) {
                 if (agent.getId().equals(orchestrator.getId())) {
                     continue;
                 }
-                String containerId = startAgentContainer(sessionIdStr, agent);
+                String containerId = startAgentContainer(sessionIdStr, agent, session);
                 startedContainerIds.add(containerId);
             }
         } catch (Exception e) {
@@ -134,9 +137,9 @@ public class SessionExecutionService {
         return startedContainerIds;
     }
 
-    private String startAgentContainer(String sessionId, Agent agent) {
+    private String startAgentContainer(String sessionId, Agent agent, Session session) {
         String agentIdStr = String.valueOf(agent.getId());
-        List<String> env = buildContainerEnv(sessionId, agent);
+        List<String> env = buildContainerEnv(sessionId, agent, session);
 
         log.debug("Container 시작: sessionId={}, agentId={}, agentName={}",
                 sessionId, agentIdStr, agent.getName());
@@ -144,14 +147,39 @@ public class SessionExecutionService {
         return containerLifecycleManager.createAndStartContainer(sessionId, agentIdStr, env);
     }
 
-    private List<String> buildContainerEnv(String sessionId, Agent agent) {
-        return List.of(
+    private List<String> buildContainerEnv(String sessionId, Agent agent, Session session) {
+        List<String> env = new ArrayList<>(List.of(
                 "SESSION_ID=" + sessionId,
                 "AGENT_ID=" + agent.getId(),
                 "AGENT_NAME=" + agent.getName(),
                 "AGENT_ROLE=" + agent.getRole(),
                 "AGENT_ROLE_TYPE=" + agent.getRoleType().name()
-        );
+        ));
+
+        if (session.getRepoUrl() != null) {
+            String token = resolveGitToken(session.getGitSecretName());
+            String cloneUrl = GitCloneUrlBuilder.build(
+                    session.getRepoUrl(), session.getGitProvider(), token);
+            env.add("GIT_CLONE_URL=" + cloneUrl);
+            if (session.getBranch() != null) {
+                env.add("GIT_BRANCH=" + session.getBranch());
+            }
+        }
+
+        return env;
+    }
+
+    /**
+     * Git Secret 이름으로 PAT를 복호화하여 반환한다.
+     *
+     * @param gitSecretName Secret 이름 (nullable)
+     * @return 복호화된 토큰, Secret이 없으면 null
+     */
+    private String resolveGitToken(String gitSecretName) {
+        if (gitSecretName == null || gitSecretName.isBlank()) {
+            return null;
+        }
+        return secretService.resolveSecret("ref:secret/" + gitSecretName);
     }
 
     private void startWorkers(Long sessionId, Squad squad) {

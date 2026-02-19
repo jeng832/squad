@@ -1,5 +1,25 @@
 # 세션 로그
 
+## 2026-02-19
+
+### 작업 내용
+
+#### 작업 12-1: Git Clone 기반 워크스페이스 구성
+- PR: [#71](https://github.com/jeng832/squad/pull/71)
+- 이슈: [#70](https://github.com/jeng832/squad/issues/70)
+- 3개 PR 범위를 단일 PR로 통합 구현:
+  - **Session Git 정보 도메인 + API + CLI**: GitProvider enum, Session Git 필드 4개(repoUrl, branch, gitProvider, gitSecretName), URL 검증, Provider 자동 판별, CLI Git 입력 UI
+  - **컨테이너 Git Clone 지원**: Dockerfile git 설치, entrypoint.sh clone 로직, GitCloneUrlBuilder(GITHUB/GITLAB 인증 URL 빌드), SessionExecutionService env 주입(GIT_CLONE_URL, GIT_BRANCH)
+  - **bash_exec allowlist 확장**: 13개 명령 추가(git, find, tree, file, stat, diff, sort, uniq, cut, tr, sed, awk, xargs)
+
+### 주요 결정사항
+- Git 정보는 모두 nullable (Git 없이도 세션 생성 가능)
+- GitProvider 자동 판별: github.com → GITHUB, gitlab.com → GITLAB, 그 외 → 명시적 입력 필수
+- shallow clone(`--depth 1`)으로 속도 최적화
+- 인증 URL에 토큰 직접 포함 (GITHUB: `{token}@host`, GITLAB: `oauth2:{token}@host`)
+
+---
+
 ## 2026-02-17
 
 ### 작업 내용

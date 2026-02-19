@@ -12,6 +12,14 @@ public record SessionCreateRequest(
         Long squadId,
 
         @NotBlank
-        String userPrompt
+        String userPrompt,
+
+        String repoUrl,
+
+        String branch,
+
+        String gitProvider,
+
+        String gitSecretName
 ) {
 }

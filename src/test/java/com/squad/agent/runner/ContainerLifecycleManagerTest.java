@@ -6,6 +6,7 @@ import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.RemoveContainerCmd;
 import com.github.dockerjava.api.command.StartContainerCmd;
 import com.github.dockerjava.api.command.StopContainerCmd;
+import com.github.dockerjava.api.exception.NotModifiedException;
 import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
 import org.junit.jupiter.api.Test;
@@ -119,6 +120,31 @@ class ContainerLifecycleManagerTest {
         manager.stopAndRemoveContainer("cid-1");
 
         verify(stopCmd).exec();
+        verify(removeCmd).exec();
+    }
+
+    @Test
+    void 이미_중지된_컨테이너도_삭제한다() {
+        DockerClient dockerClient = Mockito.mock(DockerClient.class);
+        DockerContainerManager containerManager = Mockito.mock(DockerContainerManager.class);
+        StopContainerCmd stopCmd = Mockito.mock(StopContainerCmd.class);
+        RemoveContainerCmd removeCmd = Mockito.mock(RemoveContainerCmd.class);
+
+        when(dockerClient.stopContainerCmd("cid-1")).thenReturn(stopCmd);
+        when(stopCmd.withTimeout(10)).thenReturn(stopCmd);
+        when(stopCmd.exec()).thenThrow(new NotModifiedException("already stopped"));
+        when(dockerClient.removeContainerCmd("cid-1")).thenReturn(removeCmd);
+        when(removeCmd.withForce(true)).thenReturn(removeCmd);
+
+        ContainerLifecycleManager manager = new ContainerLifecycleManager(
+                dockerClient,
+                containerManager,
+                "agent-image",
+                "squad-network"
+        );
+
+        manager.stopAndRemoveContainer("cid-1");
+
         verify(removeCmd).exec();
     }
 

@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends git \
 
 WORKDIR /app
 
-COPY entrypoint.sh /app/entrypoint.sh
+COPY docker/agent/entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
 COPY --from=builder /workspace/build/libs/agent-runner.jar /app/agent-runner.jar

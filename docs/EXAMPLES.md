@@ -222,6 +222,14 @@
 
 ---
 
+### Built-in Tool 사용 팁
+
+- `bash_exec`는 shell operator 없이 단일 명령만 허용된다. (`|`, `&&`, `;` 금지)
+- 복잡한 파일 탐색은 `file_search`를 우선 사용한다.
+- Built-in Tool 실행 기준 경로는 Agent 컨테이너 내부 `/workspace`다.
+
+---
+
 ### 4단계: 결과 확인
 
 ```

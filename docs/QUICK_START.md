@@ -74,6 +74,15 @@ docker rmi squad-agent:latest
 docker build -f docker/agent/Dockerfile -t squad-agent:latest .
 ```
 
+### `bash_exec` 실행 시 "허용되지 않는 메타 문자" 오류
+
+원인:
+- `|`, `&&`, `;`, `$()` 같은 shell 연산자를 포함한 명령을 요청함
+
+해결:
+- 단일 allowlist 명령 형태로 요청하거나, 복합 검색은 `file_search` 도구 사용
+- 최신 Tool 제약을 반영하려면 Agent 이미지를 재빌드 후 서버 재시작
+
 ### DB 툴 접속 정보가 필요한 경우 (MySQL)
 
 - Host: `localhost`

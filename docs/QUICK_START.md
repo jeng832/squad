@@ -30,6 +30,12 @@ docker build -f docker/agent/Dockerfile -t squad-agent:latest .
 docker image ls | grep squad-agent
 ```
 
+최근 코드 반영 후 재실행 시에는 기존 이미지를 재사용하지 말고 재빌드를 권장합니다.
+
+```bash
+docker build --no-cache -f docker/agent/Dockerfile -t squad-agent:latest .
+```
+
 ## 4) 서버 실행
 
 ```bash

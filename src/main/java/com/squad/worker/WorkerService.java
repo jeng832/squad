@@ -4,6 +4,7 @@ import com.squad.agent.domain.Agent;
 import com.squad.llm.model.*;
 import com.squad.llm.service.LlmToolUseService;
 import com.squad.llm.tool.builtin.BuiltInToolRegistry;
+import com.squad.llm.tool.builtin.ToolExecutionContextHolder;
 import com.squad.mcp.gateway.McpToolRegistry;
 import com.squad.messaging.MessageRouter;
 import com.squad.messaging.MessageSubscriber;
@@ -160,7 +161,13 @@ public class WorkerService {
                 tools
         );
 
-        LlmResponse response = llmToolUseService.sendWithToolUse(providerName, request);
+        ToolExecutionContextHolder.set(context.getSessionId(), agent.getId());
+        LlmResponse response;
+        try {
+            response = llmToolUseService.sendWithToolUse(providerName, request);
+        } finally {
+            ToolExecutionContextHolder.clear();
+        }
 
         if (response.content() != null && !response.content().isBlank()) {
             context.addMessage(new LlmMessage("assistant", response.content()));

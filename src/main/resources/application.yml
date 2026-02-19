@@ -118,3 +118,7 @@ squad:
         success: 0  # 즉시 삭제
         failed: 86400  # 24시간 (초)
         cancelled: 3600  # 1시간 (초)
+
+  # Built-in Tool Configuration
+  builtin-tools:
+    workspace-root: ${BUILTIN_TOOLS_WORKSPACE_ROOT:/tmp/squad-workspace}

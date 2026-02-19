@@ -28,7 +28,7 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
     public BuiltInToolExecutor(
             BuiltInToolRegistry toolRegistry,
             List<BuiltInToolCommand> commands,
-            @Value("${squad.builtin-tools.workspace-root:/workspace}") String workspaceRoot
+            @Value("${squad.builtin-tools.workspace-root:/tmp/squad-workspace}") String workspaceRoot
     ) {
         this.toolRegistry = toolRegistry;
         this.context = new BuiltInToolContext(Path.of(workspaceRoot).toAbsolutePath().normalize());

@@ -23,6 +23,7 @@ public class BuiltInToolContext {
 
     public BuiltInToolContext(Path workspaceRoot) {
         this.workspaceRoot = workspaceRoot.toAbsolutePath().normalize();
+        ensureWorkspaceDirectory(this.workspaceRoot);
         this.workspaceRootRealPath = resolveWorkspaceRealPath(this.workspaceRoot);
     }
 
@@ -113,6 +114,14 @@ public class BuiltInToolContext {
             return toRealPath(rootPath);
         }
         return rootPath;
+    }
+
+    private void ensureWorkspaceDirectory(Path rootPath) {
+        try {
+            Files.createDirectories(rootPath);
+        } catch (Exception e) {
+            throw new IllegalArgumentException("workspace 디렉토리를 생성할 수 없습니다: " + rootPath, e);
+        }
     }
 
     private Path findExistingAnchor(Path path) {

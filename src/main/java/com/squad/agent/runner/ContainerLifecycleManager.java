@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.RemoveContainerCmd;
+import com.github.dockerjava.api.exception.NotModifiedException;
 import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
 import org.springframework.beans.factory.annotation.Value;
@@ -78,7 +79,11 @@ public class ContainerLifecycleManager {
     }
 
     public void stopAndRemoveContainer(String containerId) {
-        dockerClient.stopContainerCmd(containerId).withTimeout(10).exec();
+        try {
+            dockerClient.stopContainerCmd(containerId).withTimeout(10).exec();
+        } catch (NotModifiedException ignored) {
+            // 이미 종료된 컨테이너는 remove 단계만 수행한다.
+        }
         dockerClient.removeContainerCmd(containerId).withForce(true).exec();
     }
 

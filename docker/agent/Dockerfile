@@ -6,7 +6,7 @@ COPY build.gradle settings.gradle /workspace/
 COPY gradle /workspace/gradle
 COPY src /workspace/src
 
-RUN gradle --no-daemon agentRunnerBootJar
+RUN gradle --no-daemon -PagentRunner=true bootJar
 
 FROM eclipse-temurin:21-jre
 

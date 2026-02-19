@@ -1,3 +1,13 @@
+FROM gradle:8.14.3-jdk21 AS builder
+
+WORKDIR /workspace
+
+COPY build.gradle settings.gradle /workspace/
+COPY gradle /workspace/gradle
+COPY src /workspace/src
+
+RUN gradle --no-daemon agentRunnerBootJar
+
 FROM eclipse-temurin:21-jre
 
 RUN apt-get update && apt-get install -y --no-install-recommends git \
@@ -8,6 +18,6 @@ WORKDIR /app
 COPY entrypoint.sh /app/entrypoint.sh
 RUN chmod +x /app/entrypoint.sh
 
-# Agent Runner JAR은 빌드 파이프라인에서 /app/agent-runner.jar로 복사됨을 전제로 합니다.
+COPY --from=builder /workspace/build/libs/agent-runner.jar /app/agent-runner.jar
 
 ENTRYPOINT ["/app/entrypoint.sh"]

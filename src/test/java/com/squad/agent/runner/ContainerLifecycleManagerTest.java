@@ -6,6 +6,7 @@ import com.github.dockerjava.api.command.CreateContainerResponse;
 import com.github.dockerjava.api.command.RemoveContainerCmd;
 import com.github.dockerjava.api.command.StartContainerCmd;
 import com.github.dockerjava.api.command.StopContainerCmd;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -14,6 +15,7 @@ import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -118,5 +120,30 @@ class ContainerLifecycleManagerTest {
 
         verify(stopCmd).exec();
         verify(removeCmd).exec();
+    }
+
+    @Test
+    void 이미지가_없으면_가이드_메시지와_함께_실패한다() {
+        DockerClient dockerClient = Mockito.mock(DockerClient.class);
+        DockerContainerManager containerManager = Mockito.mock(DockerContainerManager.class);
+        CreateContainerCmd createCmd = Mockito.mock(CreateContainerCmd.class);
+
+        when(containerManager.findByName("squad-sess1-agent1")).thenReturn(Optional.empty());
+        when(dockerClient.createContainerCmd("squad-agent:latest")).thenReturn(createCmd);
+        when(createCmd.withName("squad-sess1-agent1")).thenReturn(createCmd);
+        when(createCmd.withNetworkMode("squad-network")).thenReturn(createCmd);
+        when(createCmd.exec()).thenThrow(new NotFoundException("No such image"));
+
+        ContainerLifecycleManager manager = new ContainerLifecycleManager(
+                dockerClient,
+                containerManager,
+                "squad-agent:latest",
+                "squad-network"
+        );
+
+        assertThatThrownBy(() -> manager.createContainer("sess1", "agent1", List.of()))
+                .isInstanceOf(IllegalStateException.class)
+                .hasMessageContaining("Agent 이미지가 없습니다")
+                .hasMessageContaining("docker build -f docker/agent/Dockerfile -t squad-agent:latest .");
     }
 }

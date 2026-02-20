@@ -74,6 +74,19 @@ docker rmi squad-agent:latest
 docker build -f docker/agent/Dockerfile -t squad-agent:latest .
 ```
 
+### `Could not find or load main class com.squad.agent.runner.AgentToolCliApplication`
+
+원인:
+- 예전 `squad-agent:latest` 이미지(신규 Tool CLI 미포함)를 사용 중
+
+해결:
+
+```bash
+docker build --no-cache -f docker/agent/Dockerfile -t squad-agent:latest .
+```
+
+그리고 기존 세션/컨테이너를 정리한 뒤 새 세션을 시작한다.
+
 ### `bash_exec` 실행 시 "허용되지 않는 메타 문자" 오류
 
 원인:

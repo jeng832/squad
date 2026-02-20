@@ -146,6 +146,11 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
         String output = stdout.toString(StandardCharsets.UTF_8);
         String errorOutput = stderr.toString(StandardCharsets.UTF_8);
         if (exitCode != null && exitCode != 0L) {
+            if (errorOutput.contains("ClassNotFoundException: com.squad.agent.runner.AgentToolCliApplication")
+                    || errorOutput.contains("Could not find or load main class com.squad.agent.runner.AgentToolCliApplication")) {
+                throw new IllegalStateException(
+                        "Agent 이미지가 오래되었습니다. `docker build --no-cache -f docker/agent/Dockerfile -t squad-agent:latest .` 로 재빌드 후 세션을 다시 시작하세요.");
+            }
             throw new IllegalArgumentException("컨테이너 실행 실패(exit=" + exitCode + "): " + errorOutput);
         }
         if (!errorOutput.isBlank()) {

@@ -3,6 +3,7 @@ package com.squad.llm.tool.builtin;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.command.StartContainerCmd;
 import com.github.dockerjava.api.model.Container;
 import com.squad.agent.runner.ContainerLifecycleManager;
 import com.squad.agent.runner.DockerContainerManager;
@@ -340,12 +341,14 @@ class BuiltInToolExecutorTest {
         ContainerLifecycleManager lifecycleManager = Mockito.mock(ContainerLifecycleManager.class);
         Container container = Mockito.mock(Container.class);
         InspectContainerResponse.ContainerState state = Mockito.mock(InspectContainerResponse.ContainerState.class);
+        StartContainerCmd startCmd = Mockito.mock(StartContainerCmd.class);
 
         when(lifecycleManager.buildContainerName("1", "2")).thenReturn("squad-1-2");
         when(containerManager.findByName("squad-1-2")).thenReturn(Optional.of(container));
         when(container.getId()).thenReturn("cid-1");
         when(containerManager.getState("cid-1")).thenReturn(Optional.of(state));
         when(state.getRunning()).thenReturn(false);
+        when(dockerClient.startContainerCmd("cid-1")).thenReturn(startCmd);
 
         var commands = List.of(
                 new FileReadToolCommand(),
@@ -374,6 +377,7 @@ class BuiltInToolExecutorTest {
             assertThat(result.output()).contains("[오류]");
             assertThat(result.output()).contains("실행 중이 아닙니다");
             verify(dockerClient, never()).execCreateCmd(anyString());
+            verify(startCmd).exec();
         } finally {
             ToolExecutionContextHolder.clear();
         }

@@ -5,6 +5,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.exception.ConflictException;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.core.command.ExecStartResultCallback;
 import com.squad.agent.runner.ContainerLifecycleManager;
 import com.squad.agent.runner.DockerContainerManager;
@@ -125,24 +126,11 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
         if (container.isEmpty()) {
             throw new IllegalStateException("실행 대상 컨테이너를 찾을 수 없습니다: " + containerName);
         }
-        assertContainerRunning(containerName, container.get().getId());
+        String containerId = container.get().getId();
+        ensureContainerRunning(containerName, containerId);
 
         String payload = encodePayload(call);
-        ExecCreateCmdResponse exec;
-        try {
-            exec = dockerClient.execCreateCmd(container.get().getId())
-                    .withAttachStdout(true)
-                    .withAttachStderr(true)
-                    .withCmd(
-                            "java", "-cp", "/app/agent-runner.jar",
-                            "com.squad.agent.runner.AgentToolCliApplication",
-                            payload
-                    )
-                    .exec();
-        } catch (ConflictException e) {
-            throw new IllegalStateException(
-                    "실행 대상 컨테이너가 실행 중이 아닙니다: " + containerName, e);
-        }
+        ExecCreateCmdResponse exec = createExecCommand(containerName, containerId, payload);
 
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
@@ -166,10 +154,57 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
         return output;
     }
 
-    private void assertContainerRunning(String containerName, String containerId) {
+    private ExecCreateCmdResponse createExecCommand(String containerName, String containerId, String payload) {
+        try {
+            return dockerClient.execCreateCmd(containerId)
+                    .withAttachStdout(true)
+                    .withAttachStderr(true)
+                    .withCmd(
+                            "java", "-cp", "/app/agent-runner.jar",
+                            "com.squad.agent.runner.AgentToolCliApplication",
+                            payload
+                    )
+                    .exec();
+        } catch (ConflictException e) {
+            // 상태 조회 직후 종료되는 race를 고려하여 1회 재시도한다.
+            ensureContainerRunning(containerName, containerId);
+            try {
+                return dockerClient.execCreateCmd(containerId)
+                        .withAttachStdout(true)
+                        .withAttachStderr(true)
+                        .withCmd(
+                                "java", "-cp", "/app/agent-runner.jar",
+                                "com.squad.agent.runner.AgentToolCliApplication",
+                                payload
+                        )
+                        .exec();
+            } catch (ConflictException retryException) {
+                throw new IllegalStateException(
+                        "실행 대상 컨테이너가 실행 중이 아닙니다: " + containerName, retryException);
+            }
+        }
+    }
+
+    private void ensureContainerRunning(String containerName, String containerId) {
         Optional<InspectContainerResponse.ContainerState> state = dockerContainerManager.getState(containerId);
-        if (state.isEmpty() || !Boolean.TRUE.equals(state.get().getRunning())) {
+        if (state.isPresent() && Boolean.TRUE.equals(state.get().getRunning())) {
+            return;
+        }
+        tryStartContainer(containerName, containerId);
+
+        Optional<InspectContainerResponse.ContainerState> started = dockerContainerManager.getState(containerId);
+        if (started.isEmpty() || !Boolean.TRUE.equals(started.get().getRunning())) {
             throw new IllegalStateException("실행 대상 컨테이너가 실행 중이 아닙니다: " + containerName);
+        }
+    }
+
+    private void tryStartContainer(String containerName, String containerId) {
+        try {
+            dockerClient.startContainerCmd(containerId).exec();
+        } catch (NotFoundException e) {
+            throw new IllegalStateException("실행 대상 컨테이너를 찾을 수 없습니다: " + containerName, e);
+        } catch (Exception e) {
+            throw new IllegalStateException("실행 대상 컨테이너 시작에 실패했습니다: " + containerName, e);
         }
     }
 

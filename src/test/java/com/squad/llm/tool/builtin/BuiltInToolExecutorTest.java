@@ -1,5 +1,11 @@
 package com.squad.llm.tool.builtin;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.dockerjava.api.DockerClient;
+import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.model.Container;
+import com.squad.agent.runner.ContainerLifecycleManager;
+import com.squad.agent.runner.DockerContainerManager;
 import com.squad.llm.model.LlmToolCall;
 import com.squad.llm.tool.LlmToolResult;
 import org.junit.jupiter.api.DisplayName;
@@ -7,13 +13,19 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.api.condition.DisabledOnOs;
 import org.junit.jupiter.api.condition.OS;
+import org.mockito.Mockito;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 @DisplayName("BuiltInToolExecutor 단위 테스트")
 class BuiltInToolExecutorTest {
@@ -318,6 +330,53 @@ class BuiltInToolExecutorTest {
 
         assertThat(result.output()).contains("[오류]");
         assertThat(result.output()).contains("workspace 밖");
+    }
+
+    @Test
+    @DisplayName("컨테이너가 실행 중이 아니면 Built-in Tool 실행을 중단한다")
+    void containerToolExecutionFailsWhenContainerNotRunning() {
+        DockerClient dockerClient = Mockito.mock(DockerClient.class);
+        DockerContainerManager containerManager = Mockito.mock(DockerContainerManager.class);
+        ContainerLifecycleManager lifecycleManager = Mockito.mock(ContainerLifecycleManager.class);
+        Container container = Mockito.mock(Container.class);
+        InspectContainerResponse.ContainerState state = Mockito.mock(InspectContainerResponse.ContainerState.class);
+
+        when(lifecycleManager.buildContainerName("1", "2")).thenReturn("squad-1-2");
+        when(containerManager.findByName("squad-1-2")).thenReturn(Optional.of(container));
+        when(container.getId()).thenReturn("cid-1");
+        when(containerManager.getState("cid-1")).thenReturn(Optional.of(state));
+        when(state.getRunning()).thenReturn(false);
+
+        var commands = List.of(
+                new FileReadToolCommand(),
+                new FileWriteToolCommand(),
+                new FileSearchToolCommand(),
+                new BashExecToolCommand()
+        );
+        BuiltInToolExecutor executor = new BuiltInToolExecutor(
+                new BuiltInToolRegistry(commands),
+                commands,
+                workspace.toString(),
+                dockerClient,
+                containerManager,
+                lifecycleManager,
+                new ObjectMapper()
+        );
+
+        ToolExecutionContextHolder.set(1L, 2L);
+        try {
+            LlmToolResult result = executor.execute(new LlmToolCall(
+                    "c13",
+                    "file_search",
+                    Map.of("path", ".", "glob", "**")
+            ));
+
+            assertThat(result.output()).contains("[오류]");
+            assertThat(result.output()).contains("실행 중이 아닙니다");
+            verify(dockerClient, never()).execCreateCmd(anyString());
+        } finally {
+            ToolExecutionContextHolder.clear();
+        }
     }
 
     private BuiltInToolExecutor createExecutor() {

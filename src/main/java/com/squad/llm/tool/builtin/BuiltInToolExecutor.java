@@ -10,6 +10,7 @@ import com.squad.llm.model.LlmToolCall;
 import com.squad.llm.tool.LlmToolExecutor;
 import com.squad.llm.tool.LlmToolResult;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +44,7 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
     private final ContainerLifecycleManager containerLifecycleManager;
     private final ObjectMapper objectMapper;
 
+    @Autowired
     public BuiltInToolExecutor(
             BuiltInToolRegistry toolRegistry,
             List<BuiltInToolCommand> commands,

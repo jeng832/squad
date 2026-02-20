@@ -3,6 +3,8 @@ package com.squad.llm.tool.builtin;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.ExecCreateCmdResponse;
+import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.exception.ConflictException;
 import com.github.dockerjava.core.command.ExecStartResultCallback;
 import com.squad.agent.runner.ContainerLifecycleManager;
 import com.squad.agent.runner.DockerContainerManager;
@@ -123,17 +125,24 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
         if (container.isEmpty()) {
             throw new IllegalStateException("실행 대상 컨테이너를 찾을 수 없습니다: " + containerName);
         }
+        assertContainerRunning(containerName, container.get().getId());
 
         String payload = encodePayload(call);
-        ExecCreateCmdResponse exec = dockerClient.execCreateCmd(container.get().getId())
-                .withAttachStdout(true)
-                .withAttachStderr(true)
-                .withCmd(
-                        "java", "-cp", "/app/agent-runner.jar",
-                        "com.squad.agent.runner.AgentToolCliApplication",
-                        payload
-                )
-                .exec();
+        ExecCreateCmdResponse exec;
+        try {
+            exec = dockerClient.execCreateCmd(container.get().getId())
+                    .withAttachStdout(true)
+                    .withAttachStderr(true)
+                    .withCmd(
+                            "java", "-cp", "/app/agent-runner.jar",
+                            "com.squad.agent.runner.AgentToolCliApplication",
+                            payload
+                    )
+                    .exec();
+        } catch (ConflictException e) {
+            throw new IllegalStateException(
+                    "실행 대상 컨테이너가 실행 중이 아닙니다: " + containerName, e);
+        }
 
         ByteArrayOutputStream stdout = new ByteArrayOutputStream();
         ByteArrayOutputStream stderr = new ByteArrayOutputStream();
@@ -155,6 +164,13 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
             log.debug("Built-in Tool 컨테이너 stderr: {}", errorOutput);
         }
         return output;
+    }
+
+    private void assertContainerRunning(String containerName, String containerId) {
+        Optional<InspectContainerResponse.ContainerState> state = dockerContainerManager.getState(containerId);
+        if (state.isEmpty() || !Boolean.TRUE.equals(state.get().getRunning())) {
+            throw new IllegalStateException("실행 대상 컨테이너가 실행 중이 아닙니다: " + containerName);
+        }
     }
 
     private String encodePayload(LlmToolCall call) throws Exception {

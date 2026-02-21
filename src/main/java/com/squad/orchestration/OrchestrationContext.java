@@ -7,7 +7,9 @@ import com.squad.messaging.Subscription;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -26,6 +28,8 @@ public class OrchestrationContext {
     private final CopyOnWriteArrayList<LlmMessage> messages;
     private final List<Subscription> subscriptions;
     private final AtomicInteger pendingTasks;
+    private final AtomicInteger delegationAttempts;
+    private final Map<String, AtomicInteger> delegationByKey;
 
     private OrchestrationContext(Long sessionId, Agent orchestrator, Set<Agent> agents) {
         this.sessionId = sessionId;
@@ -34,6 +38,8 @@ public class OrchestrationContext {
         this.messages = new CopyOnWriteArrayList<>();
         this.subscriptions = Collections.synchronizedList(new ArrayList<>());
         this.pendingTasks = new AtomicInteger(0);
+        this.delegationAttempts = new AtomicInteger(0);
+        this.delegationByKey = new ConcurrentHashMap<>();
     }
 
     /**
@@ -100,5 +106,14 @@ public class OrchestrationContext {
 
     public int getPendingTaskCount() {
         return pendingTasks.get();
+    }
+
+    public int incrementDelegationAttempts() {
+        return delegationAttempts.incrementAndGet();
+    }
+
+    public int incrementDelegationByKey(String key) {
+        return delegationByKey.computeIfAbsent(key, ignored -> new AtomicInteger(0))
+                .incrementAndGet();
     }
 }

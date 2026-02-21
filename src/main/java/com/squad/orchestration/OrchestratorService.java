@@ -43,6 +43,8 @@ import java.util.concurrent.ConcurrentHashMap;
 @Service
 @RequiredArgsConstructor
 public class OrchestratorService {
+    private static final int MAX_DELEGATION_ATTEMPTS = 12;
+    private static final int MAX_SAME_TASK_ATTEMPTS = 2;
 
     private final LlmProviderFactory llmProviderFactory;
     private final MessageRouter messageRouter;
@@ -198,6 +200,17 @@ public class OrchestratorService {
             return;
         }
 
+        String delegationKey = buildDelegationKey(agentId, task);
+        int totalAttempts = context.incrementDelegationAttempts();
+        int sameTaskAttempts = context.incrementDelegationByKey(delegationKey);
+        if (totalAttempts > MAX_DELEGATION_ATTEMPTS || sameTaskAttempts > MAX_SAME_TASK_ATTEMPTS) {
+            String reason = String.format("반복 위임 제한 초과(total=%d, sameTask=%d, agentId=%d)",
+                    totalAttempts, sameTaskAttempts, agentId);
+            log.warn("Orchestration 중단 가드 동작: sessionId={}, {}", context.getSessionId(), reason);
+            forceCompleteByGuard(context, reason);
+            return;
+        }
+
         SessionMessage taskMessage = SessionMessage.of(
                 context.getSessionId(),
                 context.getOrchestrator().getId(),
@@ -218,6 +231,11 @@ public class OrchestratorService {
         log.debug("작업 분배: sessionId={}, toAgentId={}, task={}",
                 context.getSessionId(), agentId,
                 task.substring(0, Math.min(50, task.length())));
+    }
+
+    private String buildDelegationKey(Long agentId, String task) {
+        String normalizedTask = task == null ? "" : task.replaceAll("\\s+", " ").trim().toLowerCase();
+        return agentId + "::" + normalizedTask;
     }
 
     private String findAgentName(OrchestrationContext context, Long agentId) {
@@ -254,6 +272,39 @@ public class OrchestratorService {
         if (handler != null) {
             handler.onSessionComplete(sessionId, result);
         }
+    }
+
+    private void forceCompleteByGuard(OrchestrationContext context, String reason) {
+        String result = buildGuardFallbackResult(context, reason);
+        completeSession(context, new LlmToolCall(
+                "guard-complete",
+                "complete_session",
+                Map.of("result", result)
+        ));
+    }
+
+    private String buildGuardFallbackResult(OrchestrationContext context, String reason) {
+        List<String> allAgentResults = context.getMessages().stream()
+                .filter(m -> "user".equals(m.role()) && m.content() != null && m.content().startsWith("[Agent "))
+                .map(LlmMessage::content)
+                .toList();
+        int from = Math.max(0, allAgentResults.size() - 6);
+        List<String> recentAgentResults = allAgentResults.subList(from, allAgentResults.size());
+
+        StringBuilder sb = new StringBuilder();
+        sb.append("세션이 반복 위임으로 진행 중단되어 강제 종료되었습니다.\n");
+        sb.append("원인: ").append(reason).append("\n\n");
+        if (!recentAgentResults.isEmpty()) {
+            sb.append("최근 에이전트 결과 요약:\n");
+            for (String result : recentAgentResults) {
+                sb.append("- ")
+                        .append(result.replaceAll("\\s+", " ").trim(), 0, Math.min(180, result.length()))
+                        .append("\n");
+            }
+        } else {
+            sb.append("수집된 에이전트 결과가 없어 요약할 내용이 없습니다.\n");
+        }
+        return sb.toString();
     }
 
     private LlmProvider resolveProvider(Agent orchestrator) {

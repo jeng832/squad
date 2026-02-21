@@ -148,7 +148,9 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
             if (errorOutput.contains("ClassNotFoundException: com.squad.agent.runner.AgentToolCliApplication")
                     || errorOutput.contains("Could not find or load main class com.squad.agent.runner.AgentToolCliApplication")) {
                 throw new IllegalStateException(
-                        "Agent 이미지가 오래되었습니다. `docker build --no-cache -f docker/agent/Dockerfile -t squad-agent:latest .` 로 재빌드 후 세션을 다시 시작하세요.");
+                        "Agent Tool CLI 진입점 로드에 실패했습니다. 이미지/실행 방식 불일치일 수 있습니다. "
+                                + "새 이미지로 재빌드 후 새 세션으로 다시 시작하세요. "
+                                + "(권장: ./scripts/start_local_with_versioned_image.sh)");
             }
             throw new IllegalArgumentException("컨테이너 실행 실패(exit=" + exitCode + "): " + errorOutput);
         }
@@ -164,8 +166,9 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
                     .withAttachStdout(true)
                     .withAttachStderr(true)
                     .withCmd(
-                            "java", "-cp", "/app/agent-runner.jar",
-                            "com.squad.agent.runner.AgentToolCliApplication",
+                            "java",
+                            "-Dloader.main=com.squad.agent.runner.AgentToolCliApplication",
+                            "-jar", "/app/agent-runner.jar",
                             payload
                     )
                     .exec();

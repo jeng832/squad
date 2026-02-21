@@ -148,6 +148,73 @@ class OrchestratorServiceTest {
     }
 
     @Test
+    @DisplayName("종합 작업 위임 시 이전 Agent 결과가 task 본문에 포함된다")
+    void synthesisTaskIncludesPreviousAgentResults() {
+        Agent docWorker = Agent.builder()
+                .id(3L)
+                .name("DocWorker")
+                .roleType(RoleType.WORKER)
+                .role("결과를 종합합니다")
+                .llmConfig(Map.of("provider", "claude"))
+                .build();
+
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        ArgumentCaptor<MessageHandler> orchHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), orchHandlerCaptor.capture()))
+                .willReturn(orchestratorSubscription);
+
+        LlmResponse firstResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(new LlmToolCall("call-1", "delegate_task", Map.of("agent_id", 2, "task", "코드 분석"))), null);
+        LlmResponse secondResponse = new LlmResponse("resp-2", null, "tool_use",
+                List.of(new LlmToolCall("call-2", "delegate_task", Map.of("agent_id", 3, "task", "분석 결과를 바탕으로 종합해줘"))), null);
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class)))
+                .willReturn(firstResponse)
+                .willReturn(secondResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, Set.of(worker, docWorker), completeHandler);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "시작"));
+        orchHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, 2L, null, MessageType.TASK_RESULT, "핵심 포인트 A\n핵심 포인트 B"));
+
+        ArgumentCaptor<SessionMessage> routedMessage = ArgumentCaptor.forClass(SessionMessage.class);
+        verify(messageRouter, times(2)).route(routedMessage.capture());
+        List<SessionMessage> routed = routedMessage.getAllValues();
+
+        SessionMessage secondDelegation = routed.get(1);
+        assertThat(secondDelegation.getToAgentId()).isEqualTo(3L);
+        assertThat(secondDelegation.getContent()).contains("[참고: 이전 Agent 결과]");
+        assertThat(secondDelegation.getContent()).contains("핵심 포인트 A");
+    }
+
+    @Test
+    @DisplayName("이전 결과 없는 종합 요청은 가드 문구를 추가해 위임한다")
+    void synthesisTaskWithoutResultsAddsGuardPrefix() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), any(MessageHandler.class)))
+                .willReturn(orchestratorSubscription);
+
+        LlmToolCall delegateCall = new LlmToolCall("call-1", "delegate_task",
+                Map.of("agent_id", 2, "task", "기존 결과를 바탕으로 종합 정리해줘"));
+        LlmResponse llmResponse = new LlmResponse("resp-1", null, "tool_use", List.of(delegateCall), null);
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class))).willReturn(llmResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "시작"));
+
+        ArgumentCaptor<SessionMessage> routedMessage = ArgumentCaptor.forClass(SessionMessage.class);
+        verify(messageRouter).route(routedMessage.capture());
+        assertThat(routedMessage.getValue().getContent()).startsWith("[가드] 이전 Agent 분석 결과가 아직 없어");
+    }
+
+    @Test
     @DisplayName("TASK_RESULT 수신 후 모든 작업 완료 시 LLM을 재호출한다")
     void taskResultTriggersLlmCall() {
         // Given: subscription 설정

@@ -32,6 +32,12 @@ docker build -f docker/agent/Dockerfile -t squad-agent:latest .
 SQUAD_AGENT_IMAGE=squad-agent:build-<sha> ./gradlew bootRun --args='--spring.profiles.active=local'
 ```
 
+처음 실행을 한 번에 처리하려면:
+
+```bash
+./scripts/start_local_with_versioned_image.sh
+```
+
 확인:
 
 ```bash

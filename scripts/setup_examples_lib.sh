@@ -23,13 +23,13 @@ ensure_server_ready() {
 
 api_get() {
   local path="$1"
-  curl -sS "$API_BASE_URL$path"
+  curl -fsS "$API_BASE_URL$path"
 }
 
 api_post() {
   local path="$1"
   local payload="$2"
-  curl -sS -X POST "$API_BASE_URL$path" \
+  curl -fsS -X POST "$API_BASE_URL$path" \
     -H 'Content-Type: application/json' \
     -d "$payload"
 }
@@ -37,27 +37,37 @@ api_post() {
 api_put() {
   local path="$1"
   local payload="$2"
-  curl -sS -X PUT "$API_BASE_URL$path" \
+  curl -fsS -X PUT "$API_BASE_URL$path" \
     -H 'Content-Type: application/json' \
     -d "$payload"
 }
 
 json_extract() {
   local expr="$1"
-  python3 -c "import json,sys; d=json.load(sys.stdin); print($expr)"
+  python3 -c "
+import json,sys
+raw=sys.stdin.read()
+if not raw.strip():
+    raise SystemExit('empty response body')
+d=json.loads(raw)
+print($expr)
+"
 }
 
 find_agent_by_name() {
   local name="$1"
-  api_get "/agents" | python3 - "$name" <<'PY'
+  api_get "/agents" | python3 -c "
 import json,sys
 name=sys.argv[1]
-obj=json.load(sys.stdin)
-for a in obj.get("data",[]):
-    if a.get("name")==name:
+raw=sys.stdin.read()
+if not raw.strip():
+    raise SystemExit('empty response body from /agents')
+obj=json.loads(raw)
+for a in obj.get('data', []):
+    if a.get('name') == name:
         print(json.dumps(a))
         break
-PY
+" "$name"
 }
 
 create_agent() {
@@ -111,15 +121,18 @@ ensure_agent() {
 
 find_squad_by_name() {
   local name="$1"
-  api_get "/squads" | python3 - "$name" <<'PY'
+  api_get "/squads" | python3 -c "
 import json,sys
 name=sys.argv[1]
-obj=json.load(sys.stdin)
-for s in obj.get("data",[]):
-    if s.get("name")==name:
+raw=sys.stdin.read()
+if not raw.strip():
+    raise SystemExit('empty response body from /squads')
+obj=json.loads(raw)
+for s in obj.get('data', []):
+    if s.get('name') == name:
         print(json.dumps(s))
         break
-PY
+" "$name"
 }
 
 ensure_squad() {

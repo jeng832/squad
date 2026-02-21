@@ -921,3 +921,4 @@
   - Built-in workspace 기본값 `/tmp/squad-workspace` 적용 및 `BUILTIN_TOOLS_WORKSPACE_ROOT` 설정 노출
   - `QUICK_START.md`에 이미지 재빌드(`--no-cache`) 안내 추가
   - `LLM_INTEGRATION.md`, `SPEC.md`, `EXAMPLES.md`에 최신 `bash_exec` allowlist/제약 및 `/workspace` 실행 기준 반영
+  - Tool 실행기는 중지 컨테이너를 자동 `start`하지 않도록 정리 (세션 재시작으로 새 컨테이너 생성 원칙)

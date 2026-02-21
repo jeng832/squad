@@ -87,6 +87,10 @@ docker build --no-cache -f docker/agent/Dockerfile -t squad-agent:latest .
 
 그리고 기존 세션/컨테이너를 정리한 뒤 새 세션을 시작한다.
 
+참고:
+- 중지된 Agent 컨테이너는 Tool 실행 시 자동 재시작하지 않는다.
+- `실행 대상 컨테이너가 실행 중이 아닙니다` 오류가 나면 기존 세션을 재사용하지 말고 새 세션을 시작한다.
+
 ### `bash_exec` 실행 시 "허용되지 않는 메타 문자" 오류
 
 원인:

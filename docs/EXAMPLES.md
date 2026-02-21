@@ -1,5 +1,20 @@
 # Squad 구성 예시
 
+## 스크립트로 빠르게 준비하기
+
+세션 시작 전 단계(Agent/Squad 생성)까지 자동 준비하려면:
+
+```bash
+./scripts/setup_example1_pre_session.sh
+./scripts/setup_example2_pre_session.sh
+```
+
+환경 초기화 + Agent 이미지 재빌드가 필요하면:
+
+```bash
+./scripts/reset_local_environment.sh
+```
+
 ## 예시 1: 번역-요약 Squad
 
 한글 텍스트를 영어로 번역한 뒤 요약하는 Squad 구성 예시.

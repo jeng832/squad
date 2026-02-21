@@ -3,6 +3,7 @@ set -euo pipefail
 
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT_DIR"
+AGENT_IMAGE="${SQUAD_AGENT_IMAGE:-squad-agent:latest}"
 
 print_step() {
   printf '\n==> %s\n' "$1"
@@ -21,13 +22,14 @@ else
 fi
 
 print_step "Removing existing squad-agent image"
-docker image rm -f squad-agent:latest >/dev/null 2>&1 || true
+docker image rm -f "$AGENT_IMAGE" >/dev/null 2>&1 || true
 
 print_step "Starting infra"
 docker compose up -d
 
 print_step "Rebuilding agent image (no cache)"
-docker build --no-cache -f docker/agent/Dockerfile -t squad-agent:latest .
+docker build --no-cache -f docker/agent/Dockerfile -t "$AGENT_IMAGE" .
 
 print_step "Done"
-echo "Now restart app: ./gradlew bootRun --args='--spring.profiles.active=local'"
+echo "Agent image: $AGENT_IMAGE"
+echo "Now restart app: SQUAD_AGENT_IMAGE=$AGENT_IMAGE ./gradlew bootRun --args='--spring.profiles.active=local'"

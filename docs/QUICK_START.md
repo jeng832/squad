@@ -24,6 +24,14 @@ docker compose up -d
 docker build -f docker/agent/Dockerfile -t squad-agent:latest .
 ```
 
+권장(버전 태그 사용):
+
+```bash
+./scripts/build_versioned_agent_image.sh
+# 출력된 이미지 태그를 사용해 서버 실행
+SQUAD_AGENT_IMAGE=squad-agent:build-<sha> ./gradlew bootRun --args='--spring.profiles.active=local'
+```
+
 확인:
 
 ```bash

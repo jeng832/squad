@@ -3,6 +3,8 @@ package com.squad.agent.runner;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.InspectContainerCmd;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.RemoveContainerCmd;
 import com.github.dockerjava.api.command.StartContainerCmd;
 import com.github.dockerjava.api.command.StopContainerCmd;
@@ -42,6 +44,9 @@ class ContainerLifecycleManagerTest {
         CreateContainerCmd createCmd = Mockito.mock(CreateContainerCmd.class);
         CreateContainerResponse response = Mockito.mock(CreateContainerResponse.class);
         StartContainerCmd startCmd = Mockito.mock(StartContainerCmd.class);
+        InspectContainerCmd inspectCmd = Mockito.mock(InspectContainerCmd.class);
+        InspectContainerResponse inspectResponse = Mockito.mock(InspectContainerResponse.class);
+        InspectContainerResponse.ContainerState state = Mockito.mock(InspectContainerResponse.ContainerState.class);
 
         when(containerManager.findByName("squad-sess1-agent1")).thenReturn(Optional.empty());
         when(dockerClient.createContainerCmd("agent-image")).thenReturn(createCmd);
@@ -51,6 +56,11 @@ class ContainerLifecycleManagerTest {
         when(createCmd.exec()).thenReturn(response);
         when(response.getId()).thenReturn("cid-1");
         when(dockerClient.startContainerCmd("cid-1")).thenReturn(startCmd);
+        when(dockerClient.inspectContainerCmd("cid-1")).thenReturn(inspectCmd);
+        when(inspectCmd.exec()).thenReturn(inspectResponse);
+        when(inspectResponse.getState()).thenReturn(state);
+        when(state.getRunning()).thenReturn(true);
+        when(inspectResponse.getImageId()).thenReturn("img-1");
 
         ContainerLifecycleManager manager = new ContainerLifecycleManager(
                 dockerClient,

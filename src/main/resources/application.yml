@@ -104,7 +104,7 @@ squad:
   docker:
     host: ${DOCKER_HOST:unix:///var/run/docker.sock}
     network: squad-network
-    agent-image: squad-agent:latest
+    agent-image: ${SQUAD_AGENT_IMAGE:squad-agent:latest}
 
   # WebSocket Configuration
   websocket:

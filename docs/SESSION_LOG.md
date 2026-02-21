@@ -924,3 +924,5 @@
   - Tool 실행기는 중지 컨테이너를 자동 `start`하지 않도록 정리 (세션 재시작으로 새 컨테이너 생성 원칙)
   - Health checker는 `exited` 컨테이너를 자동 재시작하지 않도록 변경 (`dead`만 재시작)
   - Tool 실행 실패 메시지에 컨테이너 상태/exitCode 및 Git clone 인증 실패 가능성 힌트 추가
+  - `squad.docker.agent-image`를 `SQUAD_AGENT_IMAGE` 환경변수로 주입 가능하도록 변경
+  - 컨테이너 시작 로그에 `image/imageId` 출력하여 stale image 진단 강화

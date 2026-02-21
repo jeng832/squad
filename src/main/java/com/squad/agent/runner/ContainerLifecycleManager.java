@@ -8,6 +8,7 @@ import com.github.dockerjava.api.command.RemoveContainerCmd;
 import com.github.dockerjava.api.exception.NotModifiedException;
 import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
@@ -17,6 +18,7 @@ import java.util.Optional;
 /**
  * Agent Container의 생성/시작/중지/삭제를 관리합니다.
  */
+@Slf4j
 @Service
 public class ContainerLifecycleManager {
 
@@ -50,7 +52,7 @@ public class ContainerLifecycleManager {
     public String createAndStartContainer(String sessionId, String agentId, List<String> env) {
         String containerId = createContainer(sessionId, agentId, env);
         startContainer(containerId);
-        verifyRunning(containerId);
+        verifyRunning(sessionId, agentId, containerId);
         return containerId;
     }
 
@@ -99,13 +101,16 @@ public class ContainerLifecycleManager {
         removeCmd.exec();
     }
 
-    private void verifyRunning(String containerId) {
-        InspectContainerResponse.ContainerState state = dockerClient.inspectContainerCmd(containerId).exec().getState();
+    private void verifyRunning(String sessionId, String agentId, String containerId) {
+        InspectContainerResponse inspect = dockerClient.inspectContainerCmd(containerId).exec();
+        InspectContainerResponse.ContainerState state = inspect.getState();
         if (state == null || !Boolean.TRUE.equals(state.getRunning())) {
             Long exitCode = state != null ? state.getExitCodeLong() : null;
             stopAndRemoveContainer(containerId);
             throw new IllegalStateException("Agent 컨테이너 시작 직후 실행 상태가 아닙니다: containerId="
                     + containerId + ", exitCode=" + exitCode);
         }
+        log.info("Agent 컨테이너 시작 확인: sessionId={}, agentId={}, containerId={}, image={}, imageId={}",
+                sessionId, agentId, containerId, agentImage, inspect.getImageId());
     }
 }

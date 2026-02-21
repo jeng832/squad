@@ -168,7 +168,8 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
                     .withCmd(
                             "java",
                             "-Dloader.main=com.squad.agent.runner.AgentToolCliApplication",
-                            "-jar", "/app/agent-runner.jar",
+                            "-cp", "/app/agent-runner.jar",
+                            "org.springframework.boot.loader.launch.PropertiesLauncher",
                             payload
                     )
                     .exec();

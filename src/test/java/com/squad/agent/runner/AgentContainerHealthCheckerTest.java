@@ -3,7 +3,6 @@ package com.squad.agent.runner;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.ListContainersCmd;
-import com.github.dockerjava.api.command.RestartContainerCmd;
 import com.github.dockerjava.api.model.Container;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -11,19 +10,19 @@ import org.mockito.Mockito;
 import java.util.List;
 import java.util.Optional;
 
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class AgentContainerHealthCheckerTest {
 
     @Test
-    void dead_컨테이너를_재시작한다() {
+    void dead_컨테이너도_자동_재시작하지_않는다() {
         DockerClient dockerClient = Mockito.mock(DockerClient.class);
         DockerContainerManager containerManager = Mockito.mock(DockerContainerManager.class);
         ListContainersCmd listCmd = Mockito.mock(ListContainersCmd.class);
         Container container = Mockito.mock(Container.class);
         InspectContainerResponse.ContainerState state = Mockito.mock(InspectContainerResponse.ContainerState.class);
-        RestartContainerCmd restartCmd = Mockito.mock(RestartContainerCmd.class);
 
         when(container.getId()).thenReturn("cid");
         when(container.getNames()).thenReturn(new String[]{"/squad-abc"});
@@ -34,7 +33,6 @@ class AgentContainerHealthCheckerTest {
         when(listCmd.exec()).thenReturn(List.of(container));
 
         when(containerManager.getState("cid")).thenReturn(Optional.of(state));
-        when(dockerClient.restartContainerCmd("cid")).thenReturn(restartCmd);
 
         AgentContainerHealthChecker checker = new AgentContainerHealthChecker(
                 dockerClient,
@@ -44,7 +42,7 @@ class AgentContainerHealthCheckerTest {
 
         checker.checkContainers();
 
-        verify(restartCmd).exec();
+        verify(dockerClient, never()).restartContainerCmd("cid");
     }
 
     @Test

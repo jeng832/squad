@@ -8,8 +8,6 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
-import java.util.List;
-
 /**
  * Agent Container 상태를 주기적으로 점검하는 Health Checker.
  */
@@ -33,11 +31,7 @@ public class AgentContainerHealthChecker {
 
     @Scheduled(fixedDelayString = "${squad.docker.health-check.interval-ms:10000}")
     public void checkContainers() {
-        List<Container> containers = dockerClient.listContainersCmd()
-                .withShowAll(true)
-                .exec();
-
-        for (Container container : containers) {
+        for (Container container : dockerClient.listContainersCmd().withShowAll(true).exec()) {
             if (!matchesPrefix(container)) {
                 continue;
             }
@@ -64,17 +58,13 @@ public class AgentContainerHealthChecker {
         if (status == null) {
             return;
         }
-        if (status.equalsIgnoreCase("dead")) {
-            restart(containerId);
-            return;
-        }
         if (status.equalsIgnoreCase("exited")) {
             log.warn("Agent 컨테이너가 exited 상태입니다. 자동 재시작하지 않습니다: containerId={}, exitCode={}",
                     containerId, state.getExitCodeLong());
+            return;
         }
-    }
-
-    private void restart(String containerId) {
-        dockerClient.restartContainerCmd(containerId).exec();
+        if (status.equalsIgnoreCase("dead")) {
+            log.warn("Agent 컨테이너가 dead 상태입니다. 자동 재시작하지 않습니다: containerId={}", containerId);
+        }
     }
 }

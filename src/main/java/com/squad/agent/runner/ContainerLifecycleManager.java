@@ -3,6 +3,7 @@ package com.squad.agent.runner;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.CreateContainerCmd;
 import com.github.dockerjava.api.command.CreateContainerResponse;
+import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.RemoveContainerCmd;
 import com.github.dockerjava.api.exception.NotModifiedException;
 import com.github.dockerjava.api.exception.NotFoundException;
@@ -49,6 +50,7 @@ public class ContainerLifecycleManager {
     public String createAndStartContainer(String sessionId, String agentId, List<String> env) {
         String containerId = createContainer(sessionId, agentId, env);
         startContainer(containerId);
+        verifyRunning(containerId);
         return containerId;
     }
 
@@ -95,5 +97,15 @@ public class ContainerLifecycleManager {
         RemoveContainerCmd removeCmd = dockerClient.removeContainerCmd(existing.get().getId())
                 .withForce(true);
         removeCmd.exec();
+    }
+
+    private void verifyRunning(String containerId) {
+        InspectContainerResponse.ContainerState state = dockerClient.inspectContainerCmd(containerId).exec().getState();
+        if (state == null || !Boolean.TRUE.equals(state.getRunning())) {
+            Long exitCode = state != null ? state.getExitCodeLong() : null;
+            stopAndRemoveContainer(containerId);
+            throw new IllegalStateException("Agent 컨테이너 시작 직후 실행 상태가 아닙니다: containerId="
+                    + containerId + ", exitCode=" + exitCode);
+        }
     }
 }

@@ -91,6 +91,16 @@ docker build --no-cache -f docker/agent/Dockerfile -t squad-agent:latest .
 - 중지된 Agent 컨테이너는 Tool 실행 시 자동 재시작하지 않는다.
 - `실행 대상 컨테이너가 실행 중이 아닙니다` 오류가 나면 기존 세션을 재사용하지 말고 새 세션을 시작한다.
 
+### `fatal: could not read Username for 'https://github.com'`
+
+원인:
+- private 저장소를 `gitSecretName` 없이 clone 시도함
+- 또는 Git Secret(PAT) 값이 잘못되었음
+
+해결:
+- Session 생성 시 `gitSecretName`에 유효한 GitHub PAT Secret 이름을 지정
+- PAT에 최소 저장소 읽기 권한이 있는지 확인
+
 ### `bash_exec` 실행 시 "허용되지 않는 메타 문자" 오류
 
 원인:

@@ -17,7 +17,7 @@ import static org.mockito.Mockito.when;
 class AgentContainerHealthCheckerTest {
 
     @Test
-    void unhealthy_컨테이너를_재시작한다() {
+    void dead_컨테이너를_재시작한다() {
         DockerClient dockerClient = Mockito.mock(DockerClient.class);
         DockerContainerManager containerManager = Mockito.mock(DockerContainerManager.class);
         ListContainersCmd listCmd = Mockito.mock(ListContainersCmd.class);
@@ -27,7 +27,7 @@ class AgentContainerHealthCheckerTest {
 
         when(container.getId()).thenReturn("cid");
         when(container.getNames()).thenReturn(new String[]{"/squad-abc"});
-        when(state.getStatus()).thenReturn("exited");
+        when(state.getStatus()).thenReturn("dead");
 
         when(dockerClient.listContainersCmd()).thenReturn(listCmd);
         when(listCmd.withShowAll(true)).thenReturn(listCmd);
@@ -45,5 +45,33 @@ class AgentContainerHealthCheckerTest {
         checker.checkContainers();
 
         verify(restartCmd).exec();
+    }
+
+    @Test
+    void exited_컨테이너는_자동_재시작하지_않는다() {
+        DockerClient dockerClient = Mockito.mock(DockerClient.class);
+        DockerContainerManager containerManager = Mockito.mock(DockerContainerManager.class);
+        ListContainersCmd listCmd = Mockito.mock(ListContainersCmd.class);
+        Container container = Mockito.mock(Container.class);
+        InspectContainerResponse.ContainerState state = Mockito.mock(InspectContainerResponse.ContainerState.class);
+
+        when(container.getId()).thenReturn("cid");
+        when(container.getNames()).thenReturn(new String[]{"/squad-abc"});
+        when(state.getStatus()).thenReturn("exited");
+
+        when(dockerClient.listContainersCmd()).thenReturn(listCmd);
+        when(listCmd.withShowAll(true)).thenReturn(listCmd);
+        when(listCmd.exec()).thenReturn(List.of(container));
+        when(containerManager.getState("cid")).thenReturn(Optional.of(state));
+
+        AgentContainerHealthChecker checker = new AgentContainerHealthChecker(
+                dockerClient,
+                containerManager,
+                "squad-"
+        );
+
+        checker.checkContainers();
+
+        Mockito.verify(dockerClient, Mockito.never()).restartContainerCmd("cid");
     }
 }

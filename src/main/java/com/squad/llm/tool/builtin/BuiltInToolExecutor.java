@@ -178,9 +178,26 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
     private void assertContainerRunning(String containerName, String containerId) {
         Optional<InspectContainerResponse.ContainerState> state = dockerContainerManager.getState(containerId);
         if (state.isEmpty() || !Boolean.TRUE.equals(state.get().getRunning())) {
-            throw new IllegalStateException(
-                    "실행 대상 컨테이너가 실행 중이 아닙니다. 세션을 다시 시작해 새 컨테이너를 생성하세요: " + containerName);
+            throw new IllegalStateException(buildContainerNotRunningMessage(containerName, state.orElse(null)));
         }
+    }
+
+    private String buildContainerNotRunningMessage(String containerName, InspectContainerResponse.ContainerState state) {
+        StringBuilder message = new StringBuilder("실행 대상 컨테이너가 실행 중이 아닙니다. 세션을 다시 시작해 새 컨테이너를 생성하세요: ")
+                .append(containerName);
+
+        if (state != null && state.getStatus() != null) {
+            message.append(" (status=").append(state.getStatus());
+            if (state.getExitCodeLong() != null) {
+                message.append(", exitCode=").append(state.getExitCodeLong());
+            }
+            message.append(")");
+
+            if ("exited".equalsIgnoreCase(state.getStatus())) {
+                message.append(" 원인 후보: Git clone 인증 실패(PAT/Secret 누락), entrypoint 실행 오류.");
+            }
+        }
+        return message.toString();
     }
 
     private String encodePayload(LlmToolCall call) throws Exception {

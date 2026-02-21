@@ -3,6 +3,7 @@ package com.squad.agent.runner;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.model.Container;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
@@ -12,6 +13,7 @@ import java.util.List;
 /**
  * Agent Container 상태를 주기적으로 점검하는 Health Checker.
  */
+@Slf4j
 @Service
 public class AgentContainerHealthChecker {
 
@@ -40,8 +42,7 @@ public class AgentContainerHealthChecker {
                 continue;
             }
             containerManager.getState(container.getId())
-                    .filter(this::isUnhealthy)
-                    .ifPresent(state -> restart(container.getId()));
+                    .ifPresent(state -> handleState(container.getId(), state));
         }
     }
 
@@ -58,9 +59,19 @@ public class AgentContainerHealthChecker {
         return false;
     }
 
-    private boolean isUnhealthy(InspectContainerResponse.ContainerState state) {
+    private void handleState(String containerId, InspectContainerResponse.ContainerState state) {
         String status = state.getStatus();
-        return status == null || status.equalsIgnoreCase("exited") || status.equalsIgnoreCase("dead");
+        if (status == null) {
+            return;
+        }
+        if (status.equalsIgnoreCase("dead")) {
+            restart(containerId);
+            return;
+        }
+        if (status.equalsIgnoreCase("exited")) {
+            log.warn("Agent 컨테이너가 exited 상태입니다. 자동 재시작하지 않습니다: containerId={}, exitCode={}",
+                    containerId, state.getExitCodeLong());
+        }
     }
 
     private void restart(String containerId) {

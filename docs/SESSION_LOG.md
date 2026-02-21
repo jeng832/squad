@@ -922,3 +922,5 @@
   - `QUICK_START.md`에 이미지 재빌드(`--no-cache`) 안내 추가
   - `LLM_INTEGRATION.md`, `SPEC.md`, `EXAMPLES.md`에 최신 `bash_exec` allowlist/제약 및 `/workspace` 실행 기준 반영
   - Tool 실행기는 중지 컨테이너를 자동 `start`하지 않도록 정리 (세션 재시작으로 새 컨테이너 생성 원칙)
+  - Health checker는 `exited` 컨테이너를 자동 재시작하지 않도록 변경 (`dead`만 재시작)
+  - Tool 실행 실패 메시지에 컨테이너 상태/exitCode 및 Git clone 인증 실패 가능성 힌트 추가

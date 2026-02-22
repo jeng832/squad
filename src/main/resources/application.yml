@@ -69,6 +69,14 @@ management:
 
 # Logging Configuration
 logging:
+  file:
+    name: ${LOG_FILE:./logs/squad.log}
+  logback:
+    rollingpolicy:
+      max-file-size: ${LOG_MAX_FILE_SIZE:20MB}
+      max-history: ${LOG_MAX_HISTORY:14}
+      total-size-cap: ${LOG_TOTAL_SIZE_CAP:1GB}
+      file-name-pattern: ${LOG_FILE_PATTERN:./logs/squad.%d{yyyy-MM-dd}.%i.log.gz}
   level:
     root: INFO
     com.squad: DEBUG

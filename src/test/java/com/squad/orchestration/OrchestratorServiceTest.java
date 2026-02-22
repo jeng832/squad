@@ -215,6 +215,36 @@ class OrchestratorServiceTest {
     }
 
     @Test
+    @DisplayName("같은 Agent에 대한 유사한 task 재위임은 dedupe로 차단된다")
+    void similarTaskDelegationIsDeduped() {
+        ArgumentCaptor<MessageHandler> agentHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        ArgumentCaptor<MessageHandler> orchHandlerCaptor = ArgumentCaptor.forClass(MessageHandler.class);
+        given(messageSubscriber.subscribeToAgent(eq(1L), eq(1L), agentHandlerCaptor.capture()))
+                .willReturn(agentSubscription);
+        given(messageSubscriber.subscribeToOrchestrator(eq(1L), orchHandlerCaptor.capture()))
+                .willReturn(orchestratorSubscription);
+
+        LlmResponse firstResponse = new LlmResponse("resp-1", null, "tool_use",
+                List.of(new LlmToolCall("call-1", "delegate_task",
+                        Map.of("agent_id", 2, "task", "SessionExecutionService 실패 지점을 분석해줘"))), null);
+        LlmResponse secondResponse = new LlmResponse("resp-2", null, "tool_use",
+                List.of(new LlmToolCall("call-2", "delegate_task",
+                        Map.of("agent_id", 2, "task", "SessionExecutionService 실패 지점 분석 부탁해"))), null);
+        given(llmProviderFactory.getProvider("claude")).willReturn(Optional.of(llmProvider));
+        given(llmProvider.sendMessage(any(LlmRequest.class)))
+                .willReturn(firstResponse)
+                .willReturn(secondResponse);
+
+        orchestratorService.startOrchestration(1L, orchestrator, agents, completeHandler);
+        agentHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, null, 1L, MessageType.TASK_REQUEST, "시작"));
+        orchHandlerCaptor.getValue().handle(
+                SessionMessage.of(1L, 2L, null, MessageType.TASK_RESULT, "1차 분석 결과"));
+
+        verify(messageRouter, times(1)).route(any(SessionMessage.class));
+    }
+
+    @Test
     @DisplayName("TASK_RESULT 수신 후 모든 작업 완료 시 LLM을 재호출한다")
     void taskResultTriggersLlmCall() {
         // Given: subscription 설정

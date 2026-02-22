@@ -45,6 +45,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class OrchestratorService {
     private static final int MAX_DELEGATION_ATTEMPTS = 12;
     private static final int MAX_SAME_TASK_ATTEMPTS = 2;
+    private static final int MAX_RECENT_TASKS_PER_AGENT = 20;
+    private static final double TASK_SIMILARITY_THRESHOLD = 0.60;
     private static final int MAX_CONTEXT_RESULTS = 4;
     private static final int MAX_RESULT_EXCERPT_LENGTH = 1200;
 
@@ -202,6 +204,15 @@ public class OrchestratorService {
             return;
         }
 
+        String normalizedTask = normalizeTask(task);
+        boolean dedupeHit = context.isSimilarTaskAndTrack(
+                agentId, normalizedTask, TASK_SIMILARITY_THRESHOLD, MAX_RECENT_TASKS_PER_AGENT);
+        if (dedupeHit) {
+            log.info("중복/유사 작업 위임 차단: sessionId={}, agentId={}, task={}",
+                    context.getSessionId(), agentId, normalizedTask);
+            return;
+        }
+
         String delegationKey = buildDelegationKey(agentId, task);
         int totalAttempts = context.incrementDelegationAttempts();
         int sameTaskAttempts = context.incrementDelegationByKey(delegationKey);
@@ -294,8 +305,20 @@ public class OrchestratorService {
     }
 
     private String buildDelegationKey(Long agentId, String task) {
-        String normalizedTask = task == null ? "" : task.replaceAll("\\s+", " ").trim().toLowerCase();
+        String normalizedTask = normalizeTask(task);
         return agentId + "::" + normalizedTask;
+    }
+
+    private String normalizeTask(String task) {
+        if (task == null) {
+            return "";
+        }
+        String normalized = task.toLowerCase()
+                .replaceAll("[\\p{Punct}]+", " ")
+                .replaceAll("\\s+", " ")
+                .trim();
+        int maxLength = 500;
+        return normalized.substring(0, Math.min(maxLength, normalized.length()));
     }
 
     private String findAgentName(OrchestrationContext context, Long agentId) {

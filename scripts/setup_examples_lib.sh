@@ -4,6 +4,22 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_BASE_URL="${SQUAD_API_BASE_URL:-http://localhost:8080/api/v1}"
 
+# Agent 생성에 사용할 Claude API Key (이 변수에 읽어 저장)
+SQUAD_CLAUDE_API_KEY="${CLAUDE_API_KEY:-}"
+
+read_api_key() {
+  if [[ -n "${SQUAD_CLAUDE_API_KEY:-}" ]]; then
+    return
+  fi
+  echo -n "Claude API Key를 입력하세요 (입력값은 화면에 표시되지 않습니다): " >&2
+  read -rs SQUAD_CLAUDE_API_KEY || true
+  echo >&2
+  if [[ -z "${SQUAD_CLAUDE_API_KEY:-}" ]]; then
+    echo "[ERROR] Claude API Key가 입력되지 않았습니다." >&2
+    exit 1
+  fi
+}
+
 require_command() {
   command -v "$1" >/dev/null 2>&1 || {
     echo "[ERROR] Required command not found: $1" >&2
@@ -84,7 +100,8 @@ create_agent() {
   "role": "$role_prompt",
   "llmConfig": {
     "provider": "claude",
-    "model": "$model"
+    "model": "$model",
+    "apiKey": "$SQUAD_CLAUDE_API_KEY"
   }
 }
 JSON
@@ -199,3 +216,4 @@ print_summary() {
 require_command curl
 require_command python3
 ensure_server_ready
+read_api_key

@@ -18,6 +18,7 @@ import com.squad.messaging.MessageSubscriber;
 import com.squad.messaging.SessionMessage;
 import com.squad.messaging.Subscription;
 import com.squad.monitoring.SessionEventPublisher;
+import com.squad.secret.service.SecretService;
 import com.squad.session.domain.MessageType;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -56,6 +57,9 @@ class WorkerServiceTest {
     @Mock
     private Subscription subscription;
 
+    @Mock
+    private SecretService secretService;
+
     private LlmToolUseService llmToolUseService;
     private LlmProvider llmProvider;
     private WorkerService workerService;
@@ -78,7 +82,7 @@ class WorkerServiceTest {
 
         workerService = new WorkerService(
                 llmToolUseService, builtInToolRegistry, mcpToolRegistry,
-                messageRouter, messageSubscriber, sessionEventPublisher);
+                messageRouter, messageSubscriber, sessionEventPublisher, secretService);
 
         worker = Agent.builder()
                 .id(2L)

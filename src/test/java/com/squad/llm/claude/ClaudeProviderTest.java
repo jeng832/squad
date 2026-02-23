@@ -52,7 +52,8 @@ class ClaudeProviderTest {
                 List.of(new LlmMessage("user", "hi")),
                 null,
                 null,
-                List.of(new LlmTool("tool", "desc", Map.of("type", "object")))
+                List.of(new LlmTool("tool", "desc", Map.of("type", "object"))),
+                null
         );
 
         LlmResponse response = provider.sendMessage(request);
@@ -103,7 +104,8 @@ class ClaudeProviderTest {
                 List.of(new LlmMessage("user", "hi")),
                 null,
                 null,
-                List.of(new LlmTool("tool", "desc", Map.of("type", "object")))
+                List.of(new LlmTool("tool", "desc", Map.of("type", "object"))),
+                null
         );
 
         LlmResponse response = provider.sendMessage(request);

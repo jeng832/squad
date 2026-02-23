@@ -83,10 +83,14 @@ public class ClaudeProvider implements LlmProvider {
 
         for (int attempt = 1; attempt <= maxAttempts; attempt++) {
             try {
-                Object result = webClient.post()
+                var requestSpec = webClient.post()
                         .uri(MESSAGES_PATH)
                         .contentType(MediaType.APPLICATION_JSON)
-                        .header("anthropic-version", DEFAULT_API_VERSION)
+                        .header("anthropic-version", DEFAULT_API_VERSION);
+                if (request.apiKey() != null && !request.apiKey().isBlank()) {
+                    requestSpec = requestSpec.header("x-api-key", request.apiKey());
+                }
+                Object result = requestSpec
                         .body(BodyInserters.fromValue(body))
                         .exchangeToMono(resp -> {
                             if (resp.statusCode().isError()) {

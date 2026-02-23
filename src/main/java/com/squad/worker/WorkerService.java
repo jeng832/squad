@@ -11,6 +11,7 @@ import com.squad.messaging.MessageSubscriber;
 import com.squad.messaging.SessionMessage;
 import com.squad.messaging.Subscription;
 import com.squad.monitoring.SessionEventPublisher;
+import com.squad.secret.service.SecretService;
 import com.squad.session.domain.MessageType;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -52,6 +53,7 @@ public class WorkerService {
     private final MessageRouter messageRouter;
     private final MessageSubscriber messageSubscriber;
     private final SessionEventPublisher sessionEventPublisher;
+    private final SecretService secretService;
 
     private final Map<String, WorkerContext> activeWorkers = new ConcurrentHashMap<>();
 
@@ -158,7 +160,8 @@ public class WorkerService {
                 buildSystemPrompt(agent),
                 context.getMessages(),
                 null, null,
-                tools
+                tools,
+                extractApiKey(agent)
         );
 
         ToolExecutionContextHolder.set(context.getSessionId(), agent.getId());
@@ -240,6 +243,28 @@ public class WorkerService {
         Map<String, Object> llmConfig = agent.getLlmConfig();
         Object model = llmConfig.get("model");
         return model != null ? model.toString() : null;
+    }
+
+    /**
+     * Agent의 llmConfig에서 API 키를 추출한다.
+     *
+     * <p>{@code ref:secret/<name>} 형식이면 {@link SecretService}로 실제 값을 조회한다.
+     * apiKey가 없거나 비어 있으면 null을 반환하여 Provider 전역 키(fallback)를 사용하게 한다.</p>
+     *
+     * @param agent API 키를 추출할 Agent
+     * @return 복호화된 API 키, 없으면 null
+     */
+    private String extractApiKey(Agent agent) {
+        Map<String, Object> llmConfig = agent.getLlmConfig();
+        Object apiKey = llmConfig.get("apiKey");
+        if (apiKey == null || apiKey.toString().isBlank()) {
+            return null;
+        }
+        String apiKeyStr = apiKey.toString();
+        if (apiKeyStr.startsWith("ref:secret/")) {
+            return secretService.resolveSecret(apiKeyStr);
+        }
+        return apiKeyStr;
     }
 
     private String workerKey(Long sessionId, Long agentId) {

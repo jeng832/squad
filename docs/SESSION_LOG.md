@@ -1,5 +1,26 @@
 # 세션 로그
 
+## 2026-02-24
+
+### 작업 내용
+
+#### 이슈 #67: Agent별 API Key를 LLM 호출에 동적으로 적용
+- PR: [#73](https://github.com/jeng832/squad/pull/73)
+- 이슈: [#67](https://github.com/jeng832/squad/issues/67)
+- 브랜치: `feature/67-agent-api-key-llm-integration` (main 최신 기준 생성)
+
+**주요 변경사항:**
+- `LlmRequest`에 `apiKey` 필드 추가 (null이면 전역 키 fallback)
+- `ClaudeProvider`에서 요청별 `x-api-key` 헤더 동적 설정 (`headers().set()`으로 중복 방지)
+- `LlmToolUseService` tool_use 재호출 시 `apiKey` 전파
+- `OrchestratorService` / `WorkerService`에서 `llmConfig.apiKey` 추출 및 `ref:secret/` 형식이면 `SecretService.resolveSecret()`으로 복호화 후 LLM 호출
+
+**codex-cli 코드 리뷰 결과:**
+- 1차 리뷰: P1 이슈 - `header()` 추가 방식이 전역 키와 중복됨 → `headers(h -> h.set(...))`으로 수정
+- 2차 리뷰: 추가 수정 사항 없음 (LGTM)
+
+---
+
 ## 2026-02-19
 
 ### 작업 내용

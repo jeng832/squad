@@ -73,7 +73,8 @@ class OrchestratorServiceTest {
                 .name("Orchestrator")
                 .roleType(RoleType.ORCHESTRATOR)
                 .role("작업을 분배하고 조율합니다")
-                .llmConfig(Map.of("provider", "claude", "model", "claude-sonnet-4-20250514"))
+                .llmConfig(Map.of("provider", "claude", "model", "claude-sonnet-4-20250514",
+                        "apiKey", "sk-test-key"))
                 .build();
 
         worker = Agent.builder()
@@ -81,7 +82,7 @@ class OrchestratorServiceTest {
                 .name("Worker")
                 .roleType(RoleType.WORKER)
                 .role("코드를 작성합니다")
-                .llmConfig(Map.of("provider", "claude"))
+                .llmConfig(Map.of("provider", "claude", "apiKey", "sk-test-key"))
                 .build();
 
         agents = Set.of(worker);

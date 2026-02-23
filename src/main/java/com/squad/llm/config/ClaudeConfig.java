@@ -21,7 +21,6 @@ public class ClaudeConfig {
     public ClaudeProvider claudeProvider(
             WebClient.Builder builder,
             @Value("${squad.llm.claude.base-url:https://api.anthropic.com}") String baseUrl,
-            @Value("${squad.llm.claude.api-key:}") String apiKey,
             @Value("${squad.llm.claude.default-model:claude-sonnet-4-20250514}") String defaultModel,
             @Value("${squad.llm.claude.max-tokens:4096}") int defaultMaxTokens,
             @Value("${squad.llm.claude.timeout:60000}") long timeoutMillis,
@@ -30,16 +29,13 @@ public class ClaudeConfig {
             @Value("${squad.llm.claude.retry.max-backoff:2000}") long maxBackoffMillis,
             @Value("${squad.llm.claude.retry.jitter:0.2}") double jitterRatio
     ) {
-        boolean hasKey = apiKey != null && !apiKey.isBlank();
-        log.info("Claude API 설정: baseUrl={}, model={}, apiKey={}", baseUrl, defaultModel,
-                hasKey ? apiKey.substring(0, Math.min(10, apiKey.length())) + "..." : "(미설정)");
+        log.info("Claude API 설정: baseUrl={}, model={}", baseUrl, defaultModel);
 
         HttpClient httpClient = HttpClient.create()
                 .responseTimeout(Duration.ofMillis(timeoutMillis));
 
         WebClient webClient = builder
                 .baseUrl(baseUrl)
-                .defaultHeader("x-api-key", apiKey)
                 .defaultHeader("Content-Type", "application/json")
                 .clientConnector(new ReactorClientHttpConnector(httpClient))
                 .build();

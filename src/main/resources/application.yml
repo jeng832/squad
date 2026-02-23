@@ -93,7 +93,6 @@ squad:
   # LLM Configuration
   llm:
     claude:
-      api-key: ${CLAUDE_API_KEY:}
       base-url: https://api.anthropic.com
       default-model: claude-sonnet-4-20250514
       max-tokens: 4096

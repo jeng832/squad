@@ -89,7 +89,8 @@ class WorkerServiceTest {
                 .name("Worker")
                 .roleType(RoleType.WORKER)
                 .role("코드를 작성합니다")
-                .llmConfig(Map.of("provider", "claude", "model", "claude-sonnet-4-20250514"))
+                .llmConfig(Map.of("provider", "claude", "model", "claude-sonnet-4-20250514",
+                        "apiKey", "sk-test-key"))
                 .build();
     }
 

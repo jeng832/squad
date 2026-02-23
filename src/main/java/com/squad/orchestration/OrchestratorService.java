@@ -432,7 +432,8 @@ public class OrchestratorService {
         Map<String, Object> llmConfig = agent.getLlmConfig();
         Object apiKey = llmConfig.get("apiKey");
         if (apiKey == null || apiKey.toString().isBlank()) {
-            return null;
+            throw new IllegalStateException(
+                    "Agent의 llmConfig에 apiKey가 설정되지 않았습니다: agentId=" + agent.getId());
         }
         String apiKeyStr = apiKey.toString();
         if (apiKeyStr.startsWith("ref:secret/")) {

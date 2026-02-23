@@ -10,14 +10,25 @@
 - 브랜치: `feature/67-agent-api-key-llm-integration` (main 최신 기준 생성)
 
 **주요 변경사항:**
-- `LlmRequest`에 `apiKey` 필드 추가 (null이면 전역 키 fallback)
+- `LlmRequest`에 `apiKey` 필드 추가
 - `ClaudeProvider`에서 요청별 `x-api-key` 헤더 동적 설정 (`headers().set()`으로 중복 방지)
 - `LlmToolUseService` tool_use 재호출 시 `apiKey` 전파
 - `OrchestratorService` / `WorkerService`에서 `llmConfig.apiKey` 추출 및 `ref:secret/` 형식이면 `SecretService.resolveSecret()`으로 복호화 후 LLM 호출
+  - `apiKey` 없으면 `IllegalStateException` 발생 (전역 fallback 완전 제거)
+- `AgentService`: `create()` / `update()` 시 `llmConfig.apiKey` 필수 검증 추가 (없으면 `ValidationException`)
+- `ClaudeConfig`: 전역 `x-api-key` defaultHeader 제거
+- `application.yml`: `CLAUDE_API_KEY` 환경변수 항목 제거
+- `scripts/setup_examples_lib.sh`: Agent 생성 시 API 키를 `read -s`로 수동 입력받도록 변경
+  - `CLAUDE_API_KEY` 환경변수가 미리 설정된 경우 입력 생략
 
 **codex-cli 코드 리뷰 결과:**
 - 1차 리뷰: P1 이슈 - `header()` 추가 방식이 전역 키와 중복됨 → `headers(h -> h.set(...))`으로 수정
 - 2차 리뷰: 추가 수정 사항 없음 (LGTM)
+
+**보안 스캔 결과:**
+- 실제 API 키 / 비밀번호 하드코딩 없음
+- 테스트 코드의 `sk-test-key`는 더미값 (무해)
+- `SECRET_ENCRYPTION_KEY` 기본값은 개발 전용, 운영 시 환경변수 교체 필요 (기존 주석 경고 있음)
 
 ---
 

@@ -88,7 +88,7 @@ public class ClaudeProvider implements LlmProvider {
                         .contentType(MediaType.APPLICATION_JSON)
                         .header("anthropic-version", DEFAULT_API_VERSION);
                 if (request.apiKey() != null && !request.apiKey().isBlank()) {
-                    requestSpec = requestSpec.header("x-api-key", request.apiKey());
+                    requestSpec = requestSpec.headers(h -> h.set("x-api-key", request.apiKey()));
                 }
                 Object result = requestSpec
                         .body(BodyInserters.fromValue(body))

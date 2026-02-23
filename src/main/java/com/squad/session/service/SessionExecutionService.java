@@ -116,6 +116,10 @@ public class SessionExecutionService {
         String sessionIdStr = String.valueOf(session.getId());
         Agent orchestrator = squad.getOrchestrator();
         List<String> startedContainerIds = new ArrayList<>();
+        List<Long> agentIds = squad.getAgents().stream().map(Agent::getId).toList();
+
+        // 동일 sessionId의 잔여 컨테이너가 있으면 시작 전에 정리한다.
+        cleanupContainersByAgentIds(session.getId(), agentIds);
 
         try {
             String orchestratorContainerId = startAgentContainer(sessionIdStr, orchestrator, session);
@@ -231,9 +235,7 @@ public class SessionExecutionService {
                         "완료된 세션은 취소할 수 없습니다.");
             }
 
-            List<Long> ids = s.getStatus() == SessionStatus.RUNNING
-                    ? s.getSquad().getAgents().stream().map(Agent::getId).toList()
-                    : List.of();
+            List<Long> ids = s.getSquad().getAgents().stream().map(Agent::getId).toList();
 
             s.cancel();
             return ids;

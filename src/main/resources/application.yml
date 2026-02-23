@@ -69,6 +69,14 @@ management:
 
 # Logging Configuration
 logging:
+  file:
+    name: ${LOG_FILE:./logs/squad.log}
+  logback:
+    rollingpolicy:
+      max-file-size: ${LOG_MAX_FILE_SIZE:20MB}
+      max-history: ${LOG_MAX_HISTORY:14}
+      total-size-cap: ${LOG_TOTAL_SIZE_CAP:1GB}
+      file-name-pattern: ${LOG_FILE_PATTERN:./logs/squad.%d{yyyy-MM-dd}.%i.log.gz}
   level:
     root: INFO
     com.squad: DEBUG
@@ -104,7 +112,7 @@ squad:
   docker:
     host: ${DOCKER_HOST:unix:///var/run/docker.sock}
     network: squad-network
-    agent-image: squad-agent:latest
+    agent-image: ${SQUAD_AGENT_IMAGE:squad-agent:latest}
 
   # WebSocket Configuration
   websocket:
@@ -118,3 +126,7 @@ squad:
         success: 0  # 즉시 삭제
         failed: 86400  # 24시간 (초)
         cancelled: 3600  # 1시간 (초)
+
+  # Built-in Tool Configuration
+  builtin-tools:
+    workspace-root: ${BUILTIN_TOOLS_WORKSPACE_ROOT:/tmp/squad-workspace}

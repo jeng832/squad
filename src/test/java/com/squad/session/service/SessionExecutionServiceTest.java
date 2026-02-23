@@ -73,6 +73,8 @@ class SessionExecutionServiceTest {
 
     @BeforeEach
     void setUp() {
+        lenient().doAnswer(invocation -> invocation.getArgument(0, org.springframework.transaction.support.TransactionCallback.class).doInTransaction(null))
+                .when(transactionTemplate).execute(any());
         lenient().doAnswer(invocation -> {
             invocation.getArgument(0, java.util.function.Consumer.class).accept(null);
             return null;
@@ -431,5 +433,48 @@ class SessionExecutionServiceTest {
         assertThat(response.status()).isEqualTo(SessionStatus.RUNNING);
         verify(containerLifecycleManager, times(1)).createAndStartContainer(anyString(), anyString(), anyList());
         verify(messagePublisher).sendToAgent(any(SessionMessage.class));
+    }
+
+    @Test
+    @DisplayName("세션 시작 전 동일 sessionId 컨테이너를 선정리한다")
+    void startPreCleansSessionContainers() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Agent worker = createAgent(20L, "worker", RoleType.WORKER);
+        Squad squad = createSquad(orchestrator, Set.of(orchestrator, worker));
+        Session session = createPendingSession(squad);
+
+        given(sessionRepository.findById(1L)).willReturn(Optional.of(session));
+        given(containerLifecycleManager.buildContainerName("1", "10")).willReturn("squad-1-10");
+        given(containerLifecycleManager.buildContainerName("1", "20")).willReturn("squad-1-20");
+        given(containerLifecycleManager.createAndStartContainer(eq("1"), eq("10"), anyList()))
+                .willReturn("container-orchestrator");
+        given(containerLifecycleManager.createAndStartContainer(eq("1"), eq("20"), anyList()))
+                .willReturn("container-worker");
+
+        sessionExecutionService.start(1L);
+
+        verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-10");
+        verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-20");
+    }
+
+    @Test
+    @DisplayName("PENDING 세션 취소도 해당 sessionId 컨테이너를 정리한다")
+    void cancelPendingAlsoCleansContainers() {
+        Agent orchestrator = createAgent(10L, "orchestrator", RoleType.ORCHESTRATOR);
+        Agent worker = createAgent(20L, "worker", RoleType.WORKER);
+        Squad squad = createSquad(orchestrator, Set.of(orchestrator, worker));
+        Session pending = createPendingSession(squad);
+
+        given(sessionRepository.findById(1L))
+                .willReturn(Optional.of(pending))
+                .willReturn(Optional.of(pending));
+        given(containerLifecycleManager.buildContainerName("1", "10")).willReturn("squad-1-10");
+        given(containerLifecycleManager.buildContainerName("1", "20")).willReturn("squad-1-20");
+
+        SessionResponse response = sessionExecutionService.cancel(1L);
+
+        assertThat(response.status()).isEqualTo(SessionStatus.CANCELLED);
+        verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-10");
+        verify(containerLifecycleManager).stopAndRemoveContainer("squad-1-20");
     }
 }

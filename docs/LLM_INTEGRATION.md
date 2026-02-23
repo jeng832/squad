@@ -70,8 +70,10 @@ Claude의 Tool Use는 **요청 시 tools 목록을 선언**하고, 응답에서 
 
 Squad의 `bash_exec`는 보안상 제한된 내장 도구다. 에이전트가 사용할 수 있는 명령은 아래 allowlist로 제한된다.
 
-- `cat`, `cp`, `echo`, `grep`, `head`, `ls`, `mkdir`, `mv`, `pwd`, `tail`, `touch`, `wc`
-- `find`가 필요하면 `bash_exec`가 아니라 `file_search` 도구를 사용해야 한다.
+- `awk`, `cat`, `cp`, `cut`, `diff`, `echo`, `file`, `find`, `git`, `grep`, `head`, `ls`, `mkdir`, `mv`, `pwd`, `sed`, `sort`, `stat`, `tail`, `touch`, `tr`, `tree`, `uniq`, `wc`, `xargs`
+- shell operator(`|`, `&&`, `;`, `` ` ``, `$`, `<`, `>`)는 금지된다.
+- Built-in Tool은 Agent 컨테이너 내부 `/workspace` 기준으로 실행된다.
+- 대량 파일 탐색은 `bash_exec find`보다 `file_search`를 우선 사용하도록 프롬프트에서 유도하는 것이 안정적이다.
 
 **Request 예시:**
 ```json

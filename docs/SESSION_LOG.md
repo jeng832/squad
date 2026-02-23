@@ -902,3 +902,27 @@
   - MCP null 처리: create(null→빈리스트), update(null→기존값유지)
   - Secret 이름 수정 불가: `ref:secret/{name}` 참조 깨짐 방지
   - Skill 프롬프트 입력: 에디터/직접입력 2가지 선택 (건너뛰기 없음, 프롬프트 필수)
+
+### 세션 실행 안정화 보완 (컨테이너 내부 Built-in Tool 실행)
+- `BuiltInToolExecutor` 개선:
+  - Worker 실행 스레드 컨텍스트(`sessionId`, `agentId`)를 이용해 대상 컨테이너를 식별
+  - Built-in Tool 호출 시 `docker exec`로 Agent 컨테이너 내부에서 실행하도록 전환
+  - 컨테이너 컨텍스트가 없을 때는 기존 로컬 실행 fallback 유지 (테스트/호환성)
+- `ToolExecutionContextHolder` 추가:
+  - `ThreadLocal`로 현재 tool 실행 대상(session/agent) 저장/해제
+  - `WorkerService.callLlm()`에서 `sendWithToolUse()` 전후 set/clear 적용
+- `AgentToolCliApplication` 추가:
+  - 컨테이너 내부에서 `file_read/file_write/file_search/bash_exec`를 직접 실행하는 CLI 진입점
+  - `/workspace` 기준으로 실행 결과 출력
+- Health check race-condition 완화:
+  - `DockerContainerManager.getState()`에서 `NotFoundException`을 정상 경쟁상태로 간주해 무시
+  - `ContainerLifecycleManager.stopAndRemoveContainer()`에서 `NotModifiedException`(이미 중지) 무시 후 제거 진행
+- 설정/문서 보강:
+  - Built-in workspace 기본값 `/tmp/squad-workspace` 적용 및 `BUILTIN_TOOLS_WORKSPACE_ROOT` 설정 노출
+  - `QUICK_START.md`에 이미지 재빌드(`--no-cache`) 안내 추가
+  - `LLM_INTEGRATION.md`, `SPEC.md`, `EXAMPLES.md`에 최신 `bash_exec` allowlist/제약 및 `/workspace` 실행 기준 반영
+  - Tool 실행기는 중지 컨테이너를 자동 `start`하지 않도록 정리 (세션 재시작으로 새 컨테이너 생성 원칙)
+  - Health checker는 `exited` 컨테이너를 자동 재시작하지 않도록 변경 (`dead`만 재시작)
+  - Tool 실행 실패 메시지에 컨테이너 상태/exitCode 및 Git clone 인증 실패 가능성 힌트 추가
+  - `squad.docker.agent-image`를 `SQUAD_AGENT_IMAGE` 환경변수로 주입 가능하도록 변경
+  - 컨테이너 시작 로그에 `image/imageId` 출력하여 stale image 진단 강화

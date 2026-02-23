@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerCmd;
 import com.github.dockerjava.api.command.ListContainersCmd;
+import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -54,5 +55,20 @@ class DockerContainerManagerTest {
 
         assertThat(result).isPresent();
         assertThat(result.get().getStatus()).isEqualTo("running");
+    }
+
+    @Test
+    void 존재하지_않는_컨테이너_상태조회는_빈값을_반환한다() {
+        DockerClient dockerClient = Mockito.mock(DockerClient.class);
+        InspectContainerCmd inspectCmd = Mockito.mock(InspectContainerCmd.class);
+
+        when(dockerClient.inspectContainerCmd("missing")).thenReturn(inspectCmd);
+        when(inspectCmd.exec()).thenThrow(new NotFoundException("No such container"));
+
+        DockerContainerManager manager = new DockerContainerManager(dockerClient);
+
+        Optional<InspectContainerResponse.ContainerState> result = manager.getState("missing");
+
+        assertThat(result).isEmpty();
     }
 }

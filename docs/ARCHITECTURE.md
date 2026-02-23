@@ -163,6 +163,16 @@ Squad는 멀티 AI 에이전트 협업 플랫폼으로, 여러 AI 에이전트�
 5. 세션 완료 시 Container 정리
 ```
 
+### 3.2.1 컨테이너 생명주기 운영 규약
+
+- 컨테이너 이름 규칙: `squad-{sessionId}-{agentId}`
+- 생명주기 관리 단위는 `sessionId`이며, 서로 다른 세션은 상호 간섭 없이 동시 실행 가능
+- 세션 시작 시 같은 `sessionId`에 남아있는 컨테이너를 먼저 정리한 뒤 새 컨테이너를 생성
+- Tool 실행기는 컨테이너 실행만 수행하며 `start/restart/create`를 수행하지 않음
+- 컨테이너가 `running`이 아니면 Tool 실행을 즉시 실패시키고 세션 재시작을 안내
+- 세션 `cancel/complete` 시 해당 `sessionId`의 컨테이너를 모두 `stop + remove`
+- Health check는 세션 컨테이너를 자동 재시작하지 않음(`exited/dead`는 로그 관측 대상)
+
 ### 3.3 Agent 간 통신
 
 ```

@@ -66,7 +66,6 @@ public class BuiltInToolExecutor implements LlmToolExecutor {
         this.objectMapper = objectMapper;
     }
 
-    @Autowired
     public BuiltInToolExecutor(
             BuiltInToolRegistry toolRegistry,
             List<BuiltInToolCommand> commands,

@@ -7,6 +7,7 @@ import com.squad.agent.dto.AgentResponse;
 import com.squad.agent.dto.AgentUpdateRequest;
 import com.squad.agent.repository.AgentRepository;
 import com.squad.common.exception.NotFoundException;
+import com.squad.common.exception.ValidationException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -94,7 +95,8 @@ class AgentServiceTest {
     @DisplayName("에이전트를 생성한다")
     void create() {
         AgentCreateRequest request = new AgentCreateRequest(
-                "new-agent", RoleType.WORKER, "역할 설명", Map.of("provider", "claude")
+                "new-agent", RoleType.WORKER, "역할 설명",
+                Map.of("provider", "claude", "apiKey", "ref:secret/claude-key")
         );
         Agent saved = createAgent(1L, "new-agent", RoleType.WORKER);
         given(agentRepository.save(any(Agent.class))).willReturn(saved);
@@ -107,17 +109,44 @@ class AgentServiceTest {
     }
 
     @Test
+    @DisplayName("apiKey 없이 에이전트 생성 시 ValidationException 발생")
+    void createWithoutApiKeyThrows() {
+        AgentCreateRequest request = new AgentCreateRequest(
+                "new-agent", RoleType.WORKER, "역할 설명", Map.of("provider", "claude")
+        );
+
+        assertThatThrownBy(() -> agentService.create(request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("apiKey");
+    }
+
+    @Test
     @DisplayName("에이전트를 수정한다")
     void update() {
         Agent agent = createAgent(1L, "agent-1", RoleType.WORKER);
         given(agentRepository.findById(1L)).willReturn(Optional.of(agent));
         AgentUpdateRequest request = new AgentUpdateRequest(
-                "updated-agent", "수정된 역할", Map.of("provider", "openai")
+                "updated-agent", "수정된 역할",
+                Map.of("provider", "claude", "apiKey", "ref:secret/claude-key")
         );
 
         AgentResponse result = agentService.update(1L, request);
 
         assertThat(result.name()).isEqualTo("updated-agent");
+    }
+
+    @Test
+    @DisplayName("apiKey 없이 에이전트 수정 시 ValidationException 발생")
+    void updateWithoutApiKeyThrows() {
+        Agent agent = createAgent(1L, "agent-1", RoleType.WORKER);
+        given(agentRepository.findById(1L)).willReturn(Optional.of(agent));
+        AgentUpdateRequest request = new AgentUpdateRequest(
+                "updated-agent", "수정된 역할", Map.of("provider", "claude")
+        );
+
+        assertThatThrownBy(() -> agentService.update(1L, request))
+                .isInstanceOf(ValidationException.class)
+                .hasMessageContaining("apiKey");
     }
 
     @Test
@@ -156,7 +185,7 @@ class AgentServiceTest {
         Agent agent = createAgent(1L, "agent-1", RoleType.WORKER);
         given(agentRepository.findById(1L)).willReturn(Optional.of(agent));
         AgentUpdateRequest request = new AgentUpdateRequest(
-                "updated", "새 역할", Map.of("model", "gpt-4")
+                "updated", "새 역할", Map.of("model", "gpt-4", "apiKey", "ref:secret/key")
         );
 
         agentService.update(1L, request);

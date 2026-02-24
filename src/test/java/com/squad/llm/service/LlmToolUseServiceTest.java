@@ -39,7 +39,7 @@ class LlmToolUseServiceTest {
         LlmRequest request = new LlmRequest(
                 null, "sys",
                 List.of(new LlmMessage("user", "hi")),
-                null, null, null
+                null, null, null, null
         );
 
         LlmResponse response = service.sendWithToolUse("claude", request);
@@ -65,7 +65,7 @@ class LlmToolUseServiceTest {
         LlmRequest request = new LlmRequest(
                 null, "sys",
                 List.of(new LlmMessage("user", "hi")),
-                null, null, null
+                null, null, null, null
         );
 
         LlmResponse response = service.sendWithToolUse("claude", request);
@@ -96,7 +96,7 @@ class LlmToolUseServiceTest {
         LlmRequest request = new LlmRequest(
                 null, "sys",
                 List.of(new LlmMessage("user", "hi")),
-                null, null, null
+                null, null, null, null
         );
 
         LlmResponse response = service.sendWithToolUse("claude", request);
@@ -124,7 +124,7 @@ class LlmToolUseServiceTest {
         LlmRequest request = new LlmRequest(
                 null, "sys",
                 List.of(new LlmMessage("user", "hi")),
-                null, null, null
+                null, null, null, null
         );
 
         LlmResponse response = service.sendWithToolUse("claude", request);
@@ -152,7 +152,7 @@ class LlmToolUseServiceTest {
         LlmRequest request = new LlmRequest(
                 null, "sys",
                 List.of(new LlmMessage("user", "시작")),
-                null, null, null
+                null, null, null, null
         );
 
         service.sendWithToolUse("claude", request);
@@ -178,7 +178,7 @@ class LlmToolUseServiceTest {
         LlmRequest request = new LlmRequest(
                 null, "sys",
                 List.of(new LlmMessage("user", "hi")),
-                null, null, null
+                null, null, null, null
         );
 
         assertThatThrownBy(() -> service.sendWithToolUse("unknown-provider", request))

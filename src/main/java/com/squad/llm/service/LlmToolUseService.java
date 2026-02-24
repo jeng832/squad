@@ -87,7 +87,8 @@ public class LlmToolUseService {
                     List.copyOf(accumulatedMessages),
                     request.maxTokens(),
                     request.temperature(),
-                    request.tools()
+                    request.tools(),
+                    request.apiKey()
             );
 
             response = provider.sendMessage(followUp);

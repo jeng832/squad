@@ -4,20 +4,57 @@ set -euo pipefail
 ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 API_BASE_URL="${SQUAD_API_BASE_URL:-http://localhost:8080/api/v1}"
 
-# Agent 생성에 사용할 Claude API Key (이 변수에 읽어 저장)
-SQUAD_CLAUDE_API_KEY="${CLAUDE_API_KEY:-}"
+# Agent llmConfig에 사용할 Secret 참조값 (ref:secret/<name> 형식)
+SQUAD_CLAUDE_API_KEY_REF=""
 
-read_api_key() {
-  if [[ -n "${SQUAD_CLAUDE_API_KEY:-}" ]]; then
+find_secret_by_name() {
+  local name="$1"
+  api_get "/secrets" | python3 -c "
+import json,sys
+name=sys.argv[1]
+raw=sys.stdin.read()
+if not raw.strip():
+    raise SystemExit('empty response body from /secrets')
+obj=json.loads(raw)
+for s in obj.get('data', []):
+    if s.get('name') == name:
+        print(json.dumps(s))
+        break
+" "$name"
+}
+
+setup_api_key_secret() {
+  local secret_name
+  echo -n "Secret 이름을 입력하세요 (기본값: claude-api-key): " >&2
+  read -r secret_name || true
+  echo >&2
+  secret_name="${secret_name:-claude-api-key}"
+
+  local found
+  found="$(find_secret_by_name "$secret_name")"
+  if [[ -n "$found" ]]; then
+    echo "[INFO] '$secret_name' Secret이 이미 존재합니다. 기존 Secret을 사용합니다." >&2
+    SQUAD_CLAUDE_API_KEY_REF="ref:secret/$secret_name"
     return
   fi
+
+  local api_key
   echo -n "Claude API Key를 입력하세요 (입력값은 화면에 표시되지 않습니다): " >&2
-  read -rs SQUAD_CLAUDE_API_KEY || true
+  read -rs api_key || true
   echo >&2
-  if [[ -z "${SQUAD_CLAUDE_API_KEY:-}" ]]; then
+  if [[ -z "${api_key:-}" ]]; then
     echo "[ERROR] Claude API Key가 입력되지 않았습니다." >&2
     exit 1
   fi
+
+  local payload
+  payload=$(cat <<JSON
+{"name": "$secret_name", "value": "$api_key"}
+JSON
+)
+  api_post "/secrets" "$payload" >/dev/null
+  echo "[INFO] Secret '$secret_name'이 생성되었습니다." >&2
+  SQUAD_CLAUDE_API_KEY_REF="ref:secret/$secret_name"
 }
 
 require_command() {
@@ -101,7 +138,7 @@ create_agent() {
   "llmConfig": {
     "provider": "claude",
     "model": "$model",
-    "apiKey": "$SQUAD_CLAUDE_API_KEY"
+    "apiKey": "$SQUAD_CLAUDE_API_KEY_REF"
   }
 }
 JSON
@@ -216,4 +253,4 @@ print_summary() {
 require_command curl
 require_command python3
 ensure_server_ready
-read_api_key
+setup_api_key_secret

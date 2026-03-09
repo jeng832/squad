@@ -100,6 +100,45 @@ docker build -f docker/agent/Dockerfile -t squad-agent:latest .
 squad agent list
 ```
 
+### MCP 서버로 사용 (Issue #61)
+
+Squad를 외부 AI 도구(Claude Code, Codex CLI, Cursor 등)에서 MCP 서버로 호출하려면 `squad-mcp-server`를 실행한다.
+
+```bash
+# MCP 서버 jar 빌드
+./gradlew :squad-cli:bootJar -PmcpServer=true
+
+# MCP stdio 서버 실행 (기본 URL: http://localhost:8080)
+java -jar squad-cli/build/libs/squad-mcp-server-0.0.1-SNAPSHOT.jar \
+  --squad.cli.server-url=http://localhost:8080
+```
+
+MCP 클라이언트 설정 예시:
+
+```json
+{
+  "mcpServers": {
+    "squad": {
+      "command": "java",
+      "args": [
+        "-jar",
+        "/absolute/path/to/squad-cli/build/libs/squad-mcp-server-0.0.1-SNAPSHOT.jar",
+        "--squad.cli.server-url=http://localhost:8080"
+      ]
+    }
+  }
+}
+```
+
+제공 도구:
+- `squad_health`
+- `squad_list_agents`
+- `squad_list_squads`
+- `squad_list_sessions`
+- `squad_get_session`
+- `squad_get_session_messages`
+- `squad_run_session`
+
 ### 주요 슬래시 커맨드
 
 | 커맨드 | 설명 |

@@ -52,7 +52,16 @@ tasks.named('test') {
     useJUnitPlatform()
 }
 
+def buildMcpServer = providers.gradleProperty('mcpServer')
+        .map { it.toBoolean() }
+        .orElse(false)
+
 tasks.named('bootJar') {
-    archiveBaseName = 'squad-cli'
-    mainClass = 'com.squad.cli.SquadCliApplication'
+    if (buildMcpServer.get()) {
+        archiveBaseName = 'squad-mcp-server'
+        mainClass = 'com.squad.cli.mcp.SquadMcpServerApplication'
+    } else {
+        archiveBaseName = 'squad-cli'
+        mainClass = 'com.squad.cli.SquadCliApplication'
+    }
 }

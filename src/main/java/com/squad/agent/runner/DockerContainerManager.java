@@ -3,6 +3,7 @@ package com.squad.agent.runner;
 import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.model.Container;
 import com.github.dockerjava.api.command.InspectContainerResponse;
+import com.github.dockerjava.api.exception.InternalServerErrorException;
 import com.github.dockerjava.api.exception.NotFoundException;
 import org.springframework.stereotype.Service;
 
@@ -46,7 +47,7 @@ public class DockerContainerManager {
         }
         try {
             return Optional.ofNullable(dockerClient.inspectContainerCmd(id).exec().getState());
-        } catch (NotFoundException e) {
+        } catch (NotFoundException | InternalServerErrorException e) {
             // 점검 시점에 컨테이너가 이미 제거된 경우는 정상 race condition으로 본다.
             return Optional.empty();
         }

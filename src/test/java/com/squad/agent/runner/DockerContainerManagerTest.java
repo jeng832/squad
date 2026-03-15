@@ -4,6 +4,7 @@ import com.github.dockerjava.api.DockerClient;
 import com.github.dockerjava.api.command.InspectContainerResponse;
 import com.github.dockerjava.api.command.InspectContainerCmd;
 import com.github.dockerjava.api.command.ListContainersCmd;
+import com.github.dockerjava.api.exception.InternalServerErrorException;
 import com.github.dockerjava.api.exception.NotFoundException;
 import com.github.dockerjava.api.model.Container;
 import org.junit.jupiter.api.Test;
@@ -68,6 +69,21 @@ class DockerContainerManagerTest {
         DockerContainerManager manager = new DockerContainerManager(dockerClient);
 
         Optional<InspectContainerResponse.ContainerState> result = manager.getState("missing");
+
+        assertThat(result).isEmpty();
+    }
+
+    @Test
+    void 삭제중인_컨테이너_상태조회는_빈값을_반환한다() {
+        DockerClient dockerClient = Mockito.mock(DockerClient.class);
+        InspectContainerCmd inspectCmd = Mockito.mock(InspectContainerCmd.class);
+
+        when(dockerClient.inspectContainerCmd("removing")).thenReturn(inspectCmd);
+        when(inspectCmd.exec()).thenThrow(new InternalServerErrorException("container is marked for removal"));
+
+        DockerContainerManager manager = new DockerContainerManager(dockerClient);
+
+        Optional<InspectContainerResponse.ContainerState> result = manager.getState("removing");
 
         assertThat(result).isEmpty();
     }
